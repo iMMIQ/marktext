@@ -23,6 +23,11 @@ test('renderer exposes the native bridge contract', async () => {
 test('custom title bar actions route through mtNative.window', async () => {
   const { app, page } = await launchElectron()
   const platform = await app.evaluate(() => process.platform)
+  if (platform === 'darwin') {
+    await page.waitForSelector('.title-bar .title')
+  } else {
+    await page.waitForSelector('.frameless-titlebar-minimize')
+  }
   const windowState = await page.evaluate(() => window.mtNative.window.getState())
   const bridgeCall = await page.evaluate(async () => {
     const isMacOS = window.navigator.platform.toLowerCase().includes('mac')

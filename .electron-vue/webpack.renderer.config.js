@@ -190,6 +190,7 @@ const rendererConfig = {
     filename: '[name].js',
     libraryTarget: 'commonjs2',
     path: path.join(__dirname, '../dist/electron'),
+    publicPath: isProduction ? './' : '/',
     assetModuleFilename: 'assets/[name].[contenthash:8][ext]',
     asyncChunks: true
   },

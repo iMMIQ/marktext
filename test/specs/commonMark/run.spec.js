@@ -13,9 +13,30 @@ const options = { ignoreSelfClosingSlash: true, ignoreAttributes: ['id', 'class'
 const htmlDiffer = new HtmlDiffer(options)
 
 const getSpecs = async () => {
-  const version = await fetch('https://raw.githubusercontent.com/commonmark/commonmark.js/master/package.json')
-    .then(res => res.json())
-    .then(pkg => pkg.version.replace(/^(\d+\.\d+).*$/, '$1'))
+  const version = await fetch('https://spec.commonmark.org/')
+    .then(res => res.text())
+    .then(html => {
+      const versions = [...html.matchAll(/href="(\d+\.\d+(?:\.\d+)?)\/spec\.json"/g)].map(match => match[1])
+
+      if (!versions.length) {
+        throw new Error('No CommonMark spec version found')
+      }
+
+      return versions.sort((a, b) => {
+        const aParts = a.split('.').map(Number)
+        const bParts = b.split('.').map(Number)
+        const length = Math.max(aParts.length, bParts.length)
+
+        for (let i = 0; i < length; i++) {
+          const diff = (bParts[i] || 0) - (aParts[i] || 0)
+          if (diff !== 0) {
+            return diff
+          }
+        }
+
+        return 0
+      })[0]
+    })
 
   return fetch(`https://spec.commonmark.org/${version}/spec.json`)
     .then(res => res.json())

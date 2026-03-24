@@ -13,7 +13,7 @@
   - `common/`: Common source files that only require Node.js APIs. Code from this folder can be used in all other folders except `muya`.
   - `main/`: Main process source files that require Electron main-process APIs. `main` files can use `common` source code.
   - `muya/`: MarkTexts backend that only allow pure JavaScript, BOM and DOM APIs. Don't use Electron or Node.js APIs!
-  - `renderer`: Frontend that require Electron renderer-process APIs and may use `common` or `muya` source code.
+  - `renderer`: Frontend for the editor UI. Renderer code may use `common` or `muya`, but system and Electron capabilities must be accessed through `src/renderer/services/nativeApi/*`.
 - `static/`: Application assets (images, themes, etc)
 - `test/`: Contains (unit) tests
 
@@ -29,11 +29,14 @@ Muya provides realtime preview and markdown editing via multiple modules based o
 
 The editor represents the view and is split into two parts. The first is the main process that have full access to Electron and all OS features. It's mainly used for IO, user interaction with native dialogs and controlls the editor windows. The main process should not (be long) blocked by synchronous operations. The renderer process is the real editor and also a host for Muya. It's responsible for all graphical elements (`src/renderer/components`), data (`src/renderer/store`) and data synchronization. A renderer process is spawned for each window, operates on its own and is controlled by the main process. It contains two text editors: the realtime preview editor provided by Muya and the source-code one by CodeMirror with special features such as tabs, sidebar and editing features.
 
+Renderer code must not import `electron` or `@electron/remote` directly. Native interactions go through the renderer facade in `src/renderer/services/nativeApi/*`, which keeps renderer call sites decoupled from the underlying Electron IPC details.
+
 ### Application entry points
 
-There are two entry points to the application:
+There are three runtime entry points to the application:
 
 - `src/main/index.js` for the main process that is executed first and only once per instance. Once the application is initialized, it's safe to access all the environment variables and single-instances and the application (`App`) is started (`src/main/app/index.js`). You can use the application after `App::init()` is run successfully.
+- `src/main/preload/index.js` for the preload bridge. It is bundled to `dist/electron/preload.js` and exposes the renderer-facing native contract on `window.mtNative`.
 - `src/renderer/main.js` for each editor window. At the beginning libraries are loaded, the window is initialized and Vue components are mounted.
 
 ### How Muya work
@@ -47,6 +50,15 @@ TBD
 ### Main- and renderer process communication
 
 Main- and renderer process communicate asynchronously via [inter-process communication (IPC)](code/IPC.md) and it's mainly used for IO and user interaction with native dialogs.
+
+The boundary is now:
+
+- renderer component/store/command
+- `src/renderer/services/nativeApi/*`
+- preload bridge in `src/main/preload/index.js`
+- explicit IPC handlers in `src/main/ipc/renderer/*`
+
+Renderer code should call the facade, not Electron directly. The preload bridge owns access to `ipcRenderer`, `webFrame`, and the `window.mtNative` contract, while the main process owns the matching IPC handlers and BrowserWindow state.
 
 ### Editor window (renderer process)
 

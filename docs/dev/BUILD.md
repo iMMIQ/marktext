@@ -55,3 +55,18 @@ $ yarn run <script> # or npm run <script>
 | `test` / `unit` | Run unit tests                                   |
 
 For more scripts please see `package.json`.
+
+## Build Entry Points
+
+The current build still uses the existing electron-vue webpack pipeline, but it now produces three runtime entry points instead of treating the app as only main + renderer:
+
+- `src/main/index.js` is bundled by `.electron-vue/webpack.main.config.js` to `dist/electron/main.js`.
+- `src/main/preload/index.js` is bundled by the same webpack main config to `dist/electron/preload.js`.
+- `src/renderer/main.js` is bundled by `.electron-vue/webpack.renderer.config.js` to the renderer assets in `dist/electron/`.
+
+`yarn run pack` is the easiest way to rebuild the full runtime boundary:
+
+- `yarn run pack:main` emits both `dist/electron/main.js` and `dist/electron/preload.js`
+- `yarn run pack:renderer` emits the renderer bundle and HTML assets
+
+At runtime, `src/main/config.js` points both BrowserWindow variants at the bundled preload file in `dist/electron/preload.js`. The renderer then consumes native capabilities through the preload-backed facade in `src/renderer/services/nativeApi/*` rather than importing Electron directly.

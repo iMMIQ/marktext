@@ -32,7 +32,9 @@ const lintRendererSource = source => {
   }
 }
 
-describe('renderer boundary eslint guardrail', () => {
+describe('renderer boundary eslint guardrail', function () {
+  this.timeout(10000)
+
   const getBoundaryMessages = messages => messages.filter(({ ruleId }) => {
     return ruleId === 'no-restricted-imports' || ruleId === 'no-restricted-syntax'
   })

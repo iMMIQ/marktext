@@ -23,7 +23,7 @@
     "pack:renderer": "cross-env NODE_ENV=production webpack --progress --config .electron-vue/webpack.renderer.config.js",
     "postinstall": "node .electron-vue/postinstall.js && yarn run rebuild && yarn run lint:fix",
     "test": "yarn run unit && yarn run e2e",
-    "test:specs": "node -r esm test/specs/commonMark/run.spec.js && node -r esm test/specs/gfm/run.spec.js",
+    "test:specs": "cross-env ELECTRON_RUN_AS_NODE=1 electron -r esm test/specs/commonMark/run.spec.js && cross-env ELECTRON_RUN_AS_NODE=1 electron -r esm test/specs/gfm/run.spec.js",
     "unit": "cross-env NODE_ENV=test ELECTRON_DISABLE_SECURITY_WARNINGS=true karma start test/unit/karma.conf.js",
     "preinstall": "node .electron-vue/preinstall.js",
     "build:muya": "cd src/muya && webpack --progress --config webpack.config.js",
