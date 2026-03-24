@@ -1,8 +1,25 @@
+import commandExists from 'command-exists'
 import { rgPath } from 'vscode-ripgrep'
 import EnvPaths from 'common/envPaths'
 
 // // "vscode-ripgrep" is unpacked out of asar because of the binary.
 const rgDiskPath = rgPath.replace(/\bapp\.asar\b/, 'app.asar.unpacked')
+
+export const getRipgrepPath = ({
+  env = process.env,
+  hasCommand = commandExists.sync,
+  bundledRipgrepPath = rgDiskPath
+} = {}) => {
+  if (env.MARKTEXT_RIPGREP_PATH) {
+    return env.MARKTEXT_RIPGREP_PATH
+  }
+
+  if (hasCommand('rg')) {
+    return 'rg'
+  }
+
+  return bundledRipgrepPath
+}
 
 class RendererPaths extends EnvPaths {
   /**
@@ -18,13 +35,9 @@ class RendererPaths extends EnvPaths {
     // Initialize environment paths
     super(userDataPath)
 
-    // Allow to use a local ripgrep binary (e.g. an optimized version).
-    if (process.env.MARKTEXT_RIPGREP_PATH) {
-      // NOTE: Binary must be a compatible version, otherwise the searcher may fail.
-      this._ripgrepBinaryPath = process.env.MARKTEXT_RIPGREP_PATH
-    } else {
-      this._ripgrepBinaryPath = rgDiskPath
-    }
+    // Prefer an explicitly configured ripgrep binary, then a system installation,
+    // and finally the dependency-provided binary.
+    this._ripgrepBinaryPath = getRipgrepPath()
   }
 
   // Returns the path to ripgrep on disk.
