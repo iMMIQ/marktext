@@ -1,7 +1,6 @@
 import './globalSetting'
 import path from 'path'
 import { app, dialog } from 'electron'
-import { initialize as remoteInitializeServer } from '@electron/remote/main'
 import cli from './cli'
 import setupExceptionHandler, { initExceptionLogger } from './exceptionHandler'
 import log from 'electron-log'
@@ -75,10 +74,6 @@ log.transports.file.sync = false
 // -----------------------------------------------
 // Be careful when changing code before this line!
 // NOTE: Do not create classes or other code before this line!
-
-// TODO: We should switch to another async API like https://nornagon.medium.com/electrons-remote-module-considered-harmful-70d69500f31.
-// Enable remote module
-remoteInitializeServer()
 
 const marktext = new App(accessor, args)
 marktext.init()

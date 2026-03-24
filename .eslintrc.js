@@ -56,6 +56,25 @@ module.exports = {
       }
     }
   },
+  overrides: [
+    {
+      files: ['src/renderer/**/*.{js,vue}'],
+      rules: {
+        'no-restricted-imports': ['error', {
+          paths: [
+            {
+              name: 'electron',
+              message: 'Use src/renderer/services/nativeApi instead.'
+            },
+            {
+              name: '@electron/remote',
+              message: 'Use src/renderer/services/nativeApi instead.'
+            }
+          ]
+        }]
+      }
+    }
+  ],
   ignorePatterns: [
     'node_modules',
     'src/muya/dist/**/*',

@@ -1,6 +1,5 @@
 import path from 'path'
 import { BrowserWindow, ipcMain } from 'electron'
-import { enable as remoteEnable } from '@electron/remote/main'
 import { electronLocalshortcut } from '@hfelix/electron-localshortcut'
 import BaseWindow, { WindowLifecycle, WindowType } from './base'
 import { centerWindowOptions } from './utils'
@@ -44,7 +43,6 @@ class SettingWindow extends BaseWindow {
     winOptions.backgroundColor = this._getPreferredBackgroundColor(theme)
 
     let win = this.browserWindow = new BrowserWindow(winOptions)
-    remoteEnable(win.webContents)
     this.id = win.id
 
     // Create a menu for the current window

@@ -1,10 +1,11 @@
 import path from 'path'
-import { ipcRenderer } from 'electron'
 import { addFile, unlinkFile, addDirectory, unlinkDirectory } from './treeCtrl'
 import bus from '../bus'
 import { create, paste, rename } from '../util/fileSystem'
 import { PATH_SEPARATOR } from '../config'
 import notice from '../services/notification'
+import app from '../services/nativeApi/app'
+import events from '../services/nativeApi/events'
 import shell from '../services/nativeApi/shell'
 import { getFileStateFromData } from './help'
 import { hasMarkdownExtension } from '../../common/filesystem/paths'
@@ -76,7 +77,7 @@ const mutations = {
 
 const actions = {
   LISTEN_FOR_LOAD_PROJECT ({ commit, dispatch }) {
-    ipcRenderer.on('mt::open-directory', (e, pathname) => {
+    events.on('mt::open-directory', (e, pathname) => {
       commit('SET_ROOT_DIRECTORY', pathname)
       commit('SET_LAYOUT', {
         rightColumn: 'files',
@@ -87,7 +88,7 @@ const actions = {
     })
   },
   LISTEN_FOR_UPDATE_PROJECT ({ commit, state, dispatch }) {
-    ipcRenderer.on('mt::update-object-tree', (e, { type, change }) => {
+    events.on('mt::update-object-tree', (e, { type, change }) => {
       switch (type) {
         case 'add': {
           const { pathname, data, isMarkdown } = change
@@ -126,7 +127,7 @@ const actions = {
     commit('SET_CLIPBOARD', data)
   },
   ASK_FOR_OPEN_PROJECT ({ commit }) {
-    ipcRenderer.send('mt::ask-for-open-project-in-sidebar')
+    app.send('mt::ask-for-open-project-in-sidebar')
   },
   LISTEN_FOR_SIDEBAR_CONTEXT_MENU ({ commit, state }) {
     bus.$on('SIDEBAR::show-in-folder', () => {
@@ -141,7 +142,7 @@ const actions = {
     })
     bus.$on('SIDEBAR::remove', () => {
       const { pathname } = state.activeItem
-      ipcRenderer.invoke('mt::fs-trash-item', pathname).catch(err => {
+      app.invoke('mt::fs-trash-item', pathname).catch(err => {
         notice.notify({
           title: 'Error while deleting',
           type: 'error',
@@ -225,7 +226,7 @@ const actions = {
   },
 
   OPEN_SETTING_WINDOW () {
-    ipcRenderer.send('mt::open-setting-window')
+    app.openSettingsWindow()
   }
 }
 

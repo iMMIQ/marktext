@@ -1,5 +1,5 @@
 import { BrowserWindow, ipcMain } from 'electron'
-import { minimizeWindow } from '../../menu/actions/window'
+import { minimizeWindow, toggleFullScreen } from '../../menu/actions/window'
 
 const getWindowFromEvent = event => BrowserWindow.fromWebContents(event.sender)
 const getStateFromWindow = win => ({
@@ -32,6 +32,10 @@ const registerWindowHandlers = windowManager => {
     if (win) {
       win.close()
     }
+  })
+
+  ipcMain.on('mt::window-toggle-full-screen', event => {
+    toggleFullScreen(getWindowFromEvent(event))
   })
 
   ipcMain.handle('mt::window-get-state', event => {

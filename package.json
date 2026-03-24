@@ -34,7 +34,6 @@
     "deobfuscateStackTrace": "node tools/deobfuscateStackTrace.js"
   },
   "dependencies": {
-    "@electron/remote": "^2.0.8",
     "@hfelix/electron-localshortcut": "^4.0.1",
     "@marktext/file-icons": "^1.0.6",
     "@octokit/rest": "^18.12.0",

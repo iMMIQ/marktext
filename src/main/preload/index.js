@@ -1,10 +1,12 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webFrame } from 'electron'
 
 const bridge = {
   window: {
     minimize: () => ipcRenderer.send('mt::window-minimize'),
     maximizeOrRestore: () => ipcRenderer.send('mt::window-toggle-maximize'),
+    toggleFullScreen: () => ipcRenderer.send('mt::window-toggle-full-screen'),
     close: () => ipcRenderer.send('mt::window-close'),
+    setZoomFactor: value => webFrame.setZoomFactor(value),
     getState: () => ipcRenderer.invoke('mt::window-get-state')
   },
   menu: {
@@ -23,6 +25,7 @@ const bridge = {
   app: {
     openSettingsWindow: () => ipcRenderer.send('mt::open-setting-window'),
     send: (channel, ...args) => ipcRenderer.send(channel, ...args),
+    sendSync: (channel, ...args) => ipcRenderer.sendSync(channel, ...args),
     invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args)
   },
   events: {

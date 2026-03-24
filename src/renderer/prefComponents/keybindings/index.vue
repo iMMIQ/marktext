@@ -47,7 +47,6 @@
 </template>
 
 <script>
-import { ipcRenderer } from 'electron'
 import log from 'electron-log'
 import { setKeyboardLayout } from '@hfelix/electron-localshortcut'
 import Compound from '../common/compound'
@@ -72,14 +71,14 @@ export default {
   },
 
   mounted () {
-    ipcRenderer.invoke('mt::keybinding-get-keyboard-info')
+    this.$nativeApi.app.invoke('mt::keybinding-get-keyboard-info')
       .then(({ layout, keymap }) => {
         // Update the key mapper to prevent problems on non-US keyboards.
         setKeyboardLayout(layout, keymap)
       })
       .catch(error => log.error('Error while loading keyboard information for settings:', error))
 
-    ipcRenderer.invoke('mt::keybinding-get-pref-keybindings')
+    this.$nativeApi.app.invoke('mt::keybinding-get-pref-keybindings')
       .then(({ defaultKeybindings, userKeybindings }) => {
         this.keybindingConfigurator = new KeybindingConfigurator(defaultKeybindings, userKeybindings)
         this.keybindingList = this.keybindingConfigurator.getKeybindings()
@@ -162,7 +161,7 @@ export default {
       })
     },
     dumpKeyboardInformation () {
-      ipcRenderer.send('mt::keybinding-debug-dump-keyboard-info')
+      this.$nativeApi.app.send('mt::keybinding-debug-dump-keyboard-info')
     }
   }
 }
