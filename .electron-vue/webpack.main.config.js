@@ -19,7 +19,8 @@ const mainConfig = {
     emitOnErrors: false
   },
   entry: {
-    main: path.join(__dirname, '../src/main/index.js')
+    main: path.join(__dirname, '../src/main/index.js'),
+    preload: path.join(__dirname, '../src/main/preload/index.js')
   },
   externals: [
     ...Object.keys(dependencies || {})

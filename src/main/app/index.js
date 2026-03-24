@@ -17,6 +17,7 @@ import { watchers } from '../utils/imagePathAutoComplement'
 import { WindowType } from '../windows/base'
 import EditorWindow from '../windows/editor'
 import SettingWindow from '../windows/setting'
+import registerRendererIpc from '../ipc/renderer'
 
 class App {
   /**
@@ -32,6 +33,7 @@ class App {
     // this.launchScreenshotWin = null // The window which call the screenshot.
     // this.shortcutCapture = null
 
+    registerRendererIpc(this)
     this._listenForIpcMain()
   }
 
@@ -542,10 +544,6 @@ class App {
       if (filePaths && filePaths[0]) {
         preferences.setItems({ defaultDirectoryToOpen: filePaths[0] })
       }
-    })
-
-    ipcMain.on('mt::open-setting-window', () => {
-      this._openSettingsWindow()
     })
 
     ipcMain.on('mt::make-screenshot', e => {

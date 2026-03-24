@@ -1,5 +1,7 @@
 import notification from './notification'
+import nativeApi from './nativeApi'
 
 export default [
-  notification
+  notification,
+  nativeApi
 ]

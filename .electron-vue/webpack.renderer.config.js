@@ -14,16 +14,13 @@ const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer')
 const ESLintPlugin = require('eslint-webpack-plugin')
 
 const { getRendererEnvironmentDefinitions } = require('./marktextEnvironment')
-const { dependencies } = require('../package.json')
 
 const isProduction = process.env.NODE_ENV === 'production'
-/**
- * List of node_modules to include in webpack bundle
- * Required for specific packages like Vue UI libraries
- * that provide pure *.vue files that need compiling
- * https://simulatedgreg.gitbooks.io/electron-vue/content/en/webpack-configurations.html#white-listing-externals
- */
-const whiteListedModules = ['vue']
+const rendererExternalModules = [
+  '@electron/remote',
+  'fontmanager-redux',
+  'vscode-ripgrep'
+]
 
 /** @type {import('webpack').Configuration} */
 const rendererConfig = {
@@ -38,9 +35,7 @@ const rendererConfig = {
   entry: {
     renderer: path.join(__dirname, '../src/renderer/main.js')
   },
-  externals: [
-    ...Object.keys(dependencies || {}).filter(d => !whiteListedModules.includes(d))
-  ],
+  externals: rendererExternalModules,
   module: {
     rules: [
       {
@@ -188,11 +183,6 @@ const rendererConfig = {
         : false
     }),
     new webpack.DefinePlugin(getRendererEnvironmentDefinitions()),
-    // Use node http request instead axios's XHR adapter.
-    new webpack.NormalModuleReplacementPlugin(
-      /.+[\/\\]node_modules[\/\\]axios[\/\\]lib[\/\\]adapters[\/\\]xhr\.js$/,
-      'http.js'
-    ),
     new VueLoaderPlugin()
   ],
   cache: false,

@@ -64,7 +64,9 @@
     <% if (htmlWebpackPlugin.options.nodeModules) { %>
       <!-- Add `node_modules/` to global paths so `require` works properly in development -->
       <script>
-        require('module').globalPaths.push('<%= htmlWebpackPlugin.options.nodeModules.replace(/\\/g, '\\\\') %>')
+        if (typeof require === 'function') {
+          require('module').globalPaths.push('<%= htmlWebpackPlugin.options.nodeModules.replace(/\\/g, '\\\\') %>')
+        }
       </script>
     <% } %>
   </head>
@@ -100,7 +102,9 @@
     <!-- Set `__static` path to static files in production -->
     <% if (!htmlWebpackPlugin.options.isBrowser && !htmlWebpackPlugin.options.isDevelopment) { %>
       <script>
-        window.__static = require('path').join(__dirname, '/static').replace(/\\/g, '\\\\')
+        if (typeof require === 'function' && typeof __dirname === 'string') {
+          window.__static = require('path').join(__dirname, '/static').replace(/\\/g, '\\\\')
+        }
       </script>
     <% } %>
 

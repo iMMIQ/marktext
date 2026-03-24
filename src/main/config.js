@@ -1,11 +1,15 @@
+import path from 'path'
+
 export const isOsx = process.platform === 'darwin'
 export const isWindows = process.platform === 'win32'
 export const isLinux = process.platform === 'linux'
+const preload = path.join(__dirname, '../../dist/electron/preload.js')
 
 export const editorWinOptions = Object.freeze({
   minWidth: 550,
   minHeight: 350,
   webPreferences: {
+    preload,
     contextIsolation: false,
     // WORKAROUND: We cannot enable spellcheck if it was disabled during
     // renderer startup due to a bug in Electron (Electron#32755). We'll
@@ -27,6 +31,7 @@ export const preferencesWinOptions = Object.freeze({
   width: 950,
   height: 650,
   webPreferences: {
+    preload,
     contextIsolation: false,
     // Always true to access native spellchecker.
     spellcheck: true,
