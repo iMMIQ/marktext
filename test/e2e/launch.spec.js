@@ -15,8 +15,11 @@ test.describe('Check Launch MarkText', async () => {
     await app.close()
   })
 
-  test('Empty MarkText', async () => {
+  test('launches with the native bridge available', async () => {
     const title = await page.title()
+    const hasBridge = await page.evaluate(() => !!window.mtNative)
+
     expect(/^MarkText|Untitled-1 - MarkText$/.test(title)).toBeTruthy()
+    expect(hasBridge).toBeTruthy()
   })
 })
