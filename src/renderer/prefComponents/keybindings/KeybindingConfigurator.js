@@ -1,6 +1,6 @@
-import { ipcRenderer } from 'electron'
 import { isEqualAccelerator } from 'common/keybinding'
 import getCommandDescriptionById from '@/commands/descriptions'
+import app from '@/services/nativeApi/app'
 import { isOsx } from '@/util'
 
 const SHORTCUT_TYPE_DEFAULT = 0
@@ -66,7 +66,7 @@ export default class KeybindingConfigurator {
     }
 
     const userKeybindings = this._getUserKeybindingMap()
-    const result = await ipcRenderer.invoke('mt::keybinding-save-user-keybindings', userKeybindings)
+    const result = await app.invoke('mt::keybinding-save-user-keybindings', userKeybindings)
     if (result) {
       this.isDirty = false
       return true

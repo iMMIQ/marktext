@@ -1,9 +1,9 @@
 import path from 'path'
-import { ipcRenderer } from 'electron'
 import { isChildOfDirectory, hasMarkdownExtension, MARKDOWN_INCLUSIONS } from '../../common/filesystem/paths'
 import bus from '../bus'
 import { delay } from '@/util'
 import FileSearcher from '@/node/fileSearcher'
+import app from '../services/nativeApi/app'
 
 const SPECIAL_CHARS = /[\[\]\\^$.\|\?\*\+\(\)\/]{1}/g // eslint-disable-line no-useless-escape
 
@@ -73,7 +73,7 @@ class QuickOpenCommand {
 
   executeSubcommand = async id => {
     const { windowId } = global.marktext.env
-    ipcRenderer.send('mt::open-file-by-window-id', windowId, id)
+    app.send('mt::open-file-by-window-id', windowId, id)
   }
 
   unload = () => {

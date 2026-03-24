@@ -1,5 +1,6 @@
-import { ipcRenderer } from 'electron'
 import bus from '../bus'
+import app from '../services/nativeApi/app'
+import events from '../services/nativeApi/events'
 
 // user preference
 const state = {
@@ -116,36 +117,36 @@ const mutations = {
 
 const actions = {
   ASK_FOR_USER_PREFERENCE ({ commit }) {
-    ipcRenderer.send('mt::ask-for-user-preference')
-    ipcRenderer.send('mt::ask-for-user-data')
+    app.send('mt::ask-for-user-preference')
+    app.send('mt::ask-for-user-data')
 
-    ipcRenderer.on('mt::user-preference', (e, preferences) => {
+    events.on('mt::user-preference', (e, preferences) => {
       commit('SET_USER_PREFERENCE', preferences)
     })
   },
 
   SET_SINGLE_PREFERENCE ({ commit }, { type, value }) {
     // save to electron-store
-    ipcRenderer.send('mt::set-user-preference', { [type]: value })
+    app.send('mt::set-user-preference', { [type]: value })
   },
 
   SET_USER_DATA ({ commit }, { type, value }) {
-    ipcRenderer.send('mt::set-user-data', { [type]: value })
+    app.send('mt::set-user-data', { [type]: value })
   },
 
   SET_IMAGE_FOLDER_PATH ({ commit }, value) {
-    ipcRenderer.send('mt::ask-for-modify-image-folder-path', value)
+    app.send('mt::ask-for-modify-image-folder-path', value)
   },
 
   SELECT_DEFAULT_DIRECTORY_TO_OPEN ({ commit }) {
-    ipcRenderer.send('mt::select-default-directory-to-open')
+    app.send('mt::select-default-directory-to-open')
   },
 
   LISTEN_FOR_VIEW ({ commit, dispatch }) {
-    ipcRenderer.on('mt::show-command-palette', () => {
+    events.on('mt::show-command-palette', () => {
       bus.$emit('show-command-palette')
     })
-    ipcRenderer.on('mt::toggle-view-mode-entry', (event, entryName) => {
+    events.on('mt::toggle-view-mode-entry', (event, entryName) => {
       commit('TOGGLE_VIEW_MODE', entryName)
       dispatch('DISPATCH_EDITOR_VIEW_STATE', { [entryName]: state[entryName] })
     })
@@ -161,7 +162,7 @@ const actions = {
 
   DISPATCH_EDITOR_VIEW_STATE (_, viewState) {
     const { windowId } = global.marktext.env
-    ipcRenderer.send('mt::view-layout-changed', windowId, viewState)
+    app.send('mt::view-layout-changed', windowId, viewState)
   }
 }
 

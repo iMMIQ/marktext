@@ -1,5 +1,6 @@
-import { ipcRenderer } from 'electron'
 import notice from '../services/notification'
+import app from '../services/nativeApi/app'
+import events from '../services/nativeApi/events'
 
 const state = {}
 
@@ -10,7 +11,7 @@ const mutations = {}
 // mt::UPDATE_DOWNLOADED
 const actions = {
   LISTEN_FOR_UPDATE ({ commit }) {
-    ipcRenderer.on('mt::UPDATE_ERROR', (e, message) => {
+    events.on('mt::UPDATE_ERROR', (e, message) => {
       notice.notify({
         title: 'Update',
         type: 'error',
@@ -18,21 +19,21 @@ const actions = {
         message
       })
     })
-    ipcRenderer.on('mt::UPDATE_NOT_AVAILABLE', (e, message) => {
+    events.on('mt::UPDATE_NOT_AVAILABLE', (e, message) => {
       notice.notify({
         title: 'Update not Available',
         type: 'primary',
         message
       })
     })
-    ipcRenderer.on('mt::UPDATE_DOWNLOADED', (e, message) => {
+    events.on('mt::UPDATE_DOWNLOADED', (e, message) => {
       notice.notify({
         title: 'Update Downloaded',
         type: 'info',
         message
       })
     })
-    ipcRenderer.on('mt::UPDATE_AVAILABLE', (e, message) => {
+    events.on('mt::UPDATE_AVAILABLE', (e, message) => {
       notice.notify({
         title: 'Update Available',
         type: 'primary',
@@ -41,11 +42,11 @@ const actions = {
       })
         .then(() => {
           const needUpdate = true
-          ipcRenderer.send('mt::NEED_UPDATE', { needUpdate })
+          app.send('mt::NEED_UPDATE', { needUpdate })
         })
         .catch(() => {
           const needUpdate = false
-          ipcRenderer.send('mt::NEED_UPDATE', { needUpdate })
+          app.send('mt::NEED_UPDATE', { needUpdate })
         })
     })
   }

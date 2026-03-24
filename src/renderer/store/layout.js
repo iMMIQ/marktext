@@ -1,5 +1,6 @@
-import { ipcRenderer } from 'electron'
 import bus from '../bus'
+import app from '../services/nativeApi/app'
+import events from '../services/nativeApi/events'
 
 const width = localStorage.getItem('side-bar-width')
 const sideBarWidth = typeof +width === 'number' ? Math.max(+width, 220) : 280
@@ -18,7 +19,7 @@ const mutations = {
   SET_LAYOUT (state, layout) {
     if (layout.showSideBar !== undefined) {
       const { windowId } = global.marktext.env
-      ipcRenderer.send('mt::update-sidebar-menu', windowId, !!layout.showSideBar)
+      app.send('mt::update-sidebar-menu', windowId, !!layout.showSideBar)
     }
     Object.assign(state, layout)
   },
@@ -34,7 +35,7 @@ const mutations = {
 
 const actions = {
   LISTEN_FOR_LAYOUT ({ state, commit, dispatch }) {
-    ipcRenderer.on('mt::set-view-layout', (e, layout) => {
+    events.on('mt::set-view-layout', (e, layout) => {
       if (layout.rightColumn) {
         commit('SET_LAYOUT', {
           ...layout,
@@ -47,7 +48,7 @@ const actions = {
       dispatch('DISPATCH_LAYOUT_MENU_ITEMS')
     })
 
-    ipcRenderer.on('mt::toggle-view-layout-entry', (event, entryName) => {
+    events.on('mt::toggle-view-layout-entry', (event, entryName) => {
       commit('TOGGLE_LAYOUT_ENTRY', entryName)
       dispatch('DISPATCH_LAYOUT_MENU_ITEMS')
     })
@@ -55,14 +56,14 @@ const actions = {
     bus.$on('view:toggle-layout-entry', entryName => {
       commit('TOGGLE_LAYOUT_ENTRY', entryName)
       const { windowId } = global.marktext.env
-      ipcRenderer.send('mt::view-layout-changed', windowId, { [entryName]: state[entryName] })
+      app.send('mt::view-layout-changed', windowId, { [entryName]: state[entryName] })
     })
   },
 
   DISPATCH_LAYOUT_MENU_ITEMS ({ state }) {
     const { windowId } = global.marktext.env
     const { showTabBar, showSideBar } = state
-    ipcRenderer.send('mt::view-layout-changed', windowId, { showTabBar, showSideBar })
+    app.send('mt::view-layout-changed', windowId, { showTabBar, showSideBar })
   },
 
   CHANGE_SIDE_BAR_WIDTH ({ commit }, width) {

@@ -1,6 +1,6 @@
 import path from 'path'
-import { ipcRenderer } from 'electron'
 import log from 'electron-log'
+import app from './services/nativeApi/app'
 import RendererPaths from './node/paths'
 
 let exceptionLogger = s => console.error(s)
@@ -60,7 +60,7 @@ const bootstrapRenderer = () => {
       exceptionLogger(event.error)
 
       // Pass exception to main process exception handler to show a error dialog.
-      ipcRenderer.send('mt::handle-renderer-error', copy)
+      app.send('mt::handle-renderer-error', copy)
     } else {
       console.error(event)
     }

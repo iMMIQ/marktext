@@ -1,5 +1,7 @@
 const fallbackAppApi = {
-  openSettingsWindow: () => {}
+  openSettingsWindow: () => {},
+  send: () => {},
+  invoke: async () => undefined
 }
 
 const getAppApi = () => {
@@ -11,5 +13,7 @@ const getAppApi = () => {
 }
 
 export default {
-  openSettingsWindow: () => getAppApi().openSettingsWindow()
+  openSettingsWindow: () => getAppApi().openSettingsWindow(),
+  send: (channel, ...args) => getAppApi().send(channel, ...args),
+  invoke: (channel, ...args) => getAppApi().invoke(channel, ...args)
 }

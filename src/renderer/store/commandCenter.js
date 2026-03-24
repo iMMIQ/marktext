@@ -1,7 +1,7 @@
-import { ipcRenderer } from 'electron'
 import log from 'electron-log'
 import bus from '../bus'
 import staticCommands, { RootCommand } from '../commands'
+import events from '../services/nativeApi/events'
 
 const state = {
   rootCommand: new RootCommand(staticCommands)
@@ -24,7 +24,7 @@ const actions = {
     bus.$on('cmd::sort-commands', () => {
       commit('SORT_COMMANDS')
     })
-    ipcRenderer.on('mt::keybindings-response', (e, keybindingMap) => {
+    events.on('mt::keybindings-response', (e, keybindingMap) => {
       const { subcommands } = state.rootCommand
       for (const entry of subcommands) {
         const value = keybindingMap[entry.id]
@@ -43,7 +43,7 @@ const actions = {
     bus.$on('cmd::execute', commandId => {
       executeCommand(state, commandId)
     })
-    ipcRenderer.on('mt::execute-command-by-id', (e, commandId) => {
+    events.on('mt::execute-command-by-id', (e, commandId) => {
       executeCommand(state, commandId)
     })
   }

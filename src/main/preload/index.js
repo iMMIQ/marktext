@@ -21,13 +21,21 @@ const bridge = {
     openExternal: target => ipcRenderer.invoke('mt::shell-open-external', target)
   },
   app: {
-    openSettingsWindow: () => ipcRenderer.send('mt::open-setting-window')
+    openSettingsWindow: () => ipcRenderer.send('mt::open-setting-window'),
+    send: (channel, ...args) => ipcRenderer.send(channel, ...args),
+    invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args)
   },
   events: {
     on: (channel, handler) => {
       ipcRenderer.on(channel, handler)
       return () => ipcRenderer.removeListener(channel, handler)
-    }
+    },
+    once: (channel, handler) => {
+      ipcRenderer.once(channel, handler)
+      return () => ipcRenderer.removeListener(channel, handler)
+    },
+    off: (channel, handler) => ipcRenderer.removeListener(channel, handler),
+    emit: (channel, ...args) => ipcRenderer.emit(channel, ...args)
   }
 }
 

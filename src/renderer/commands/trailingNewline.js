@@ -1,6 +1,6 @@
-import { ipcRenderer } from 'electron'
 import { delay } from '@/util'
 import bus from '../bus'
+import events from '../services/nativeApi/events'
 
 const descriptions = [
   'Trim all trailing newlines',
@@ -52,7 +52,7 @@ class TrailingNewlineCommand {
   }
 
   executeSubcommand = async (_, value) => {
-    ipcRenderer.emit('mt::set-final-newline', null, value)
+    events.emit('mt::set-final-newline', null, value)
   }
 
   unload = () => {}

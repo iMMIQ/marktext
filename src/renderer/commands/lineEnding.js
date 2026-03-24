@@ -1,6 +1,6 @@
-import { ipcRenderer } from 'electron'
 import { delay } from '@/util'
 import bus from '../bus'
+import events from '../services/nativeApi/events'
 
 const crlfDescription = 'Carriage return and line feed (CRLF)'
 const lfDescription = 'Line feed (LF)'
@@ -46,7 +46,7 @@ class LineEndingCommand {
   }
 
   executeSubcommand = async (_, value) => {
-    ipcRenderer.emit('mt::set-line-ending', null, value)
+    events.emit('mt::set-line-ending', null, value)
   }
 
   unload = () => {}

@@ -52,7 +52,6 @@ import { loadingPageMixins } from '@/mixins'
 import { mapState } from 'vuex'
 import bus from '@/bus'
 import { DEFAULT_STYLE } from '@/config'
-import { ipcRenderer } from 'electron'
 
 export default {
   name: 'marktext',
@@ -106,7 +105,7 @@ export default {
       }
     },
     zoom: function (zoom) {
-      ipcRenderer.emit('mt::window-zoom', null, zoom)
+      this.$nativeApi.events.emit('mt::window-zoom', null, zoom)
     }
   },
   created () {

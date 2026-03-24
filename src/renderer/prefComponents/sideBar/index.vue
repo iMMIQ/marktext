@@ -34,7 +34,6 @@
   </div>
 </template>
 <script>
-import { ipcRenderer } from 'electron'
 import { category, searchContent } from './config'
 
 export default {
@@ -42,6 +41,7 @@ export default {
     this.category = category
     return {
       currentCategory: 'general',
+      offIpcCategoryChange: null,
       restaurants: [],
       state: ''
     }
@@ -89,6 +89,12 @@ export default {
           path: `/preference/${category}`
         })
       }
+    },
+    teardownIpcCategoryChange () {
+      if (this.offIpcCategoryChange) {
+        this.offIpcCategoryChange()
+        this.offIpcCategoryChange = null
+      }
     }
   },
 
@@ -97,10 +103,13 @@ export default {
     if (this.$route && this.$route.name) {
       this.currentCategory = this.$route.name
     }
-    ipcRenderer.on('settings::change-tab', this.onIpcCategoryChange)
+    this.offIpcCategoryChange = this.$nativeApi.events.on('settings::change-tab', this.onIpcCategoryChange)
+  },
+  beforeDestroy () {
+    this.teardownIpcCategoryChange()
   },
   unmounted () {
-    ipcRenderer.removeAllListener('settings::change-tab', this.onIpcCategoryChange)
+    this.teardownIpcCategoryChange()
   }
 }
 </script>

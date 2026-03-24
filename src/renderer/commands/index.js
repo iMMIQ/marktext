@@ -1,7 +1,9 @@
 // List of all static commands that are loaded into command center.
-import { ipcRenderer, shell } from 'electron'
+import { shell } from 'electron'
 import { getCurrentWindow } from '@electron/remote'
 import bus from '../bus'
+import app from '../services/nativeApi/app'
+import events from '../services/nativeApi/events'
 import { delay, isOsx } from '@/util'
 import { isUpdatable } from './utils'
 import getCommandDescriptionById from './descriptions'
@@ -41,32 +43,32 @@ const commands = [
   {
     id: 'file.new-tab',
     execute: async () => {
-      ipcRenderer.emit('mt::new-untitled-tab', null)
+      events.emit('mt::new-untitled-tab', null)
     }
   }, {
     id: 'file.new-window',
     execute: async () => {
-      ipcRenderer.send('mt::cmd-new-editor-window')
+      app.send('mt::cmd-new-editor-window')
     }
   }, {
     id: 'file.open-file',
     execute: async () => {
-      ipcRenderer.send('mt::cmd-open-file')
+      app.send('mt::cmd-open-file')
     }
   }, {
     id: 'file.open-folder',
     execute: async () => {
-      ipcRenderer.send('mt::cmd-open-folder')
+      app.send('mt::cmd-open-folder')
     }
   }, {
     id: 'file.save',
     execute: async () => {
-      ipcRenderer.emit('mt::editor-ask-file-save', null)
+      events.emit('mt::editor-ask-file-save', null)
     }
   }, {
     id: 'file.save-as',
     execute: async () => {
-      ipcRenderer.emit('mt::editor-ask-file-save-as', null)
+      events.emit('mt::editor-ask-file-save-as', null)
     }
   }, {
     id: 'file.print',
@@ -77,35 +79,35 @@ const commands = [
   }, {
     id: 'file.close-tab',
     execute: async () => {
-      ipcRenderer.emit('mt::editor-close-tab', null)
+      events.emit('mt::editor-close-tab', null)
     }
   }, {
     id: 'file.close-window',
     execute: async () => {
-      ipcRenderer.send('mt::cmd-close-window')
+      app.send('mt::cmd-close-window')
     }
   },
 
   {
     id: 'file.toggle-auto-save',
     execute: async () => {
-      ipcRenderer.send('mt::cmd-toggle-autosave')
+      app.send('mt::cmd-toggle-autosave')
     }
   }, {
     id: 'file.move-file',
     execute: async () => {
-      ipcRenderer.emit('mt::editor-move-file', null)
+      events.emit('mt::editor-move-file', null)
     }
   }, {
     id: 'file.rename-file',
     execute: async () => {
       await delay(50)
-      ipcRenderer.emit('mt::editor-rename-file', null)
+      events.emit('mt::editor-rename-file', null)
     }
   }, {
     id: 'file.import-file',
     execute: async () => {
-      ipcRenderer.send('mt::cmd-import-file')
+      app.send('mt::cmd-import-file')
     }
   }, {
     id: 'file.export-file',
@@ -197,7 +199,7 @@ const commands = [
     id: 'edit.find-in-folder',
     execute: async () => {
       await delay(150)
-      ipcRenderer.emit('mt::editor-edit-action', null, 'findInFolder')
+      events.emit('mt::editor-edit-action', null, 'findInFolder')
     }
   },
 
@@ -455,7 +457,7 @@ const commands = [
   }, {
     id: 'window.toggle-always-on-top',
     execute: async () => {
-      ipcRenderer.send('mt::window-toggle-always-on-top')
+      app.send('mt::window-toggle-always-on-top')
     }
   }, {
     id: 'window.toggle-full-screen',
@@ -518,7 +520,7 @@ const commands = [
       value: 2.0
     }],
     executeSubcommand: async (_, value) => {
-      ipcRenderer.emit('mt::window-zoom', null, value)
+      events.emit('mt::window-zoom', null, value)
     }
   },
 
@@ -553,7 +555,7 @@ const commands = [
       value: 'ulysses'
     }],
     executeSubcommand: async (_, theme) => {
-      ipcRenderer.send('mt::set-user-preference', { theme })
+      app.send('mt::set-user-preference', { theme })
     }
   },
 
@@ -603,7 +605,7 @@ const commands = [
       value: 'rtl'
     }],
     executeSubcommand: async (_, value) => {
-      ipcRenderer.send('mt::set-user-preference', { textDirection: value })
+      app.send('mt::set-user-preference', { textDirection: value })
     }
   },
 
@@ -613,12 +615,12 @@ const commands = [
   {
     id: 'file.preferences',
     execute: async () => {
-      ipcRenderer.send('mt::open-setting-window')
+      app.openSettingsWindow()
     }
   }, {
     id: 'file.quit',
     execute: async () => {
-      ipcRenderer.send('mt::app-try-quit')
+      app.send('mt::app-try-quit')
     }
   }, {
     id: 'docs.user-guide',
@@ -638,12 +640,12 @@ const commands = [
   {
     id: 'tabs.cycle-forward',
     execute: async () => {
-      ipcRenderer.emit('mt::tabs-cycle-right', null)
+      events.emit('mt::tabs-cycle-right', null)
     }
   }, {
     id: 'tabs.cycle-backward',
     execute: async () => {
-      ipcRenderer.emit('mt::tabs-cycle-left', null)
+      events.emit('mt::tabs-cycle-left', null)
     }
   }
 ]
@@ -655,7 +657,7 @@ if (isUpdatable()) {
   commands.push({
     id: 'file.check-update',
     execute: async () => {
-      ipcRenderer.send('mt::check-for-update')
+      app.send('mt::check-for-update')
     }
   })
 }
@@ -664,7 +666,7 @@ if (isOsx) {
   commands.push({
     id: 'edit.screenshot',
     execute: async () => {
-      ipcRenderer.send('mt::make-screenshot')
+      app.send('mt::make-screenshot')
     }
   })
 }

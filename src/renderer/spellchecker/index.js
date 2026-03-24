@@ -1,5 +1,5 @@
-import { ipcRenderer } from 'electron'
 import { isOsx } from '@/util'
+import app from '@/services/nativeApi/app'
 
 /**
  * High level spell checker API based on Chromium built-in spell checker.
@@ -38,7 +38,7 @@ export class SpellChecker {
       this.isProviderAvailable = true
       if (isOsx) {
         // No language string needed on macOS.
-        return await ipcRenderer.invoke('mt::spellchecker-set-enabled', true)
+        return await app.invoke('mt::spellchecker-set-enabled', true)
       }
       return await this.switchLanguage(lang || this.currentSpellcheckerLanguage)
     } catch (error) {
@@ -53,7 +53,7 @@ export class SpellChecker {
   deactivateSpellchecker () {
     this.enabled = false
     this.isProviderAvailable = false
-    ipcRenderer.invoke('mt::spellchecker-set-enabled', false)
+    app.invoke('mt::spellchecker-set-enabled', false)
   }
 
   /**
@@ -85,7 +85,7 @@ export class SpellChecker {
     } else if (!lang) {
       throw new Error('Expected non-empty language for spell checker.')
     } else if (this.isEnabled) {
-      await ipcRenderer.invoke('mt::spellchecker-switch-language', lang)
+      await app.invoke('mt::spellchecker-switch-language', lang)
       this.lang = lang
       return true
     }
@@ -101,6 +101,6 @@ export class SpellChecker {
       // NB: On macOS the OS spell checker is used and will detect the language automatically.
       return []
     }
-    return ipcRenderer.invoke('mt::spellchecker-get-available-dictionaries')
+    return app.invoke('mt::spellchecker-get-available-dictionaries')
   }
 }

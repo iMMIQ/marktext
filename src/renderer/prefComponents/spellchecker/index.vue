@@ -61,7 +61,6 @@
 </template>
 
 <script>
-import { ipcRenderer } from 'electron'
 import log from 'electron-log'
 import { mapState } from 'vuex'
 import Compound from '../common/compound'
@@ -102,7 +101,7 @@ export default {
           this.availableDictionaries = dicts
         })
 
-      ipcRenderer.invoke('mt::spellchecker-get-custom-dictionary-words')
+      this.$nativeApi.app.invoke('mt::spellchecker-get-custom-dictionary-words')
         .then(words => {
           this.wordsInCustomDictionary = words.map(word => { return { word } })
         })
@@ -147,7 +146,7 @@ export default {
     },
     handleDeleteClick (selectedItem) {
       if (selectedItem && typeof selectedItem.word === 'string') {
-        ipcRenderer.invoke('mt::spellchecker-remove-word', selectedItem.word)
+        this.$nativeApi.app.invoke('mt::spellchecker-remove-word', selectedItem.word)
           .then(success => {
             if (success) {
               this.wordsInCustomDictionary = this.wordsInCustomDictionary.filter(item => item.word !== selectedItem.word)

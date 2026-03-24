@@ -1,6 +1,6 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
-import { ipcRenderer } from 'electron'
+import events from '../services/nativeApi/events'
 
 import listenForMain from './listenForMain'
 import project from './project'
@@ -35,7 +35,7 @@ const mutations = {
 
 const actions = {
   LINTEN_WIN_STATUS ({ commit, state }) {
-    ipcRenderer.on('mt::window-active-status', (e, { status }) => {
+    events.on('mt::window-active-status', (e, { status }) => {
       commit('SET_WIN_STATUS', status)
     })
   },

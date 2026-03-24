@@ -1,5 +1,5 @@
-import { ipcRenderer } from 'electron'
 import notice from '../services/notification'
+import events from '../services/nativeApi/events'
 import shell from '../services/nativeApi/shell'
 
 const state = {}
@@ -17,13 +17,13 @@ const actions = {
       message: 'You should never see this message'
     }
 
-    ipcRenderer.on('mt::show-notification', (e, opts) => {
+    events.on('mt::show-notification', (e, opts) => {
       const options = Object.assign(DEFAULT_OPTS, opts)
 
       notice.notify(options)
     })
 
-    ipcRenderer.on('mt::pandoc-not-exists', async (e, opts) => {
+    events.on('mt::pandoc-not-exists', async (e, opts) => {
       const options = Object.assign(DEFAULT_OPTS, opts)
       options.showConfirm = true
       await notice.notify(options)

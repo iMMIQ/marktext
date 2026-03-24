@@ -1,5 +1,5 @@
-import { ipcRenderer } from 'electron'
 import bus from '../bus'
+import events from '../services/nativeApi/events'
 
 const state = {}
 
@@ -9,7 +9,7 @@ const mutations = {}
 
 const actions = {
   LISTEN_FOR_EDIT ({ commit }) {
-    ipcRenderer.on('mt::editor-edit-action', (e, type) => {
+    events.on('mt::editor-edit-action', (e, type) => {
       if (type === 'findInFolder') {
         commit('SET_LAYOUT', {
           rightColumn: 'search',
@@ -21,19 +21,19 @@ const actions = {
   },
 
   LISTEN_FOR_SHOW_DIALOG ({ commit }) {
-    ipcRenderer.on('mt::about-dialog', e => {
+    events.on('mt::about-dialog', e => {
       bus.$emit('aboutDialog')
     })
-    ipcRenderer.on('mt::show-export-dialog', (e, type) => {
+    events.on('mt::show-export-dialog', (e, type) => {
       bus.$emit('showExportDialog', type)
     })
   },
 
   LISTEN_FOR_PARAGRAPH_INLINE_STYLE () {
-    ipcRenderer.on('mt::editor-paragraph-action', (e, { type }) => {
+    events.on('mt::editor-paragraph-action', (e, { type }) => {
       bus.$emit('paragraph', type)
     })
-    ipcRenderer.on('mt::editor-format-action', (e, { type }) => {
+    events.on('mt::editor-format-action', (e, { type }) => {
       bus.$emit('format', type)
     })
   }
