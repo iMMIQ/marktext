@@ -2,6 +2,10 @@ import { BrowserWindow, ipcMain } from 'electron'
 import { minimizeWindow } from '../../menu/actions/window'
 
 const getWindowFromEvent = event => BrowserWindow.fromWebContents(event.sender)
+const getStateFromWindow = win => ({
+  isFullScreen: win.isFullScreen(),
+  isMaximized: win.isMaximized()
+})
 
 const registerWindowHandlers = windowManager => {
   ipcMain.on('mt::window-minimize', event => {
@@ -42,10 +46,7 @@ const registerWindowHandlers = windowManager => {
     const editor = windowManager.get(win.id)
     const browserWindow = editor ? editor.browserWindow : win
 
-    return {
-      isFullScreen: browserWindow.isFullScreen(),
-      isMaximized: browserWindow.isMaximized()
-    }
+    return getStateFromWindow(browserWindow)
   })
 }
 

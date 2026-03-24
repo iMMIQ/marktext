@@ -1,30 +1,39 @@
-import { getCurrentWindow, Menu as RemoteMenu, MenuItem as RemoteMenuItem } from '@electron/remote'
-import {
-  CLOSE_THIS,
-  CLOSE_OTHERS,
-  CLOSE_SAVED,
-  CLOSE_ALL,
-  SEPARATOR,
-  RENAME,
-  COPY_PATH,
-  SHOW_IN_FOLDER
-} from './menuItems'
+import nativeApi from '../../services/nativeApi'
+import * as contextMenu from './actions'
+
+const TABS_MENU_CHANNEL = 'mt::menu-tabs-command'
+const TAB_MENU_ACTIONS = {
+  closeThisTab: ({ tabId }) => contextMenu.closeThis(tabId),
+  closeOtherTabs: ({ tabId }) => contextMenu.closeOthers(tabId),
+  closeSavedTabs: () => contextMenu.closeSaved(),
+  closeAllTabs: () => contextMenu.closeAll(),
+  renameFile: ({ tabId }) => contextMenu.rename(tabId),
+  copyPath: ({ tabId }) => contextMenu.copyPath(tabId),
+  showInFolder: ({ tabId }) => contextMenu.showInFolder(tabId)
+}
+let stopListening = null
+
+const ensureListener = () => {
+  if (stopListening) {
+    return
+  }
+
+  stopListening = nativeApi.events.on(TABS_MENU_CHANNEL, (event, payload = {}) => {
+    const action = TAB_MENU_ACTIONS[payload.id]
+    if (action) {
+      action(payload)
+    }
+  })
+}
 
 export const showContextMenu = (event, tab) => {
-  const menu = new RemoteMenu()
-  const win = getCurrentWindow()
-  const { pathname } = tab
-  const CONTEXT_ITEMS = [CLOSE_THIS, CLOSE_OTHERS, CLOSE_SAVED, CLOSE_ALL, SEPARATOR, RENAME, COPY_PATH, SHOW_IN_FOLDER]
-  const FILE_CONTEXT_ITEMS = [RENAME, COPY_PATH, SHOW_IN_FOLDER]
-
-  FILE_CONTEXT_ITEMS.forEach(item => {
-    item.enabled = !!pathname
+  ensureListener()
+  nativeApi.menu.popupTabsMenu({
+    position: {
+      x: event.clientX,
+      y: event.clientY
+    },
+    tabId: tab.id,
+    hasPath: !!tab.pathname
   })
-
-  CONTEXT_ITEMS.forEach(item => {
-    const menuItem = new RemoteMenuItem(item)
-    menuItem._tabId = tab.id
-    menu.append(menuItem)
-  })
-  menu.popup([{ window: win, x: event.clientX, y: event.clientY }])
 }
