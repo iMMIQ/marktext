@@ -71,7 +71,17 @@ module.exports = {
               message: 'Use src/renderer/services/nativeApi instead.'
             }
           ]
-        }]
+        }],
+        'no-restricted-syntax': ['error',
+          {
+            selector: "CallExpression[callee.name='require'][arguments.length=1][arguments.0.type='Literal'][arguments.0.value='electron']",
+            message: 'Use src/renderer/services/nativeApi instead.'
+          },
+          {
+            selector: "CallExpression[callee.name='require'][arguments.length=1][arguments.0.type='Literal'][arguments.0.value='@electron/remote']",
+            message: 'Use src/renderer/services/nativeApi instead.'
+          }
+        ]
       }
     }
   ],

@@ -1,6 +1,6 @@
 # Renderer Boundary
 
-Renderer code must not import `electron` or `@electron/remote` directly.
+Renderer code must not import or require `electron` or `@electron/remote` directly.
 
 ESLint enforces this under `src/renderer/**/*.{js,vue}` with the message:
 
