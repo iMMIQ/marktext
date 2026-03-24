@@ -1,5 +1,6 @@
-import { ipcRenderer, shell } from 'electron'
+import { ipcRenderer } from 'electron'
 import notice from '../services/notification'
+import shell from '../services/nativeApi/shell'
 
 const state = {}
 

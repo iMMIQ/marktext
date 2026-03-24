@@ -85,3 +85,12 @@ test('custom title bar actions route through mtNative.window', async () => {
     expect(isMinimized).toBeTruthy()
   }
 })
+
+test('clipboard file path probing is exposed through the preload bridge', async () => {
+  const { app, page } = await launchElectron()
+  const clipboardFilePath = await page.evaluate(() => window.mtNative.clipboard.readFilePath())
+
+  await app.close()
+
+  expect(typeof clipboardFilePath).toBe('string')
+})

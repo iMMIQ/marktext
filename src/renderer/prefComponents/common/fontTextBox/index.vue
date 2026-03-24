@@ -21,8 +21,6 @@
 </template>
 
 <script>
-import { shell } from 'electron'
-
 // Example of fontmanager-redux objects:
 // {
 //     path: '/Library/Fonts/Arial.ttf',
@@ -95,7 +93,7 @@ export default {
 
     handleMoreClick () {
       if (typeof this.more === 'string') {
-        shell.openExternal(this.more)
+        this.$nativeApi.shell.openExternal(this.more)
       }
     }
   },

@@ -22,8 +22,6 @@
 </template>
 
 <script>
-import { shell } from 'electron'
-
 export default {
   data () {
     this.inputTimer = null
@@ -67,7 +65,7 @@ export default {
   methods: {
     handleMoreClick () {
       if (typeof this.more === 'string') {
-        shell.openExternal(this.more)
+        this.$nativeApi.shell.openExternal(this.more)
       }
     },
     handleInput (value) {

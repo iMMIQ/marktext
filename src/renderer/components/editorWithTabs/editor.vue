@@ -73,7 +73,6 @@
 </template>
 
 <script>
-import { shell } from 'electron'
 import path from 'path'
 import log from 'electron-log'
 import { mapState } from 'vuex'
@@ -664,8 +663,8 @@ export default {
     })
   },
   methods: {
-    photoCreatorClick: (url) => {
-      shell.openExternal(url)
+    photoCreatorClick (url) {
+      this.$nativeApi.shell.openExternal(url)
     },
 
     jumpClick (linkInfo) {

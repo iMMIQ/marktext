@@ -33,6 +33,14 @@ const registerClipboardHandlers = () => {
   ipcMain.handle('mt::clipboard-read-file-path', () => {
     return readClipboardFilePath()
   })
+
+  ipcMain.on('mt::clipboard-read-file-path-sync', event => {
+    event.returnValue = readClipboardFilePath()
+  })
+
+  ipcMain.on('mt::clipboard-write-text', (event, text) => {
+    clipboard.writeText(typeof text === 'string' ? text : '')
+  })
 }
 
 export default registerClipboardHandlers

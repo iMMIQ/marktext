@@ -57,4 +57,23 @@ describe('renderer native API facade', () => {
       hasPathCache: false
     }])
   })
+
+  it('routes clipboard access through the bridge contract', async () => {
+    const clipboardWrites = []
+    window.mtNative = {
+      clipboard: {
+        readFilePath: () => Promise.resolve('/tmp/example.png'),
+        readFilePathSync: () => '/tmp/example.png',
+        writeText: value => clipboardWrites.push(value)
+      }
+    }
+
+    const filePath = await nativeApi.clipboard.readFilePath()
+    const syncFilePath = nativeApi.clipboard.readFilePathSync()
+    nativeApi.clipboard.writeText('copied-value')
+
+    expect(filePath).to.equal('/tmp/example.png')
+    expect(syncFilePath).to.equal('/tmp/example.png')
+    expect(clipboardWrites).to.deep.equal(['copied-value'])
+  })
 })

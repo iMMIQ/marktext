@@ -1,4 +1,4 @@
-import { clipboard, ipcRenderer, shell, webFrame } from 'electron'
+import { ipcRenderer, webFrame } from 'electron'
 import path from 'path'
 import equal from 'fast-deep-equal'
 import { isSamePathSync } from 'common/filesystem/paths'
@@ -7,6 +7,8 @@ import { hasKeys, getUniqueId } from '../util'
 import listToTree from '../util/listToTree'
 import { createDocumentState, getOptionsFromState, getSingleFileState, getBlankFileState } from './help'
 import notice from '../services/notification'
+import clipboard from '../services/nativeApi/clipboard'
+import shell from '../services/nativeApi/shell'
 import {
   FileEncodingCommand,
   LineEndingCommand,

@@ -11,7 +11,9 @@ const bridge = {
     popupApplicationMenu: position => ipcRenderer.send('mt::menu-popup-application', position)
   },
   clipboard: {
-    readFilePath: () => ipcRenderer.invoke('mt::clipboard-read-file-path')
+    readFilePath: () => ipcRenderer.invoke('mt::clipboard-read-file-path'),
+    readFilePathSync: () => ipcRenderer.sendSync('mt::clipboard-read-file-path-sync'),
+    writeText: text => ipcRenderer.send('mt::clipboard-write-text', text)
   },
   shell: {
     openPath: target => ipcRenderer.invoke('mt::shell-open-path', target),

@@ -41,7 +41,6 @@
 </template>
 
 <script>
-import { shell, clipboard } from 'electron'
 import { mapState } from 'vuex'
 import autoScroll from 'dom-autoscroller'
 import dragula from 'dragula'
@@ -104,13 +103,13 @@ export default {
     copyPath (tabId) {
       const tab = this.tabs.find(f => f.id === tabId)
       if (tab && tab.pathname) {
-        clipboard.writeText(tab.pathname)
+        this.$nativeApi.clipboard.writeText(tab.pathname)
       }
     },
     showInFolder (tabId) {
       const tab = this.tabs.find(f => f.id === tabId)
       if (tab && tab.pathname) {
-        shell.showItemInFolder(tab.pathname)
+        this.$nativeApi.shell.showItemInFolder(tab.pathname)
       }
     },
     handleContextMenu (event, tab) {

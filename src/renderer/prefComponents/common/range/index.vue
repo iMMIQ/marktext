@@ -18,8 +18,6 @@
 </template>
 
 <script>
-import { shell } from 'electron'
-
 export default {
   data () {
     return {
@@ -50,7 +48,7 @@ export default {
   methods: {
     handleMoreClick () {
       if (typeof this.more === 'string') {
-        shell.openExternal(this.more)
+        this.$nativeApi.shell.openExternal(this.more)
       }
     },
     select (value) {

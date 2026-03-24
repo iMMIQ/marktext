@@ -12,8 +12,6 @@
 </template>
 
 <script>
-import { shell } from 'electron'
-
 export default {
   data () {
     return {}
@@ -24,7 +22,7 @@ export default {
   methods: {
     openUrl (link) {
       if (link) {
-        shell.openExternal(link)
+        this.$nativeApi.shell.openExternal(link)
       }
     }
   }

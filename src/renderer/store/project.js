@@ -1,10 +1,11 @@
 import path from 'path'
-import { ipcRenderer, shell } from 'electron'
+import { ipcRenderer } from 'electron'
 import { addFile, unlinkFile, addDirectory, unlinkDirectory } from './treeCtrl'
 import bus from '../bus'
 import { create, paste, rename } from '../util/fileSystem'
 import { PATH_SEPARATOR } from '../config'
 import notice from '../services/notification'
+import shell from '../services/nativeApi/shell'
 import { getFileStateFromData } from './help'
 import { hasMarkdownExtension } from '../../common/filesystem/paths'
 

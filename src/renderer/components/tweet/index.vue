@@ -67,7 +67,6 @@
 </template>
 
 <script>
-import { shell } from 'electron'
 import bus from '../../bus'
 
 export default {
@@ -97,7 +96,7 @@ export default {
       this.selectedFace = name
     },
     reportViaGithub () {
-      shell.openExternal('https://github.com/marktext/marktext/issues/new')
+      this.$nativeApi.shell.openExternal('https://github.com/marktext/marktext/issues/new')
     },
     reportViaTwitter () {
       const { value, selectedFace } = this
@@ -112,7 +111,7 @@ export default {
 
       if (selectedFace === 'smile') params.hashtags = 'happyMarkText'
 
-      shell.openExternal(`${origin}?${Object.keys(params).map(key => `${key}=${params[key]}`).join('&')}`)
+      this.$nativeApi.shell.openExternal(`${origin}?${Object.keys(params).map(key => `${key}=${params[key]}`).join('&')}`)
       this.showTweetDialog = false
     }
   }

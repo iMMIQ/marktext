@@ -1,5 +1,7 @@
 const fallbackClipboardApi = {
-  readFilePath: async () => ''
+  readFilePath: async () => '',
+  readFilePathSync: () => '',
+  writeText: () => {}
 }
 
 const getClipboardApi = () => {
@@ -11,5 +13,7 @@ const getClipboardApi = () => {
 }
 
 export default {
-  readFilePath: () => getClipboardApi().readFilePath()
+  readFilePath: () => getClipboardApi().readFilePath(),
+  readFilePathSync: () => getClipboardApi().readFilePathSync(),
+  writeText: text => getClipboardApi().writeText(text)
 }

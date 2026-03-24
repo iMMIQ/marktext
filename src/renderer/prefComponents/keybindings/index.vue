@@ -47,7 +47,7 @@
 </template>
 
 <script>
-import { ipcRenderer, shell } from 'electron'
+import { ipcRenderer } from 'electron'
 import log from 'electron-log'
 import { setKeyboardLayout } from '@hfelix/electron-localshortcut'
 import Compound from '../common/compound'
@@ -98,7 +98,7 @@ export default {
 
   methods: {
     openKeybindingWiki () {
-      shell.openExternal('https://github.com/marktext/marktext/blob/master/docs/KEYBINDINGS.md')
+      this.$nativeApi.shell.openExternal('https://github.com/marktext/marktext/blob/master/docs/KEYBINDINGS.md')
     },
     saveKeybindings () {
       if (this.keybindingConfigurator && this.keybindingList.length > 0) {
