@@ -2,7 +2,17 @@
   <section class="pref-font-input-item" :class="{'ag-underdevelop': disable}">
     <div class="description">
       <span>{{description}}:</span>
-      <span v-if="more" class="font-textbox-info" @click="handleMoreClick">i</span>
+      <svg
+        v-if="more"
+        class="font-textbox-info"
+        viewBox="0 0 16 16"
+        aria-hidden="true"
+        @click="handleMoreClick"
+      >
+        <circle cx="8" cy="8" r="6.5"></circle>
+        <path d="M8 7v4"></path>
+        <circle cx="8" cy="4.5" r="0.75" class="font-textbox-info-dot"></circle>
+      </svg>
     </div>
     <el-autocomplete
       class="font-autocomplete"
@@ -13,7 +23,9 @@
       @select="handleSelect"
     >
       <template #suffix>
-        <span class="el-input__icon font-autocomplete-suffix" aria-hidden="true">v</span>
+        <svg class="el-input__icon font-autocomplete-suffix" viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M4.5 6.5L8 10l3.5-3.5"></path>
+        </svg>
       </template>
       <template #default="{ item }">
         <div class="family">{{ item }}</div>
@@ -162,21 +174,30 @@ export default {
 .pref-font-input-item .description {
   margin-bottom: 10px;
   & .font-textbox-info {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    display: inline-block;
     width: 14px;
     height: 14px;
     margin-left: 4px;
     cursor: pointer;
     opacity: 0.7;
     color: var(--iconColor);
-    font-size: 12px;
-    font-style: normal;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.2;
+    vertical-align: -2px;
   }
   & .font-textbox-info:hover {
     color: var(--themeColor);
   }
+  & .font-textbox-info-dot {
+    fill: currentColor;
+    stroke: none;
+  }
+}
+.pref-font-input-item .font-autocomplete-suffix {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
 }
 .pref-font-input-item .font-autocomplete-popper {
   li {

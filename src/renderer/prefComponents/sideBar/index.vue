@@ -148,6 +148,7 @@ export default {
     height: 16px;
     margin-right: 8px;
     color: var(--iconColor);
+    fill: currentColor;
   }
   .pref-autocomplete.el-autocomplete-suggestion {
     background: var(--floatBgColor);

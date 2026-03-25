@@ -95,8 +95,7 @@
 /* --- Element UI ------------------------------------------------ */
 
 .el-overlay {
-  background: #08090a !important;
-  opacity: 0.65 !important;
+  background: rgba(8, 9, 10, 0.65) !important;
 }
 .el-dialog,
 .el-dialog.ag-dialog-table {
