@@ -3,12 +3,14 @@ import app from '@/services/nativeApi/app'
 import events from '@/services/nativeApi/events'
 import legacyPreferences from '@/store/preferences'
 import { createLegacyState } from './index'
+import { createLegacyStoreActions } from './legacyActions'
 
 let isUserPreferenceListenerBound = false
 
 export const usePreferencesStore = defineStore('preferences', {
   state: createLegacyState(legacyPreferences.state),
   actions: {
+    ...createLegacyStoreActions(),
     askForUserPreference () {
       if (!isUserPreferenceListenerBound) {
         events.on('mt::user-preference', (e, preferences) => {

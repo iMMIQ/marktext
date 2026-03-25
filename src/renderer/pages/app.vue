@@ -37,6 +37,7 @@
 </template>
 
 <script>
+import { mapState } from 'pinia'
 import { addStyles, addThemeStyle } from '@/util/theme'
 import Recent from '@/components/recent'
 import EditorWithTabs from '@/components/editorWithTabs'
@@ -49,8 +50,17 @@ import Rename from '@/components/rename'
 import Tweet from '@/components/tweet'
 import ImportModal from '@/components/import'
 import { loadingPageMixins } from '@/mixins'
-import { mapState } from 'vuex'
-import bus from '@/bus'
+import { useAppStore } from '@/stores/app'
+import { useAutoUpdatesStore } from '@/stores/autoUpdates'
+import { useCommandCenterStore } from '@/stores/commandCenter'
+import { useEditorStore } from '@/stores/editor'
+import { useLayoutStore } from '@/stores/layout'
+import { useListenForMainStore } from '@/stores/listenForMain'
+import { useNotificationStore } from '@/stores/notification'
+import { usePreferencesStore } from '@/stores/preferences'
+import { useProjectStore } from '@/stores/project'
+import { useTweetStore } from '@/stores/tweet'
+import { useEventBus } from '@/composables/useEventBus'
 import { DEFAULT_STYLE } from '@/config'
 import { getInitialState } from '@/services/runtime'
 
@@ -74,27 +84,18 @@ export default {
     }
   },
   computed: {
-    ...mapState({
-      showTabBar: state => state.layout.showTabBar,
-      sourceCode: state => state.preferences.sourceCode,
-      theme: state => state.preferences.theme,
-      textDirection: state => state.preferences.textDirection
+    ...mapState(useLayoutStore, ['showTabBar']),
+    ...mapState(usePreferencesStore, ['sourceCode', 'theme', 'textDirection', 'zoom']),
+    ...mapState(useProjectStore, ['projectTree']),
+    ...mapState(useEditorStore, {
+      pathname: state => state.currentFile.pathname,
+      filename: state => state.currentFile.filename,
+      isSaved: state => state.currentFile.isSaved,
+      markdown: state => state.currentFile.markdown,
+      cursor: state => state.currentFile.cursor,
+      wordCount: state => state.currentFile.wordCount
     }),
-    ...mapState({
-      zoom: state => state.preferences.zoom
-    }),
-    ...mapState({
-      projectTree: state => state.project.projectTree,
-      pathname: state => state.editor.currentFile.pathname,
-      filename: state => state.editor.currentFile.filename,
-      isSaved: state => state.editor.currentFile.isSaved,
-      markdown: state => state.editor.currentFile.markdown,
-      cursor: state => state.editor.currentFile.cursor,
-      wordCount: state => state.editor.currentFile.wordCount
-    }),
-    ...mapState([
-      'windowActive', 'platform', 'init'
-    ]),
+    ...mapState(useAppStore, ['windowActive', 'platform', 'init']),
     hasCurrentFile () {
       return this.markdown !== undefined
     }
@@ -110,61 +111,62 @@ export default {
     }
   },
   created () {
-    const { commit, dispatch } = this.$store
+    const appStore = useAppStore()
+    const autoUpdatesStore = useAutoUpdatesStore()
+    const commandCenterStore = useCommandCenterStore()
+    const editorStore = useEditorStore()
+    const layoutStore = useLayoutStore()
+    const listenForMainStore = useListenForMainStore()
+    const notificationStore = useNotificationStore()
+    const preferencesStore = usePreferencesStore()
+    const projectStore = useProjectStore()
+    const tweetStore = useTweetStore()
+    const eventBus = useEventBus()
     const initialState = getInitialState()
 
     // Apply initial state (theme and titleBarStyle) and delay load other values.
     if (initialState) {
-      commit('SET_USER_PREFERENCE', initialState)
+      preferencesStore.commit('SET_USER_PREFERENCE', initialState)
     }
 
     // store/index.js
-    dispatch('LINTEN_WIN_STATUS')
-    // module: command center
-    dispatch('LISTEN_COMMAND_CENTER_BUS')
-    // module: tweet
-    dispatch('LISTEN_FOR_TWEET')
-    // module: layout
-    dispatch('LISTEN_FOR_LAYOUT')
-    // module: listenForMain
-    dispatch('LISTEN_FOR_EDIT')
-    dispatch('LISTEN_FOR_VIEW')
-    dispatch('LISTEN_FOR_SHOW_DIALOG')
-    dispatch('LISTEN_FOR_PARAGRAPH_INLINE_STYLE')
-    // module: project
-    dispatch('LISTEN_FOR_UPDATE_PROJECT')
-    dispatch('LISTEN_FOR_LOAD_PROJECT')
-    dispatch('LISTEN_FOR_SIDEBAR_CONTEXT_MENU')
-    // module: autoUpdates
-    dispatch('LISTEN_FOR_UPDATE')
-    // module: editor
-    dispatch('LISTEN_SCREEN_SHOT')
-    dispatch('ASK_FOR_USER_PREFERENCE')
-    dispatch('LISTEN_TOGGLE_VIEW')
-    dispatch('LISTEN_FOR_CLOSE')
-    dispatch('LISTEN_FOR_SAVE_AS')
-    dispatch('LISTEN_FOR_MOVE_TO')
-    dispatch('LISTEN_FOR_SAVE')
-    dispatch('LISTEN_FOR_SET_PATHNAME')
-    dispatch('LISTEN_FOR_BOOTSTRAP_WINDOW')
-    dispatch('LISTEN_FOR_SAVE_CLOSE')
-    dispatch('LISTEN_FOR_RENAME')
-    dispatch('LINTEN_FOR_SET_LINE_ENDING')
-    dispatch('LINTEN_FOR_SET_ENCODING')
-    dispatch('LINTEN_FOR_SET_FINAL_NEWLINE')
-    dispatch('LISTEN_FOR_NEW_TAB')
-    dispatch('LISTEN_FOR_CLOSE_TAB')
-    dispatch('LISTEN_FOR_TAB_CYCLE')
-    dispatch('LISTEN_FOR_SWITCH_TABS')
-    dispatch('LINTEN_FOR_PRINT_SERVICE_CLEARUP')
-    dispatch('LINTEN_FOR_EXPORT_SUCCESS')
-    dispatch('LISTEN_FOR_FILE_CHANGE')
-    dispatch('LISTEN_WINDOW_ZOOM')
-    dispatch('LISTEN_FOR_RELOAD_IMAGES')
-    dispatch('LISTEN_FOR_CONTEXT_MENU')
-
-    // module: notification
-    dispatch('LISTEN_FOR_NOTIFICATION')
+    appStore.dispatch('LINTEN_WIN_STATUS')
+    commandCenterStore.dispatch('LISTEN_COMMAND_CENTER_BUS')
+    tweetStore.dispatch('LISTEN_FOR_TWEET')
+    layoutStore.dispatch('LISTEN_FOR_LAYOUT')
+    listenForMainStore.dispatch('LISTEN_FOR_EDIT')
+    preferencesStore.dispatch('LISTEN_FOR_VIEW')
+    listenForMainStore.dispatch('LISTEN_FOR_SHOW_DIALOG')
+    listenForMainStore.dispatch('LISTEN_FOR_PARAGRAPH_INLINE_STYLE')
+    projectStore.dispatch('LISTEN_FOR_UPDATE_PROJECT')
+    projectStore.dispatch('LISTEN_FOR_LOAD_PROJECT')
+    projectStore.dispatch('LISTEN_FOR_SIDEBAR_CONTEXT_MENU')
+    autoUpdatesStore.dispatch('LISTEN_FOR_UPDATE')
+    editorStore.dispatch('LISTEN_SCREEN_SHOT')
+    preferencesStore.askForUserPreference()
+    preferencesStore.dispatch('LISTEN_TOGGLE_VIEW')
+    editorStore.dispatch('LISTEN_FOR_CLOSE')
+    editorStore.dispatch('LISTEN_FOR_SAVE_AS')
+    editorStore.dispatch('LISTEN_FOR_MOVE_TO')
+    editorStore.dispatch('LISTEN_FOR_SAVE')
+    editorStore.dispatch('LISTEN_FOR_SET_PATHNAME')
+    editorStore.dispatch('LISTEN_FOR_BOOTSTRAP_WINDOW')
+    editorStore.dispatch('LISTEN_FOR_SAVE_CLOSE')
+    editorStore.dispatch('LISTEN_FOR_RENAME')
+    editorStore.dispatch('LINTEN_FOR_SET_LINE_ENDING')
+    editorStore.dispatch('LINTEN_FOR_SET_ENCODING')
+    editorStore.dispatch('LINTEN_FOR_SET_FINAL_NEWLINE')
+    editorStore.dispatch('LISTEN_FOR_NEW_TAB')
+    editorStore.dispatch('LISTEN_FOR_CLOSE_TAB')
+    editorStore.dispatch('LISTEN_FOR_TAB_CYCLE')
+    editorStore.dispatch('LISTEN_FOR_SWITCH_TABS')
+    editorStore.dispatch('LINTEN_FOR_PRINT_SERVICE_CLEARUP')
+    editorStore.dispatch('LINTEN_FOR_EXPORT_SUCCESS')
+    editorStore.dispatch('LISTEN_FOR_FILE_CHANGE')
+    editorStore.dispatch('LISTEN_WINDOW_ZOOM')
+    editorStore.dispatch('LISTEN_FOR_RELOAD_IMAGES')
+    editorStore.dispatch('LISTEN_FOR_CONTEXT_MENU')
+    notificationStore.dispatch('LISTEN_FOR_NOTIFICATION')
 
     // prevent Chromium's default behavior and try to open the first file
     window.addEventListener('dragover', e => {
@@ -180,9 +182,9 @@ export default {
             clearTimeout(this.timer)
           }
           this.timer = setTimeout(() => {
-            bus.$emit('importDialog', false)
+            eventBus.$emit('importDialog', false)
           }, 300)
-          bus.$emit('importDialog', true)
+          eventBus.$emit('importDialog', true)
         }
 
         e.dataTransfer.dropEffect = 'copy'

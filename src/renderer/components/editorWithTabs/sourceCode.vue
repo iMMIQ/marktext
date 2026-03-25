@@ -9,10 +9,12 @@
 <script>
 import codeMirror, { setMode, setCursorAtLastLine, setTextDirection } from '../../codeMirror'
 import { wordCount as getWordCount } from 'muya/lib/utils'
-import { mapState } from 'vuex'
+import { mapActions, mapState } from 'pinia'
 import { adjustCursor } from '../../util'
 import bus from '../../bus'
 import { oneDarkThemes, railscastsThemes } from '@/config'
+import { useEditorStore } from '@/stores/editor'
+import { usePreferencesStore } from '@/stores/preferences'
 
 export default {
   props: {
@@ -25,10 +27,9 @@ export default {
   },
 
   computed: {
-    ...mapState({
-      theme: state => state.preferences.theme,
-      sourceCode: state => state.preferences.sourceCode,
-      currentTab: state => state.editor.currentFile
+    ...mapState(usePreferencesStore, ['theme', 'sourceCode']),
+    ...mapState(useEditorStore, {
+      currentTab: 'currentFile'
     })
   },
 
@@ -115,7 +116,7 @@ export default {
       this.tabId = id
     })
   },
-  beforeDestroy () {
+  beforeUnmount () {
     // NOTE: Clear timer and manually commit changes. After mode switching and cleanup may follow
     // further key inputs, so ignore all inputs.
     this.viewDestroyed = true
@@ -132,6 +133,9 @@ export default {
     bus.$emit('file-changed', { id: this.tabId, markdown, cursor, renderCursor: true })
   },
   methods: {
+    ...mapActions(useEditorStore, {
+      dispatchEditor: 'dispatch'
+    }),
     handleImageAction ({ id, result, alt }) {
       const { editor } = this
       const value = editor.getValue()
@@ -192,7 +196,7 @@ export default {
           // See "beforeDestroy" note
           if (!this.viewDestroyed) {
             if (this.tabId) {
-              this.$store.dispatch('LISTEN_FOR_CONTENT_CHANGE', { id: this.tabId, markdown, wordCount, cursor })
+              this.dispatchEditor('LISTEN_FOR_CONTENT_CHANGE', { id: this.tabId, markdown, wordCount, cursor })
             } else {
               // This may occur during tab switching but should not occur otherwise.
               console.warn('LISTEN_FOR_CONTENT_CHANGE: Cannot commit changes because not tab id was set!')
@@ -248,7 +252,7 @@ export default {
       if (this.tabId) {
         const { editor } = this
         const { cursor, markdown } = this.getMarkdownAndCursor(editor)
-        this.$store.dispatch('LISTEN_FOR_CONTENT_CHANGE', { id: this.tabId, markdown, cursor })
+        this.dispatchEditor('LISTEN_FOR_CONTENT_CHANGE', { id: this.tabId, markdown, cursor })
         this.tabId = null // invalidate tab id
       }
     },

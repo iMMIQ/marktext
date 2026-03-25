@@ -69,7 +69,9 @@
 </template>
 
 <script>
-import bus from '../../bus'
+import { useEventBus } from '@/composables/useEventBus'
+
+const eventBus = useEventBus()
 
 export default {
   data () {
@@ -80,16 +82,17 @@ export default {
     }
   },
   created () {
-    bus.$on('tweetDialog', this.showDialog)
+    eventBus.$on('tweetDialog', this.showDialog)
   },
   beforeUnmount () {
-    bus.$off('tweetDialog', this.showDialog)
+    eventBus.$off('tweetDialog', this.showDialog)
   },
   methods: {
     showDialog () {
       this.showTweetDialog = true
       this.value = ''
-      bus.$emit('editor-blur')
+      this.selectedFace = 'smile'
+      eventBus.$emit('editor-blur')
       this.$nextTick(() => {
         this.$refs.textarea.focus()
       })

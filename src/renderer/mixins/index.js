@@ -1,19 +1,24 @@
 import { isSamePathSync } from 'common/filesystem/paths'
+import { useEditorStore } from '@/stores/editor'
+import { useProjectStore } from '@/stores/project'
+import { useEventBus } from '@/composables/useEventBus'
 import bus from '../bus'
 
 export const tabsMixins = {
   methods: {
     selectFile (file) {
+      const editorStore = useEditorStore()
       if (file.id !== this.currentFile.id) {
-        this.$store.dispatch('UPDATE_CURRENT_FILE', file)
+        editorStore.dispatch('UPDATE_CURRENT_FILE', file)
       }
     },
     removeFileInTab (file) {
+      const editorStore = useEditorStore()
       const { isSaved } = file
       if (isSaved) {
-        this.$store.dispatch('FORCE_CLOSE_TAB', file)
+        editorStore.dispatch('FORCE_CLOSE_TAB', file)
       } else {
-        this.$store.dispatch('CLOSE_UNSAVED_TAB', file)
+        editorStore.dispatch('CLOSE_UNSAVED_TAB', file)
       }
     }
   }
@@ -33,6 +38,8 @@ export const loadingPageMixins = {
 export const fileMixins = {
   methods: {
     handleSearchResultClick (searchMatch) {
+      const editorStore = useEditorStore()
+      const eventBus = useEventBus()
       const { range } = searchMatch
       const { filePath } = this.searchResult
 
@@ -52,10 +59,10 @@ export const fileMixins = {
       if (openedTab) {
         openedTab.cursor = cursor
         if (this.currentFile !== openedTab) {
-          this.$store.dispatch('UPDATE_CURRENT_FILE', openedTab)
+          editorStore.dispatch('UPDATE_CURRENT_FILE', openedTab)
         } else {
           const { id, markdown, cursor, history } = this.currentFile
-          bus.$emit('file-changed', { id, markdown, cursor, renderCursor: true, history })
+          eventBus.$emit('file-changed', { id, markdown, cursor, renderCursor: true, history })
         }
       } else {
         this.$nativeApi.app.send('mt::open-file', filePath, {
@@ -64,6 +71,7 @@ export const fileMixins = {
       }
     },
     handleFileClick () {
+      const editorStore = useEditorStore()
       const { isMarkdown, pathname } = this.file
       if (!isMarkdown) return
       const openedTab = this.tabs.find(file => isSamePathSync(file.pathname, pathname))
@@ -71,7 +79,7 @@ export const fileMixins = {
         if (this.currentFile === openedTab) {
           return
         }
-        this.$store.dispatch('UPDATE_CURRENT_FILE', openedTab)
+        editorStore.dispatch('UPDATE_CURRENT_FILE', openedTab)
       } else {
         this.$nativeApi.app.send('mt::open-file', pathname, {})
       }
@@ -93,8 +101,9 @@ export const createFileOrDirectoryMixins = {
       })
     },
     handleInputEnter () {
+      const projectStore = useProjectStore()
       const { createName } = this
-      this.$store.dispatch('CREATE_FILE_DIRECTORY', createName)
+      projectStore.dispatch('CREATE_FILE_DIRECTORY', createName)
     }
   }
 }

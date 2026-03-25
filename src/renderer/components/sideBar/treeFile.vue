@@ -25,10 +25,12 @@
 
 <script>
 import FileIcon from './icon.vue'
-import { mapState } from 'vuex'
+import { mapActions, mapState } from 'pinia'
 import { fileMixins } from '../../mixins'
 import { showContextMenu } from '../../contextMenu/sideBar'
 import bus from '../../bus'
+import { useEditorStore } from '@/stores/editor'
+import { useProjectStore } from '@/stores/project'
 
 export default {
   mixins: [fileMixins],
@@ -52,19 +54,14 @@ export default {
     FileIcon
   },
   computed: {
-    ...mapState({
-      renameCache: state => state.project.renameCache,
-      activeItem: state => state.project.activeItem,
-      clipboard: state => state.project.clipboard,
-      currentFile: state => state.editor.currentFile,
-      tabs: state => state.editor.tabs
-    })
+    ...mapState(useProjectStore, ['renameCache', 'activeItem', 'clipboard']),
+    ...mapState(useEditorStore, ['currentFile', 'tabs'])
   },
   created () {
     this.$nextTick(() => {
       this.$refs.file.addEventListener('contextmenu', event => {
         event.preventDefault()
-        this.$store.dispatch('CHANGE_ACTIVE_ITEM', this.file)
+        this.dispatchProject('CHANGE_ACTIVE_ITEM', this.file)
         showContextMenu(event, !!this.clipboard)
       })
 
@@ -72,6 +69,9 @@ export default {
     })
   },
   methods: {
+    ...mapActions(useProjectStore, {
+      dispatchProject: 'dispatch'
+    }),
     noop () {},
     focusRenameInput () {
       this.$nextTick(() => {
@@ -84,7 +84,7 @@ export default {
     rename () {
       const { newName } = this
       if (newName) {
-        this.$store.dispatch('RENAME_IN_SIDEBAR', newName)
+        this.dispatchProject('RENAME_IN_SIDEBAR', newName)
       }
     }
   }

@@ -34,8 +34,10 @@
 </template>
 
 <script>
-import bus from '@/bus'
 import importIcon from '@/assets/icons/import_file.svg'
+import { useEventBus } from '@/composables/useEventBus'
+
+const eventBus = useEventBus()
 
 export default {
   data () {
@@ -46,25 +48,29 @@ export default {
     }
   },
   created () {
-    bus.$on('importDialog', this.showDialog)
+    eventBus.$on('importDialog', this.showDialog)
   },
   beforeUnmount () {
-    bus.$off('importDialog', this.showDialog)
+    eventBus.$off('importDialog', this.showDialog)
   },
   methods: {
     showDialog (boolean) {
+      this.isOver = false
       if (boolean !== this.showImport) {
         this.showImport = boolean
       }
     },
     dragOverHandler (e) {
+      e.preventDefault()
       this.isOver = true
     },
     dragLeaveHandler (e) {
+      e.preventDefault()
       this.isOver = false
     },
     dropHandler (e) {
       e.preventDefault()
+      this.isOver = false
       if (e.dataTransfer.files) {
         const fileList = []
         for (const file of e.dataTransfer.files) {

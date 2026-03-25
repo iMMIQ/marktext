@@ -44,7 +44,7 @@
           :content="`${wordCount[show]} ${HASH[show].full + (wordCount[show] > 1 ? 's' : '')}`"
           placement="bottom-end"
         >
-          <div slot="content">
+          <template #content>
             <div class="title-item">
               <span class="front">Words:</span><span class="text">{{wordCount['word']}}</span>
             </div>
@@ -54,7 +54,7 @@
             <div class="title-item">
               <span class="front">Paragraphs:</span><span class="text">{{wordCount['paragraph']}}</span>
             </div>
-          </div>
+          </template>
           <div
             v-if="wordCount"
             class="word-count"
@@ -98,10 +98,13 @@
 </template>
 
 <script>
-import { mapState } from 'vuex'
+import { mapActions, mapState } from 'pinia'
 import { minimizePath, restorePath, maximizePath, closePath } from '../../assets/window-controls.js'
 import { PATH_SEPARATOR } from '../../config'
 import { isOsx } from '@/util'
+import { useEditorStore } from '@/stores/editor'
+import { useLayoutStore } from '@/stores/layout'
+import { usePreferencesStore } from '@/stores/preferences'
 
 export default {
   data () {
@@ -154,10 +157,8 @@ export default {
     isSaved: Boolean
   },
   computed: {
-    ...mapState({
-      titleBarStyle: state => state.preferences.titleBarStyle,
-      showTabBar: state => state.layout.showTabBar
-    }),
+    ...mapState(usePreferencesStore, ['titleBarStyle']),
+    ...mapState(useLayoutStore, ['showTabBar']),
     paths () {
       if (!this.pathname) return []
       const pathnameToken = this.pathname.split(PATH_SEPARATOR).filter(i => i)
@@ -182,6 +183,9 @@ export default {
     }
   },
   methods: {
+    ...mapActions(useEditorStore, {
+      dispatchEditor: 'dispatch'
+    }),
     handleWordClick () {
       const ITEMS = ['word', 'paragraph', 'character', 'all']
       const len = ITEMS.length
@@ -221,7 +225,7 @@ export default {
 
     rename () {
       if (this.platform === 'darwin') {
-        this.$store.dispatch('RESPONSE_FOR_RENAME')
+        this.dispatchEditor('RESPONSE_FOR_RENAME')
       }
     },
 
@@ -238,7 +242,7 @@ export default {
       this.isFullScreen = false
     }
   },
-  beforeDestroy () {
+  beforeUnmount () {
     this.releaseWindowListeners.forEach(release => release())
   }
 }

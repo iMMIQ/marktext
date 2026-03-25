@@ -50,10 +50,11 @@
 </template>
 
 <script>
-import { mapState } from 'vuex'
+import { mapActions, mapState } from 'pinia'
 import { showContextMenu } from '../../contextMenu/sideBar'
 import bus from '../../bus'
 import { createFileOrDirectoryMixins } from '../../mixins'
+import { useProjectStore } from '@/stores/project'
 
 export default {
   mixins: [createFileOrDirectoryMixins],
@@ -78,18 +79,13 @@ export default {
     File: () => import('./treeFile.vue')
   },
   computed: {
-    ...mapState({
-      renameCache: state => state.project.renameCache,
-      createCache: state => state.project.createCache,
-      activeItem: state => state.project.activeItem,
-      clipboard: state => state.project.clipboard
-    })
+    ...mapState(useProjectStore, ['renameCache', 'createCache', 'activeItem', 'clipboard'])
   },
   created () {
     this.$nextTick(() => {
       this.$refs.folder.addEventListener('contextmenu', event => {
         event.preventDefault()
-        this.$store.dispatch('CHANGE_ACTIVE_ITEM', this.folder)
+        this.dispatchProject('CHANGE_ACTIVE_ITEM', this.folder)
         showContextMenu(event, !!this.clipboard)
       })
       bus.$on('SIDEBAR::show-new-input', this.handleInputFocus)
@@ -97,6 +93,9 @@ export default {
     })
   },
   methods: {
+    ...mapActions(useProjectStore, {
+      dispatchProject: 'dispatch'
+    }),
     folderNameClick () {
       this.folder.isCollapsed = !this.folder.isCollapsed
     },
@@ -112,7 +111,7 @@ export default {
     rename () {
       const { newName } = this
       if (newName) {
-        this.$store.dispatch('RENAME_IN_SIDEBAR', newName)
+        this.dispatchProject('RENAME_IN_SIDEBAR', newName)
       }
     }
   }

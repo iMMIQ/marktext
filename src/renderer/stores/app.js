@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { getRuntime } from '@/services/runtime'
 import { createLegacyState } from './index'
+import { createLegacyStoreActions } from './legacyActions'
 
 const createAppState = () => {
   let runtime = { platform: '', appVersion: '' }
@@ -22,6 +23,7 @@ const createAppState = () => {
 export const useAppStore = defineStore('app', {
   state: createLegacyState(createAppState()),
   actions: {
+    ...createLegacyStoreActions(),
     setWinStatus (status) {
       this.windowActive = status
     },

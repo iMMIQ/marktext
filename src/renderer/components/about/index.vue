@@ -27,9 +27,10 @@
 </template>
 
 <script>
-import { mapState } from 'vuex'
+import { mapState } from 'pinia'
 import bus from '../../bus'
 import MarkTextLogo from '../../assets/images/logo.png'
+import { useAppStore } from '@/stores/app'
 
 export default {
   data () {
@@ -42,9 +43,7 @@ export default {
     }
   },
   computed: {
-    ...mapState({
-      appVersion: state => state.appVersion
-    })
+    ...mapState(useAppStore, ['appVersion'])
   },
   created () {
     bus.$on('aboutDialog', this.showDialog)

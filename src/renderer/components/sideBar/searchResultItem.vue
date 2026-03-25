@@ -60,9 +60,10 @@
 
 <script>
 import path from 'path'
-import { mapState } from 'vuex'
+import { mapState } from 'pinia'
 import { fileMixins } from '../../mixins'
 import { PATH_SEPARATOR } from '../../config'
+import { useEditorStore } from '@/stores/editor'
 
 export default {
   mixins: [fileMixins],
@@ -80,10 +81,7 @@ export default {
     }
   },
   computed: {
-    ...mapState({
-      tabs: state => state.editor.tabs,
-      currentFile: state => state.editor.currentFile
-    }),
+    ...mapState(useEditorStore, ['tabs', 'currentFile']),
 
     getMatches () {
       if (this.searchResult.matches.length === 0 || this.allMatchesShown) {

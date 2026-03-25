@@ -35,8 +35,8 @@
               ></cur-select>
               <div v-if="pageSize === 'custom'" class="row">
                 <div>Width/Height in mm:</div>
-                <el-input-number v-model="pageSizeWidth" size="mini" controls-position="right" :min="100"></el-input-number>
-                <el-input-number v-model="pageSizeHeight" size="mini" controls-position="right" :min="100"></el-input-number>
+                <el-input-number v-model="pageSizeWidth" size="small" controls-position="right" :min="100"></el-input-number>
+                <el-input-number v-model="pageSizeHeight" size="small" controls-position="right" :min="100"></el-input-number>
               </div>
 
               <bool
@@ -50,13 +50,13 @@
               <div class="description">Page margin in mm:</div>
               <div>
                 <div class="label">Top/Bottom:</div>
-                <el-input-number v-model="pageMarginTop" size="mini" controls-position="right" :min="0" :max="100"></el-input-number>
-                <el-input-number v-model="pageMarginBottom" size="mini" controls-position="right" :min="0" :max="100"></el-input-number>
+                <el-input-number v-model="pageMarginTop" size="small" controls-position="right" :min="0" :max="100"></el-input-number>
+                <el-input-number v-model="pageMarginBottom" size="small" controls-position="right" :min="0" :max="100"></el-input-number>
               </div>
               <div>
                 <div class="label">Left/Right:</div>
-                <el-input-number v-model="pageMarginLeft" size="mini" controls-position="right" :min="0" :max="100"></el-input-number>
-                <el-input-number v-model="pageMarginRight" size="mini" controls-position="right" :min="0" :max="100"></el-input-number>
+                <el-input-number v-model="pageMarginLeft" size="small" controls-position="right" :min="0" :max="100"></el-input-number>
+                <el-input-number v-model="pageMarginRight" size="small" controls-position="right" :min="0" :max="100"></el-input-number>
               </div>
             </div>
           </div>
@@ -219,7 +219,6 @@
 </template>
 
 <script>
-import { mapState } from 'vuex'
 import path from 'path'
 import bus from '../../bus'
 import Bool from '@/prefComponents/common/bool'
@@ -286,10 +285,6 @@ export default {
       tocIncludeTopHeading: true,
       customThemeCss: {}
     }
-  },
-  computed: {
-    ...mapState({
-    })
   },
   created () {
     bus.$on('showExportDialog', this.showDialog)

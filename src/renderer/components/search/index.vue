@@ -117,10 +117,11 @@
 
 <script>
 import bus from '../../bus'
-import { mapState } from 'vuex'
+import { mapState } from 'pinia'
 import FindCaseIcon from '@/assets/icons/searchIcons/iconCase.svg'
 import FindWordIcon from '@/assets/icons/searchIcons/iconWord.svg'
 import FindRegexIcon from '@/assets/icons/searchIcons/iconRegex.svg'
+import { useEditorStore } from '@/stores/editor'
 
 export default {
   data () {
@@ -150,8 +151,8 @@ export default {
   },
 
   computed: {
-    ...mapState({
-      searchMatches: state => state.editor.currentFile.searchMatches
+    ...mapState(useEditorStore, {
+      searchMatches: state => state.currentFile.searchMatches
     }),
     highlightIndex () {
       if (this.searchMatches) {
@@ -178,7 +179,7 @@ export default {
     document.addEventListener('keyup', this.docKeyup)
   },
 
-  beforeDestroy () {
+  beforeUnmount () {
     bus.$off('find', this.listenFind)
     bus.$off('replace', this.listenReplace)
     bus.$off('findNext', this.listenFindNext)

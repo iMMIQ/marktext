@@ -42,7 +42,7 @@
         <el-form-item label="Rows">
           <el-input-number
             ref="rowInput"
-            size="mini"
+            size="small"
             v-model="tableChecker.rows"
             controls-position="right"
             :min="1"
@@ -51,7 +51,7 @@
         </el-form-item>
         <el-form-item label="Columns">
           <el-input-number
-            size="mini"
+            size="small"
             v-model="tableChecker.columns"
             controls-position="right"
             :min="1"
@@ -79,7 +79,7 @@
 <script>
 import path from 'path'
 import log from 'electron-log'
-import { mapState } from 'vuex'
+import { mapActions, mapState } from 'pinia'
 // import ViewImage from 'view-image'
 import { isChildOfDirectory } from 'common/filesystem/paths'
 import Muya from 'muya/lib'
@@ -108,6 +108,9 @@ import { moveImageToFolder, moveToRelativeFolder, uploadImage } from '@/util/fil
 import { guessClipboardFilePath } from '@/util/clipboard'
 import { getCssForOptions, getHtmlToc } from '@/util/pdf'
 import { addCommonStyle, setEditorWidth } from '@/util/theme'
+import { useEditorStore } from '@/stores/editor'
+import { usePreferencesStore } from '@/stores/preferences'
+import { useProjectStore } from '@/stores/project'
 
 import 'muya/themes/default.css'
 import 'muya/themes/prismjs/light.theme.css'
@@ -133,51 +136,50 @@ export default {
   },
 
   computed: {
-    ...mapState({
-      preferences: state => state.preferences,
-      preferLooseListItem: state => state.preferences.preferLooseListItem,
-      autoPairBracket: state => state.preferences.autoPairBracket,
-      autoPairMarkdownSyntax: state => state.preferences.autoPairMarkdownSyntax,
-      autoPairQuote: state => state.preferences.autoPairQuote,
-      bulletListMarker: state => state.preferences.bulletListMarker,
-      orderListDelimiter: state => state.preferences.orderListDelimiter,
-      tabSize: state => state.preferences.tabSize,
-      listIndentation: state => state.preferences.listIndentation,
-      frontmatterType: state => state.preferences.frontmatterType,
-      superSubScript: state => state.preferences.superSubScript,
-      footnote: state => state.preferences.footnote,
-      isHtmlEnabled: state => state.preferences.isHtmlEnabled,
-      isGitlabCompatibilityEnabled: state => state.preferences.isGitlabCompatibilityEnabled,
-      lineHeight: state => state.preferences.lineHeight,
-      fontSize: state => state.preferences.fontSize,
-      codeFontSize: state => state.preferences.codeFontSize,
-      codeFontFamily: state => state.preferences.codeFontFamily,
-      codeBlockLineNumbers: state => state.preferences.codeBlockLineNumbers,
-      trimUnnecessaryCodeBlockEmptyLines: state => state.preferences.trimUnnecessaryCodeBlockEmptyLines,
-      editorFontFamily: state => state.preferences.editorFontFamily,
-      hideQuickInsertHint: state => state.preferences.hideQuickInsertHint,
-      hideLinkPopup: state => state.preferences.hideLinkPopup,
-      autoCheck: state => state.preferences.autoCheck,
-      editorLineWidth: state => state.preferences.editorLineWidth,
-      imageInsertAction: state => state.preferences.imageInsertAction,
-      imagePreferRelativeDirectory: state => state.preferences.imagePreferRelativeDirectory,
-      imageRelativeDirectoryName: state => state.preferences.imageRelativeDirectoryName,
-      imageFolderPath: state => state.preferences.imageFolderPath,
-      theme: state => state.preferences.theme,
-      sequenceTheme: state => state.preferences.sequenceTheme,
-      hideScrollbar: state => state.preferences.hideScrollbar,
-      spellcheckerEnabled: state => state.preferences.spellcheckerEnabled,
-      spellcheckerNoUnderline: state => state.preferences.spellcheckerNoUnderline,
-      spellcheckerLanguage: state => state.preferences.spellcheckerLanguage,
-
-      currentFile: state => state.editor.currentFile,
-      projectTree: state => state.project.projectTree,
-
-      // edit modes
-      typewriter: state => state.preferences.typewriter,
-      focus: state => state.preferences.focus,
-      sourceCode: state => state.preferences.sourceCode
-    })
+    ...mapState(usePreferencesStore, {
+      preferences: state => state.$state,
+      preferLooseListItem: 'preferLooseListItem',
+      autoPairBracket: 'autoPairBracket',
+      autoPairMarkdownSyntax: 'autoPairMarkdownSyntax',
+      autoPairQuote: 'autoPairQuote',
+      bulletListMarker: 'bulletListMarker',
+      orderListDelimiter: 'orderListDelimiter',
+      tabSize: 'tabSize',
+      listIndentation: 'listIndentation',
+      frontmatterType: 'frontmatterType',
+      superSubScript: 'superSubScript',
+      footnote: 'footnote',
+      isHtmlEnabled: 'isHtmlEnabled',
+      isGitlabCompatibilityEnabled: 'isGitlabCompatibilityEnabled',
+      lineHeight: 'lineHeight',
+      fontSize: 'fontSize',
+      codeFontSize: 'codeFontSize',
+      codeFontFamily: 'codeFontFamily',
+      codeBlockLineNumbers: 'codeBlockLineNumbers',
+      trimUnnecessaryCodeBlockEmptyLines: 'trimUnnecessaryCodeBlockEmptyLines',
+      editorFontFamily: 'editorFontFamily',
+      hideQuickInsertHint: 'hideQuickInsertHint',
+      hideLinkPopup: 'hideLinkPopup',
+      autoCheck: 'autoCheck',
+      editorLineWidth: 'editorLineWidth',
+      imageInsertAction: 'imageInsertAction',
+      imagePreferRelativeDirectory: 'imagePreferRelativeDirectory',
+      imageRelativeDirectoryName: 'imageRelativeDirectoryName',
+      imageFolderPath: 'imageFolderPath',
+      theme: 'theme',
+      sequenceTheme: 'sequenceTheme',
+      hideScrollbar: 'hideScrollbar',
+      spellcheckerEnabled: 'spellcheckerEnabled',
+      spellcheckerNoUnderline: 'spellcheckerNoUnderline',
+      spellcheckerLanguage: 'spellcheckerLanguage',
+      typewriter: 'typewriter',
+      focus: 'focus',
+      sourceCode: 'sourceCode'
+    }),
+    ...mapState(useEditorStore, {
+      currentFile: 'currentFile'
+    }),
+    ...mapState(useProjectStore, ['projectTree'])
   },
 
   data () {
@@ -599,13 +601,13 @@ export default {
 
       this.editor.on('change', changes => {
         // WORKAROUND: "id: 'muya'"
-        this.$store.dispatch('LISTEN_FOR_CONTENT_CHANGE', Object.assign(changes, { id: 'muya' }))
+        this.dispatchEditor('LISTEN_FOR_CONTENT_CHANGE', Object.assign(changes, { id: 'muya' }))
       })
 
       this.editor.on('format-click', ({ event, formatType, data }) => {
         const ctrlOrMeta = (isOsx && event.metaKey) || (!isOsx && event.ctrlKey)
         if (formatType === 'link' && ctrlOrMeta) {
-          this.$store.dispatch('FORMAT_LINK_CLICK', { data, dirname: window.DIRNAME })
+          this.dispatchEditor('FORMAT_LINK_CLICK', { data, dirname: window.DIRNAME })
         } else if (formatType === 'image' && ctrlOrMeta) {
           if (this.imageViewer) {
             this.imageViewer.destroy()
@@ -655,11 +657,11 @@ export default {
         }
 
         this.selectionChange = changes
-        this.$store.dispatch('SELECTION_CHANGE', changes)
+        this.dispatchEditor('SELECTION_CHANGE', changes)
       })
 
       this.editor.on('selectionFormats', formats => {
-        this.$store.dispatch('SELECTION_FORMATS', formats)
+        this.dispatchEditor('SELECTION_FORMATS', formats)
       })
 
       document.addEventListener('keyup', this.keyup)
@@ -668,17 +670,20 @@ export default {
     })
   },
   methods: {
+    ...mapActions(useEditorStore, {
+      dispatchEditor: 'dispatch'
+    }),
     photoCreatorClick (url) {
       this.$nativeApi.shell.openExternal(url)
     },
 
     jumpClick (linkInfo) {
       const { href } = linkInfo
-      this.$store.dispatch('FORMAT_LINK_CLICK', { data: { href }, dirname: window.DIRNAME })
+      this.dispatchEditor('FORMAT_LINK_CLICK', { data: { href }, dirname: window.DIRNAME })
     },
 
     async imagePathAutoComplete (src) {
-      const files = await this.$store.dispatch('ASK_FOR_IMAGE_AUTO_PATH', src)
+      const files = await this.dispatchEditor('ASK_FOR_IMAGE_AUTO_PATH', src)
       return files.map(f => {
         const iconClass = f.type === 'directory' ? 'icon-folder' : 'icon-image'
         return Object.assign(f, { iconClass, text: f.file + (f.type === 'directory' ? '/' : '') })
@@ -776,7 +781,7 @@ export default {
     },
 
     imagePathPicker () {
-      return this.$store.dispatch('ASK_FOR_IMAGE_PATH')
+      return this.dispatchEditor('ASK_FOR_IMAGE_PATH')
     },
 
     keyup (event) {
@@ -882,18 +887,18 @@ export default {
 
     handleSearch (value, opt) {
       const searchMatches = this.editor.search(value, opt)
-      this.$store.dispatch('SEARCH', searchMatches)
+      this.dispatchEditor('SEARCH', searchMatches)
       this.scrollToHighlight()
     },
 
     handReplace (value, opt) {
       const searchMatches = this.editor.replace(value, opt)
-      this.$store.dispatch('SEARCH', searchMatches)
+      this.dispatchEditor('SEARCH', searchMatches)
     },
 
     handleUploadedImage (url, deletionUrl) {
       this.insertImage(url)
-      this.$store.dispatch('SHOW_IMAGE_DELETION_URL', deletionUrl)
+      this.dispatchEditor('SHOW_IMAGE_DELETION_URL', deletionUrl)
     },
 
     scrollToCursor (duration = 300) {
@@ -925,7 +930,7 @@ export default {
 
     handleFindAction (action) {
       const searchMatches = this.editor.find(action)
-      this.$store.dispatch('SEARCH', searchMatches)
+      this.dispatchEditor('SEARCH', searchMatches)
       this.scrollToHighlight()
     },
 
@@ -954,7 +959,7 @@ export default {
               extraCss,
               toc: htmlToc
             })
-            this.$store.dispatch('EXPORT', { type, content })
+            this.dispatchEditor('EXPORT', { type, content })
           } catch (err) {
             log.error('Failed to export document:', err)
             notice.notify({
@@ -983,7 +988,7 @@ export default {
               headerFooterStyled
             })
             this.printer.renderMarkdown(html, true)
-            this.$store.dispatch('EXPORT', { type, pageOptions })
+            this.dispatchEditor('EXPORT', { type, pageOptions })
           } catch (err) {
             log.error('Failed to export document:', err)
             notice.notify({
@@ -1008,7 +1013,7 @@ export default {
               headerFooterStyled
             })
             this.printer.renderMarkdown(html, true)
-            this.$store.dispatch('PRINT_RESPONSE')
+            this.dispatchEditor('PRINT_RESPONSE')
           } catch (err) {
             log.error('Failed to export document:', err)
             notice.notify({

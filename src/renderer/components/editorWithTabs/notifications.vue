@@ -3,7 +3,7 @@
     v-if="currentNotification"
     class="editor-notifications"
     :class="currentNotification.style"
-    :style="{'max-width': showSideBar ? `calc(100vw - ${sideBarWidth}px` : '100vw' }"
+    :style="{ 'max-width': showSideBar ? `calc(100vw - ${sideBarWidth}px)` : '100vw' }"
   >
     <div class="msg">
       {{ currentNotification.msg }}
@@ -31,20 +31,19 @@
 </template>
 
 <script>
-import { mapState } from 'vuex'
+import { mapActions, mapState } from 'pinia'
+import { useEditorStore } from '@/stores/editor'
+import { useLayoutStore } from '@/stores/layout'
 
 export default {
   data () {
     return {}
   },
   computed: {
-    ...mapState({
-      currentFile: state => state.editor.currentFile,
-      showSideBar: state => state.layout.showSideBar,
-      sideBarWidth: state => state.layout.sideBarWidth
-    }),
+    ...mapState(useEditorStore, ['currentFile']),
+    ...mapState(useLayoutStore, ['showSideBar', 'sideBarWidth']),
     currentNotification () {
-      const notifications = this.currentFile.notifications
+      const notifications = this.currentFile?.notifications
       if (!notifications || notifications.length === 0) {
         return null
       }
@@ -52,18 +51,13 @@ export default {
     }
   },
   methods: {
+    ...mapActions(useEditorStore, ['consumeCurrentTabNotification']),
     handleClick (status) {
-      const notifications = this.currentFile.notifications
-      if (!notifications || notifications.length === 0) {
+      if (!this.currentNotification) {
         console.error('notifications::handleClick: Cannot find notification on stack.')
         return
       }
-
-      const item = notifications.shift()
-      const action = item.action
-      if (action) {
-        action(status)
-      }
+      this.consumeCurrentTabNotification(status)
     }
   }
 }

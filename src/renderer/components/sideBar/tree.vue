@@ -84,10 +84,12 @@
 import Folder from './treeFolder.vue'
 import File from './treeFile.vue'
 import OpenedFile from './treeOpenedTab.vue'
-import { mapState } from 'vuex'
+import { mapActions, mapState } from 'pinia'
 import bus from '../../bus'
 import { createFileOrDirectoryMixins } from '../../mixins'
 import FolderIcon from '@/assets/icons/undraw_folder.svg'
+import { useEditorStore } from '@/stores/editor'
+import { useProjectStore } from '@/stores/project'
 
 export default {
   mixins: [createFileOrDirectoryMixins],
@@ -117,9 +119,7 @@ export default {
     OpenedFile
   },
   computed: {
-    ...mapState({
-      createCache: state => state.project.createCache
-    })
+    ...mapState(useProjectStore, ['createCache'])
   },
   created () {
     this.$nextTick(() => {
@@ -128,35 +128,42 @@ export default {
       document.addEventListener('click', event => {
         const target = event.target
         if (target.tagName !== 'INPUT') {
-          this.$store.dispatch('CHANGE_ACTIVE_ITEM', {})
-          this.$store.commit('CREATE_PATH', {})
-          this.$store.commit('SET_RENAME_CACHE', null)
+          this.dispatchProject('CHANGE_ACTIVE_ITEM', {})
+          this.commitProject('CREATE_PATH', {})
+          this.commitProject('SET_RENAME_CACHE', null)
         }
       })
       document.addEventListener('contextmenu', event => {
         const target = event.target
         if (target.tagName !== 'INPUT') {
-          this.$store.commit('CREATE_PATH', {})
-          this.$store.commit('SET_RENAME_CACHE', null)
+          this.commitProject('CREATE_PATH', {})
+          this.commitProject('SET_RENAME_CACHE', null)
         }
       })
       document.addEventListener('keydown', event => {
         if (event.key === 'Escape') {
-          this.$store.commit('CREATE_PATH', {})
-          this.$store.commit('SET_RENAME_CACHE', null)
+          this.commitProject('CREATE_PATH', {})
+          this.commitProject('SET_RENAME_CACHE', null)
         }
       })
     })
   },
   methods: {
+    ...mapActions(useProjectStore, {
+      dispatchProject: 'dispatch',
+      commitProject: 'commit'
+    }),
+    ...mapActions(useEditorStore, {
+      dispatchEditor: 'dispatch'
+    }),
     openFolder () {
-      this.$store.dispatch('ASK_FOR_OPEN_PROJECT')
+      this.dispatchProject('ASK_FOR_OPEN_PROJECT')
     },
     saveAll (isClose) {
-      this.$store.dispatch('ASK_FOR_SAVE_ALL', isClose)
+      this.dispatchEditor('ASK_FOR_SAVE_ALL', isClose)
     },
     createFile () {
-      this.$store.dispatch('CHANGE_ACTIVE_ITEM', this.projectTree)
+      this.dispatchProject('CHANGE_ACTIVE_ITEM', this.projectTree)
       bus.$emit('SIDEBAR::new', 'file')
     },
     toggleOpenedFiles () {
@@ -178,8 +185,7 @@ export default {
   .list-enter-active, .list-leave-active {
     transition: all .2s;
   }
-  .list-enter, .list-leave-to
-  /* .list-leave-active for below version 2.1.8 */ {
+  .list-enter-from, .list-leave-to {
     opacity: 0;
     transform: translateX(-50px);
   }

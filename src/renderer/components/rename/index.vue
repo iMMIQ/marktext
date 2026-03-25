@@ -12,7 +12,7 @@
         <div class="input-wrapper">
           <input
             type="text" v-model="tempName" class="search"
-            @keyup.13="confirm"
+            @keyup.enter="confirm"
             ref="search"
           >
           <svg class="icon" aria-hidden="true" @click="confirm">
@@ -27,7 +27,8 @@
 
 <script>
 import bus from '../../bus'
-import { mapState } from 'vuex'
+import { mapActions, mapState } from 'pinia'
+import { useEditorStore } from '@/stores/editor'
 
 export default {
   data () {
@@ -45,18 +46,21 @@ export default {
     bus.$off('rename', this.handleRename)
   },
   computed: {
-    ...mapState({
-      filename: state => state.editor.currentFile.filename
+    ...mapState(useEditorStore, {
+      filename: state => state.currentFile.filename
     })
   },
   methods: {
+    ...mapActions(useEditorStore, {
+      dispatchEditor: 'dispatch'
+    }),
     handleRename () {
       this.showRename = true
       this.tempName = this.filename
       this.$refs.search.focus()
     },
     confirm () {
-      this.$store.dispatch('RENAME', this.tempName)
+      this.dispatchEditor('RENAME', this.tempName)
       this.showRename = false
     }
   }

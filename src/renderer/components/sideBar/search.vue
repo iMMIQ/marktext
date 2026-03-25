@@ -54,10 +54,10 @@
       >
         <el-button
           type="primary"
-          size="mini"
+          size="small"
           @click="cancelSearcher"
         >
-          Cancel <i class="el-icon-video-pause"></i>
+          Cancel
         </el-button>
       </div>
       <div v-if="searchResult.length" class="search-result-info">{{searchResultInfo}}</div>
@@ -86,7 +86,7 @@
 </template>
 
 <script>
-import { mapState } from 'vuex'
+import { mapActions, mapState } from 'pinia'
 import bus from '../../bus'
 import log from 'electron-log'
 import SearchResultItem from './searchResultItem.vue'
@@ -96,6 +96,10 @@ import FindCaseIcon from '@/assets/icons/searchIcons/iconCase.svg'
 import FindWordIcon from '@/assets/icons/searchIcons/iconWord.svg'
 import FindRegexIcon from '@/assets/icons/searchIcons/iconRegex.svg'
 import { MARKDOWN_INCLUSIONS } from '../../../common/filesystem/paths'
+import { useEditorStore } from '@/stores/editor'
+import { useLayoutStore } from '@/stores/layout'
+import { usePreferencesStore } from '@/stores/preferences'
+import { useProjectStore } from '@/stores/project'
 
 export default {
   data () {
@@ -141,17 +145,18 @@ export default {
     })
   },
   computed: {
-    ...mapState({
-      rightColumn: state => state.layout.rightColumn,
-      showSideBar: state => state.layout.showSideBar,
-      searchMatches: state => state.editor.currentFile.searchMatches,
-      projectTree: state => state.project.projectTree,
-      searchExclusions: state => state.preferences.searchExclusions,
-      searchMaxFileSize: state => state.preferences.searchMaxFileSize,
-      searchIncludeHidden: state => state.preferences.searchIncludeHidden,
-      searchNoIgnore: state => state.preferences.searchNoIgnore,
-      searchFollowSymlinks: state => state.preferences.searchFollowSymlinks
+    ...mapState(useLayoutStore, ['rightColumn', 'showSideBar']),
+    ...mapState(useEditorStore, {
+      searchMatches: state => state.currentFile.searchMatches
     }),
+    ...mapState(useProjectStore, ['projectTree']),
+    ...mapState(usePreferencesStore, [
+      'searchExclusions',
+      'searchMaxFileSize',
+      'searchIncludeHidden',
+      'searchNoIgnore',
+      'searchFollowSymlinks'
+    ]),
     searchResultInfo () {
       const fileCount = this.searchResult.length
       const matchCount = this.searchResult.reduce((acc, item) => {
@@ -168,6 +173,9 @@ export default {
     }
   },
   methods: {
+    ...mapActions(useProjectStore, {
+      dispatchProject: 'dispatch'
+    }),
     search () {
       // No root directory is opened.
       if (this.showNoFolderOpenedMessage) {
@@ -292,13 +300,13 @@ export default {
       this.search()
     },
     openFolder () {
-      this.$store.dispatch('ASK_FOR_OPEN_PROJECT')
+      this.dispatchProject('ASK_FOR_OPEN_PROJECT')
     },
     handleFindInFolder () {
       this.keyword = this.searchMatches.value
     }
   },
-  destroyed () {
+  beforeUnmount () {
     bus.$off('findInFolder', this.handleFindInFolder)
   }
 }

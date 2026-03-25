@@ -1,7 +1,7 @@
 <template>
     <div
       class="editor-with-tabs"
-      :style="{'max-width': showSideBar ? `calc(100vw - ${sideBarWidth}px` : '100vw' }"
+      :style="{ 'max-width': showSideBar ? `calc(100vw - ${sideBarWidth}px)` : '100vw' }"
     >
       <tabs v-show="showTabBar"></tabs>
       <div class="container">
@@ -23,7 +23,8 @@
 </template>
 
 <script>
-import { mapState } from 'vuex'
+import { mapState } from 'pinia'
+import { useLayoutStore } from '@/stores/layout'
 import Tabs from './tabs.vue'
 import Editor from './editor.vue'
 import SourceCode from './sourceCode.vue'
@@ -65,10 +66,7 @@ export default {
     TabNotifications
   },
   computed: {
-    ...mapState({
-      showSideBar: state => state.layout.showSideBar,
-      sideBarWidth: state => state.layout.sideBarWidth
-    })
+    ...mapState(useLayoutStore, ['showSideBar', 'sideBarWidth'])
   }
 }
 </script>

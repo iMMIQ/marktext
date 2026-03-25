@@ -14,7 +14,9 @@
 </template>
 
 <script>
+import { mapActions } from 'pinia'
 import ContentIcon from '@/assets/icons/undraw_content.svg'
+import { useEditorStore } from '@/stores/editor'
 
 export default {
   data () {
@@ -22,8 +24,11 @@ export default {
     return {}
   },
   methods: {
+    ...mapActions(useEditorStore, {
+      dispatchEditor: 'dispatch'
+    }),
     newFile () {
-      this.$store.dispatch('NEW_UNTITLED_TAB', {})
+      this.dispatchEditor('NEW_UNTITLED_TAB', {})
     }
   }
 }

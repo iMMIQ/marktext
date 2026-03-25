@@ -51,19 +51,18 @@
 </template>
 
 <script>
-import { mapState } from 'vuex'
+import { mapState } from 'pinia'
 import log from 'electron-log'
 import bus from '../../bus'
 import loading from '../loading'
+import { useCommandCenterStore } from '@/stores/commandCenter'
 
 export default {
   components: {
     loading
   },
   computed: {
-    ...mapState({
-      rootCommand: state => state.commandCenter.rootCommand
-    })
+    ...mapState(useCommandCenterStore, ['rootCommand'])
   },
   data () {
     this.currentCommand = null
@@ -376,7 +375,7 @@ export default {
   .fade-enter-active, .fade-leave-active {
     transition: opacity .2s;
   }
-  .fade-enter, .fade-leave-to /* .fade-leave-active below version 2.1.8 */ {
+  .fade-enter-from, .fade-leave-to {
     opacity: 0;
   }
 </style>

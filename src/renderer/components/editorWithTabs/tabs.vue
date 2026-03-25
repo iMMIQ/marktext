@@ -41,12 +41,13 @@
 </template>
 
 <script>
-import { mapState } from 'vuex'
+import { mapActions, mapState } from 'pinia'
 import autoScroll from 'dom-autoscroller'
 import dragula from 'dragula'
 import { tabsMixins } from '../../mixins'
 import { showContextMenu } from '../../contextMenu/tabs'
 import bus from '../../bus'
+import { useEditorStore } from '@/stores/editor'
 
 export default {
   data () {
@@ -56,14 +57,14 @@ export default {
   },
   mixins: [tabsMixins],
   computed: {
-    ...mapState({
-      currentFile: state => state.editor.currentFile,
-      tabs: state => state.editor.tabs
-    })
+    ...mapState(useEditorStore, ['currentFile', 'tabs'])
   },
   methods: {
+    ...mapActions(useEditorStore, {
+      dispatchEditor: 'dispatch'
+    }),
     newFile () {
-      this.$store.dispatch('NEW_UNTITLED_TAB', {})
+      this.dispatchEditor('NEW_UNTITLED_TAB', {})
     },
     handleTabScroll (event) {
       // Use mouse wheel value first but prioritize X value more (e.g. touchpad input).
@@ -79,25 +80,25 @@ export default {
     closeTab (tabId) {
       const tab = this.tabs.find(f => f.id === tabId)
       if (tab) {
-        this.$store.dispatch('CLOSE_TAB', tab)
+        this.dispatchEditor('CLOSE_TAB', tab)
       }
     },
     closeOthers (tabId) {
       const tab = this.tabs.find(f => f.id === tabId)
       if (tab) {
-        this.$store.dispatch('CLOSE_OTHER_TABS', tab)
+        this.dispatchEditor('CLOSE_OTHER_TABS', tab)
       }
     },
     closeSaved () {
-      this.$store.dispatch('CLOSE_SAVED_TABS')
+      this.dispatchEditor('CLOSE_SAVED_TABS')
     },
     closeAll () {
-      this.$store.dispatch('CLOSE_ALL_TABS')
+      this.dispatchEditor('CLOSE_ALL_TABS')
     },
     rename (tabId) {
       const tab = this.tabs.find(f => f.id === tabId)
       if (tab && tab.pathname) {
-        this.$store.dispatch('RENAME_FILE', tab)
+        this.dispatchEditor('RENAME_FILE', tab)
       }
     },
     copyPath (tabId) {
@@ -119,15 +120,13 @@ export default {
     }
   },
   created () {
-    this.$nextTick(() => {
-      bus.$on('TABS::close-this', this.closeTab)
-      bus.$on('TABS::close-others', this.closeOthers)
-      bus.$on('TABS::close-saved', this.closeSaved)
-      bus.$on('TABS::close-all', this.closeAll)
-      bus.$on('TABS::rename', this.rename)
-      bus.$on('TABS::copy-path', this.copyPath)
-      bus.$on('TABS::show-in-folder', this.showInFolder)
-    })
+    bus.$on('TABS::close-this', this.closeTab)
+    bus.$on('TABS::close-others', this.closeOthers)
+    bus.$on('TABS::close-saved', this.closeSaved)
+    bus.$on('TABS::close-all', this.closeAll)
+    bus.$on('TABS::rename', this.rename)
+    bus.$on('TABS::copy-path', this.copyPath)
+    bus.$on('TABS::show-in-folder', this.showInFolder)
   },
   mounted () {
     this.$nextTick(() => {
@@ -153,7 +152,7 @@ export default {
           throw new Error('Cannot reorder tabs: invalid tab id.')
         }
 
-        this.$store.dispatch('EXCHANGE_TABS_BY_ID', {
+        this.dispatchEditor('EXCHANGE_TABS_BY_ID', {
           fromId: droppedId,
           toId: isLastTab ? null : nextTabId
         })
@@ -175,8 +174,18 @@ export default {
     })
   },
   beforeUnmount () {
+    bus.$off('TABS::close-this', this.closeTab)
+    bus.$off('TABS::close-others', this.closeOthers)
+    bus.$off('TABS::close-saved', this.closeSaved)
+    bus.$off('TABS::close-all', this.closeAll)
+    bus.$off('TABS::rename', this.rename)
+    bus.$off('TABS::copy-path', this.copyPath)
+    bus.$off('TABS::show-in-folder', this.showInFolder)
+
     const tabs = this.$refs.tabContainer
-    tabs.removeEventListener('wheel', this.handleTabScroll)
+    if (tabs) {
+      tabs.removeEventListener('wheel', this.handleTabScroll)
+    }
 
     if (this.autoScroller) {
       // Force destroy
@@ -185,15 +194,6 @@ export default {
     if (this.drake) {
       this.drake.destroy()
     }
-  },
-  beforeDestroy () {
-    bus.$off('TABS::close-this', this.closeTab)
-    bus.$off('TABS::close-others', this.closeOthers)
-    bus.$off('TABS::close-saved', this.closeSaved)
-    bus.$off('TABS::close-all', this.closeAll)
-    bus.$off('TABS::rename', this.rename)
-    bus.$off('TABS::copy-path', this.copyPath)
-    bus.$off('TABS::show-in-folder', this.showInFolder)
   }
 }
 </script>

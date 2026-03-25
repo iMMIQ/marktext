@@ -53,7 +53,10 @@ import { sideBarIcons, sideBarBottomIcons } from './help'
 import Tree from './tree.vue'
 import SideBarSearch from './search.vue'
 import Toc from './toc.vue'
-import { mapState } from 'vuex'
+import { mapActions, mapState } from 'pinia'
+import { useEditorStore } from '@/stores/editor'
+import { useLayoutStore } from '@/stores/layout'
+import { useProjectStore } from '@/stores/project'
 
 export default {
   data () {
@@ -70,13 +73,9 @@ export default {
     Toc
   },
   computed: {
-    ...mapState({
-      rightColumn: state => state.layout.rightColumn,
-      showSideBar: state => state.layout.showSideBar,
-      projectTree: state => state.project.projectTree,
-      sideBarWidth: state => state.layout.sideBarWidth,
-      tabs: state => state.editor.tabs
-    }),
+    ...mapState(useLayoutStore, ['rightColumn', 'showSideBar', 'sideBarWidth']),
+    ...mapState(useProjectStore, ['projectTree']),
+    ...mapState(useEditorStore, ['tabs']),
     finalSideBarWidth () {
       const { showSideBar, rightColumn, sideBarViewWidth } = this
       if (!showSideBar) return 0
@@ -96,7 +95,7 @@ export default {
       const mouseUpHandler = event => {
         document.removeEventListener('mousemove', mouseMoveHandler, false)
         document.removeEventListener('mouseup', mouseUpHandler, false)
-        this.$store.dispatch('CHANGE_SIDE_BAR_WIDTH', sideBarWidth < 220 ? 220 : sideBarWidth)
+        this.dispatchLayout('CHANGE_SIDE_BAR_WIDTH', sideBarWidth < 220 ? 220 : sideBarWidth)
       }
 
       const mouseMoveHandler = event => {
@@ -116,22 +115,29 @@ export default {
     })
   },
   methods: {
+    ...mapActions(useLayoutStore, {
+      dispatchLayout: 'dispatch',
+      commitLayout: 'commit'
+    }),
+    ...mapActions(useProjectStore, {
+      dispatchProject: 'dispatch'
+    }),
     handleLeftIconClick (name) {
       if (this.rightColumn === name) {
-        this.$store.commit('SET_LAYOUT', { rightColumn: '' })
-        this.$store.dispatch('CHANGE_SIDE_BAR_WIDTH', this.finalSideBarWidth)
+        this.commitLayout('SET_LAYOUT', { rightColumn: '' })
+        this.dispatchLayout('CHANGE_SIDE_BAR_WIDTH', this.finalSideBarWidth)
       } else {
         const needDispatch = this.rightColumn === ''
-        this.$store.commit('SET_LAYOUT', { rightColumn: name })
+        this.commitLayout('SET_LAYOUT', { rightColumn: name })
         this.sideBarViewWidth = +this.sideBarWidth
         if (needDispatch) {
-          this.$store.dispatch('CHANGE_SIDE_BAR_WIDTH', this.finalSideBarWidth)
+          this.dispatchLayout('CHANGE_SIDE_BAR_WIDTH', this.finalSideBarWidth)
         }
       }
     },
     handleLeftBottomClick (name) {
       if (name === 'settings') {
-        this.$store.dispatch('OPEN_SETTING_WINDOW')
+        this.dispatchProject('OPEN_SETTING_WINDOW')
       }
     }
   }
