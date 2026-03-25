@@ -31,6 +31,7 @@ export default defineConfig({
       common: path.resolve(__dirname, 'src/common'),
       main: path.resolve(__dirname, 'src/main'),
       muya: path.resolve(__dirname, 'src/muya'),
+      'electron-log': path.resolve(__dirname, 'src/renderer/shims/electronLog.js'),
       path: 'path-browserify',
       snapsvg: path.resolve(__dirname, 'src/muya/lib/assets/libs/snapSvg.js'),
       'vue$': 'vue/dist/vue.esm.js'

@@ -6,6 +6,7 @@ import { exec, execFile } from 'child_process'
 import { tmpdir } from 'os'
 import dayjs from 'dayjs'
 import { Octokit } from '@octokit/rest'
+import commandExists from 'command-exists'
 import { ipcMain } from 'electron'
 import { isImageFile } from 'common/filesystem/paths'
 
@@ -206,6 +207,10 @@ const isFileExecutable = filepath => {
   }
 }
 
+const commandExistsSync = command => {
+  return commandExists.sync(command)
+}
+
 const readDirectory = async pathname => {
   return fs.readdir(pathname)
 }
@@ -222,6 +227,7 @@ const registerFilesystemHandlers = () => {
   ipcMain.handle('mt::fs-move-image-to-folder', async (event, payload) => moveImageToFolder(payload))
   ipcMain.handle('mt::fs-upload-image', async (event, payload) => uploadImage(payload))
   ipcMain.handle('mt::fs-is-file-executable', async (event, filepath) => isFileExecutable(filepath))
+  ipcMain.handle('mt::fs-command-exists', async (event, command) => commandExistsSync(command))
   ipcMain.handle('mt::fs-read-directory', async (event, pathname) => readDirectory(pathname))
   ipcMain.handle('mt::fs-read-file', async (event, pathname, encoding) => readFile(pathname, encoding))
 }

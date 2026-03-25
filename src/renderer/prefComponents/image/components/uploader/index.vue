@@ -71,9 +71,9 @@
 <script>
 import services, { isValidService } from './services.js'
 import legalNoticesCheckbox from './legalNoticesCheckbox'
+import filesystem from '@/services/nativeApi/filesystem'
 import { isFileExecutable } from '@/util/fileSystem'
 import CurSelect from '@/prefComponents/common/select'
-import commandExists from 'command-exists'
 import notice from '@/services/notification'
 
 export default {
@@ -207,8 +207,8 @@ export default {
       this.$store.dispatch('SET_USER_DATA', { type, value })
     },
 
-    testPicgo () {
-      this.picgoExists = commandExists.sync('picgo')
+    async testPicgo () {
+      this.picgoExists = await filesystem.commandExists('picgo')
     },
     async updateCliScriptExecutable () {
       const currentPath = this.cliScript

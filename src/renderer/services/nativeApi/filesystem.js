@@ -6,6 +6,7 @@ const fallbackFilesystemApi = {
   moveImageToFolder: async () => '',
   uploadImage: async () => '',
   isFileExecutable: async () => false,
+  commandExists: async () => false,
   readDirectory: async () => [],
   readFile: async () => ''
 }
@@ -26,6 +27,7 @@ export default {
   moveImageToFolder: payload => getFilesystemApi().moveImageToFolder(payload),
   uploadImage: payload => getFilesystemApi().uploadImage(payload),
   isFileExecutable: filepath => getFilesystemApi().isFileExecutable(filepath),
+  commandExists: command => getFilesystemApi().commandExists(command),
   readDirectory: pathname => getFilesystemApi().readDirectory(pathname),
   readFile: (pathname, encoding) => getFilesystemApi().readFile(pathname, encoding)
 }

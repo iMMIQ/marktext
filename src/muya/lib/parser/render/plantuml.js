@@ -1,4 +1,4 @@
-import zlib from 'zlib'
+import pako from 'pako'
 import { toHTML, h } from './snabbdom'
 
 const PLANTUML_URL = 'https://www.plantuml.com/plantuml'
@@ -39,8 +39,8 @@ export default class Diagram {
       '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_'
 
     const utf8Value = decodeURIComponent(encodeURIComponent(value))
-    const compressedValue = zlib.deflateSync(utf8Value, { level: 3 })
-    const base64Value = compressedValue.toString('base64')
+    const compressedValue = pako.deflate(utf8Value, { level: 3 })
+    const base64Value = btoa(String.fromCharCode(...compressedValue))
     return maketrans(tableIn, tableOut, base64Value)
   }
 

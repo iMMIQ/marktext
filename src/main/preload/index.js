@@ -25,6 +25,7 @@ const bridge = {
     moveImageToFolder: payload => ipcRenderer.invoke('mt::fs-move-image-to-folder', payload),
     uploadImage: payload => ipcRenderer.invoke('mt::fs-upload-image', payload),
     isFileExecutable: filepath => ipcRenderer.invoke('mt::fs-is-file-executable', filepath),
+    commandExists: command => ipcRenderer.invoke('mt::fs-command-exists', command),
     readDirectory: pathname => ipcRenderer.invoke('mt::fs-read-directory', pathname),
     readFile: (pathname, encoding) => ipcRenderer.invoke('mt::fs-read-file', pathname, encoding)
   },

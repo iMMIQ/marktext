@@ -1,20 +1,9 @@
-import path from 'path'
-import log from 'electron-log'
 import app from './services/nativeApi/app'
-import { getRuntime, initializeRuntime } from './services/runtime'
+import { initializeRuntime } from './services/runtime'
 
 let exceptionLogger = s => console.error(s)
 
-const configureLogger = () => {
-  const { env, paths } = getRuntime()
-  const { debug, windowId } = env
-  log.transports.console.level = process.env.NODE_ENV === 'development' ? 'info' : false // mirror to window console
-  log.transports.mainConsole = null
-  log.transports.file.resolvePath = () => path.join(paths.logPath, `editor-${windowId}.log`)
-  log.transports.file.level = debug ? 'debug' : 'info'
-  log.transports.file.sync = false
-  exceptionLogger = log.error
-}
+const configureLogger = () => {}
 
 const parseUrlArgs = () => {
   const params = new URLSearchParams(window.location.search)

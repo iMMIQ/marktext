@@ -1,8 +1,68 @@
-import fs from 'fs'
 import path from 'path'
-import { isFile, isFile2, isSymbolicLink } from './index'
 
-const isOsx = process.platform === 'darwin'
+const isOsx = typeof process !== 'undefined' && process.platform === 'darwin'
+
+const getFs = () => {
+  try {
+    if (typeof require === 'function') {
+      return require('fs')
+    }
+  } catch (_) {
+    // Ignore browser environments.
+  }
+
+  return null
+}
+
+const isFilePath = filepath => {
+  const fs = getFs()
+  if (!fs) {
+    return false
+  }
+
+  try {
+    return fs.existsSync(filepath) && fs.lstatSync(filepath).isFile()
+  } catch (_) {
+    return false
+  }
+}
+
+const isFilePathOrLink = filepath => {
+  const fs = getFs()
+  if (!fs) {
+    return false
+  }
+
+  try {
+    if (!fs.existsSync(filepath)) {
+      return false
+    }
+
+    const fi = fs.lstatSync(filepath)
+    if (fi.isFile()) {
+      return true
+    } else if (fi.isSymbolicLink()) {
+      const targetPath = path.resolve(path.dirname(filepath), fs.readlinkSync(filepath))
+      return isFilePath(targetPath)
+    }
+    return false
+  } catch (_) {
+    return false
+  }
+}
+
+const isSymbolicLinkPath = filepath => {
+  const fs = getFs()
+  if (!fs) {
+    return false
+  }
+
+  try {
+    return fs.existsSync(filepath) && fs.lstatSync(filepath).isSymbolicLink()
+  } catch (_) {
+    return false
+  }
+}
 
 export const MARKDOWN_EXTENSIONS = Object.freeze([
   'markdown',
@@ -46,7 +106,7 @@ export const hasMarkdownExtension = filename => {
  */
 export const isImageFile = filepath => {
   const extname = path.extname(filepath)
-  return isFile(filepath) && IMAGE_EXTENSIONS.some(ext => {
+  return isFilePath(filepath) && IMAGE_EXTENSIONS.some(ext => {
     const EXT_REG = new RegExp(ext, 'i')
     return EXT_REG.test(extname)
   })
@@ -58,12 +118,17 @@ export const isImageFile = filepath => {
  * @param {string} filepath The path or link path.
  */
 export const isMarkdownFile = filepath => {
-  if (!isFile2(filepath)) return false
+  if (!isFilePathOrLink(filepath)) return false
 
   // Check symbolic link.
-  if (isSymbolicLink(filepath)) {
+  if (isSymbolicLinkPath(filepath)) {
+    const fs = getFs()
+    if (!fs) {
+      return false
+    }
+
     const targetPath = path.resolve(path.dirname(filepath), fs.readlinkSync(filepath))
-    return isFile(targetPath) && hasMarkdownExtension(targetPath)
+    return isFilePath(targetPath) && hasMarkdownExtension(targetPath)
   }
   return hasMarkdownExtension(filepath)
 }
@@ -84,6 +149,11 @@ export const isSamePathSync = (pathA, pathB, isNormalized = false) => {
   } else if (a === b) {
     return true
   } else if (a.toLowerCase() === b.toLowerCase()) {
+    const fs = getFs()
+    if (!fs) {
+      return true
+    }
+
     try {
       const fiA = fs.statSync(a)
       const fiB = fs.statSync(b)

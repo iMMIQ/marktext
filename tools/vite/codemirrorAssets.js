@@ -41,7 +41,6 @@ const marktextCodemirrorAssets = () => {
 
   return {
     name: 'marktext-codemirror-assets',
-    apply: 'serve',
     configureServer (server) {
       server.middlewares.use(async (req, res, next) => {
         const pathname = req.url ? req.url.split('?')[0] : ''
