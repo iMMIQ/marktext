@@ -10,11 +10,24 @@ const files = [
   'src/renderer/prefComponents/spellchecker/index.vue',
   'src/renderer/prefComponents/keybindings/index.vue'
 ]
+const sources = Object.fromEntries(
+  files.map(file => [file, fs.readFileSync(path.join(root, file), 'utf8')])
+)
+const blockers = [
+  ['new Vue()', /\bnew\s+Vue\s*\(/],
+  ['Vue.use()', /\bVue\s*\.\s*use\s*\(/],
+  [':visible.sync', /:visible\s*\.sync\s*=/],
+  ['slot-scope', /\bslot-scope\s*=/],
+  ['beforeDestroy()', /\bbeforeDestroy\s*\(/],
+  ['element-ui', /\belement-ui\b/],
+  ['vue-template-compiler', /\bvue-template-compiler\b/],
+  ['vue-electron', /\bvue-electron\b/]
+]
 
 describe('renderer Vue 3 syntax blockers', () => {
-  it('removes Vue 2-only patterns from the main migration path', () => {
-    const source = files.map(file => fs.readFileSync(path.join(root, file), 'utf8')).join('\n')
-    expect(source).not.toMatch(/new Vue\(|Vue\.use\(|:visible\.sync=|slot-scope=|beforeDestroy\s*\(/)
-    expect(source).not.toMatch(/element-ui|vue-template-compiler|vue-electron/)
+  it.each(
+    files.flatMap(file => blockers.map(([blocker, pattern]) => [file, blocker, pattern]))
+  )('keeps %s free of %s', (file, blocker, pattern) => {
+    expect(sources[file]).not.toMatch(pattern)
   })
 })
