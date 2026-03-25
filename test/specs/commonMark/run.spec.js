@@ -1,5 +1,6 @@
 // This file is copy from marked and modified.
 import { removeCustomClass } from '../help'
+import { MT_MARKED_OPTIONS } from '../config'
 import { writeResult } from '../writeResult'
 const fetch = require('node-fetch')
 const marked = require('../../../src/muya/lib/parser/marked/index.js').default
