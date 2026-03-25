@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest'
 import { extractWord } from '../../../src/muya/lib/marktext/spellchecker.js'
 
 const basicCheck = 'Lorem ipsum dolor'
@@ -54,7 +55,6 @@ describe('Test extractWord', () => {
     test(basicText, 79, buildResult(79, 81, 'in'))
   })
   it('Get custom index (2)', () => {
-    console.log(basicText[104], basicText[105], basicText[106])
     test(basicText, 106, buildResult(105, 112, 'euismod'))
   })
 

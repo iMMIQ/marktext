@@ -52,21 +52,28 @@ $ yarn run <script> # or npm run <script>
 | `build:bin`     | Build MarkText binary for your OS                |
 | `dev`           | Build and run MarkText in developer mode         |
 | `lint`          | Lint code style                                  |
-| `test` / `unit` | Run unit tests                                   |
+| `test`          | Run the unit and end-to-end suites               |
+| `unit`          | Run Vitest unit tests                            |
 
 For more scripts please see `package.json`.
 
 ## Build Entry Points
 
-The current build still uses the existing electron-vue webpack pipeline, but it now produces three runtime entry points instead of treating the app as only main + renderer:
+The desktop app now uses a Vite-based runtime pipeline with three entry points:
 
-- `src/main/index.js` is bundled by `.electron-vue/webpack.main.config.js` to `dist/electron/main.js`.
-- `src/main/preload/index.js` is bundled by the same webpack main config to `dist/electron/preload.js`.
-- `src/renderer/main.js` is bundled by `.electron-vue/webpack.renderer.config.js` to the renderer assets in `dist/electron/`.
+- `src/main/index.js` is bundled by `vite.main.config.js` to `dist/electron/main.js`.
+- `src/main/preload/index.js` is bundled by `vite.preload.config.js` to `dist/electron/preload.js`.
+- `src/renderer/main.js` is bundled by `vite.renderer.config.js`, with `src/renderer/index.html` emitted to `dist/electron/index.html` alongside the renderer assets.
+
+`yarn run dev` starts `tools/dev/vite-dev-runner.js`, which watches the main/preload bundles, serves the renderer with Vite, and restarts Electron when the app bundles change.
 
 `yarn run pack` is the easiest way to rebuild the full runtime boundary:
 
 - `yarn run pack:main` emits both `dist/electron/main.js` and `dist/electron/preload.js`
-- `yarn run pack:renderer` emits the renderer bundle and HTML assets
+- `yarn run pack:renderer` emits `dist/electron/index.html` and the renderer assets
 
-At runtime, `src/main/config.js` points both BrowserWindow variants at the bundled preload file in `dist/electron/preload.js`. The renderer then consumes native capabilities through the preload-backed facade in `src/renderer/services/nativeApi/*` rather than importing Electron directly.
+Unit tests now run through Vitest:
+
+- `yarn run unit` and `yarn run unit:vite` both execute `vitest run`
+
+The standalone Muya bundle still uses `src/muya/webpack.config.js`. At runtime, `src/main/config.js` points both BrowserWindow variants at the bundled preload file in `dist/electron/preload.js`, and the renderer consumes native capabilities through `src/renderer/services/nativeApi/*` rather than importing Electron directly.

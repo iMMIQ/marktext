@@ -35,9 +35,11 @@ Renderer code must not import `electron` or `@electron/remote` directly. Native 
 
 There are three runtime entry points to the application:
 
-- `src/main/index.js` for the main process that is executed first and only once per instance. Once the application is initialized, it's safe to access all the environment variables and single-instances and the application (`App`) is started (`src/main/app/index.js`). You can use the application after `App::init()` is run successfully.
-- `src/main/preload/index.js` for the preload bridge. It is bundled to `dist/electron/preload.js` and exposes the renderer-facing native contract on `window.mtNative`.
-- `src/renderer/main.js` for each editor window. At the beginning libraries are loaded, the window is initialized and Vue components are mounted.
+- `src/main/index.js` for the main process that is executed first and only once per instance. It is bundled by `vite.main.config.js` to `dist/electron/main.js`. Once the application is initialized, it's safe to access all the environment variables and single-instances and the application (`App`) is started (`src/main/app/index.js`). You can use the application after `App::init()` is run successfully.
+- `src/main/preload/index.js` for the preload bridge. It is bundled by `vite.preload.config.js` to `dist/electron/preload.js` and exposes the renderer-facing native contract on `window.mtNative`.
+- `src/renderer/main.js` for each editor window. It is bundled by `vite.renderer.config.js`, together with `src/renderer/index.html`, into the renderer assets under `dist/electron/`.
+
+In development, `tools/dev/vite-dev-runner.js` supervises the Vite renderer dev server plus the watched main/preload bundles and restarts Electron when the app bundles change.
 
 ### How Muya work
 
@@ -59,6 +61,12 @@ The boundary is now:
 - explicit IPC handlers in `src/main/ipc/renderer/*`
 
 Renderer code should call the facade, not Electron directly. The preload bridge owns access to `ipcRenderer`, `webFrame`, and the `window.mtNative` contract, while the main process owns the matching IPC handlers and BrowserWindow state.
+
+### Test Architecture
+
+Unit tests now run through Vitest via `vitest.config.js` and `test/unit/setup.js`. The `test/unit/specs/*.spec.js` suite imports runtime dependencies directly and no longer depends on Karma globals, webpack preprocessors, or `require.context`.
+
+End-to-end smoke coverage continues to use Playwright against the packaged `dist/electron/main.js` contract.
 
 ### Editor window (renderer process)
 

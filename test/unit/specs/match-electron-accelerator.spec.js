@@ -1,4 +1,5 @@
-import { isEqualAccelerator } from 'common/keybinding'
+import { describe, expect, it } from 'vitest'
+import { isEqualAccelerator } from '../../../src/common/keybinding'
 
 const characterKeys = [
   '0',

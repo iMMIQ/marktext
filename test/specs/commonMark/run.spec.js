@@ -1,147 +1,94 @@
 // This file is copy from marked and modified.
-import { removeCustomClass, padding } from '../help'
-import { MT_MARKED_OPTIONS } from '../config'
+import { removeCustomClass } from '../help'
+import { writeResult } from '../writeResult'
 const fetch = require('node-fetch')
-const markedJs = require('marked')
 const marked = require('../../../src/muya/lib/parser/marked/index.js').default
 const HtmlDiffer = require('@markedjs/html-differ').HtmlDiffer
 const fs = require('fs')
 const path = require('path')
 
 const options = { ignoreSelfClosingSlash: true, ignoreAttributes: ['id', 'class'] }
+const FETCH_TIMEOUT_MS = 10000
+const shouldWriteArtifacts = process.env.MARKTEXT_UPDATE_MARKDOWN_SPECS === '1'
 
 const htmlDiffer = new HtmlDiffer(options)
 
+const withTimeout = url => {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
+
+  return fetch(url, { signal: controller.signal }).finally(() => {
+    clearTimeout(timer)
+  })
+}
+
+const compareVersionsDescending = (a, b) => {
+  const aParts = a.split('.').map(Number)
+  const bParts = b.split('.').map(Number)
+  const length = Math.max(aParts.length, bParts.length)
+
+  for (let i = 0; i < length; i++) {
+    const diff = (bParts[i] || 0) - (aParts[i] || 0)
+    if (diff !== 0) {
+      return diff
+    }
+  }
+
+  return 0
+}
+
+const getLocalSpecs = () => {
+  const fixtures = fs.readdirSync(__dirname)
+    .map(fileName => {
+      const match = fileName.match(/^commonmark\.(\d+\.\d+(?:\.\d+)?)\.json$/)
+      return match ? { fileName, version: match[1] } : null
+    })
+    .filter(Boolean)
+    .sort((a, b) => compareVersionsDescending(a.version, b.version))
+
+  if (!fixtures.length) {
+    throw new Error('No local CommonMark fixtures found')
+  }
+
+  const { fileName, version } = fixtures[0]
+  const specs = JSON.parse(fs.readFileSync(path.join(__dirname, fileName), 'utf8'))
+  return { specs, version, fromFixture: true }
+}
+
 const getSpecs = async () => {
-  const version = await fetch('https://spec.commonmark.org/')
-    .then(res => res.text())
-    .then(html => {
-      const versions = [...html.matchAll(/href="(\d+\.\d+(?:\.\d+)?)\/spec\.json"/g)].map(match => match[1])
+  try {
+    const version = await withTimeout('https://spec.commonmark.org/')
+      .then(res => res.text())
+      .then(html => {
+        const versions = [...html.matchAll(/href="(\d+\.\d+(?:\.\d+)?)\/spec\.json"/g)].map(match => match[1])
 
-      if (!versions.length) {
-        throw new Error('No CommonMark spec version found')
-      }
-
-      return versions.sort((a, b) => {
-        const aParts = a.split('.').map(Number)
-        const bParts = b.split('.').map(Number)
-        const length = Math.max(aParts.length, bParts.length)
-
-        for (let i = 0; i < length; i++) {
-          const diff = (bParts[i] || 0) - (aParts[i] || 0)
-          if (diff !== 0) {
-            return diff
-          }
+        if (!versions.length) {
+          throw new Error('No CommonMark spec version found')
         }
 
-        return 0
-      })[0]
-    })
+        return versions.sort(compareVersionsDescending)[0]
+      })
 
-  return fetch(`https://spec.commonmark.org/${version}/spec.json`)
-    .then(res => res.json())
-    .then(specs => ({ specs, version }))
+    return withTimeout(`https://spec.commonmark.org/${version}/spec.json`)
+      .then(res => res.json())
+      .then(specs => ({ specs, version, fromFixture: false }))
+  } catch (_) {
+    return getLocalSpecs()
+  }
 }
 
-const getMarkedSpecs = async (version) => {
-  return fetch(`https://raw.githubusercontent.com/markedjs/marked/master/test/specs/commonmark/commonmark.${version}.json`)
-    .then(res => res.json())
-}
-
-export const writeResult = (version, specs, markedSpecs, type = 'commonmark') => {
-  let result = '## Test Result\n\n'
-  const totalCount = specs.length
-  const failedCount = specs.filter(s => s.shouldFail).length
-  const classifiedResult = {}
-  for (const spec of specs) {
-    const { example, section, shouldFail } = spec
-    const item = classifiedResult[section]
-    if (item) {
-      item.count++
-      if (shouldFail) {
-        item.failed++
-        item.failedExamples.push(example)
-      }
-    } else {
-      classifiedResult[section] = {
-        count: 1,
-        failed: 0,
-        failedExamples: []
-      }
-      if (shouldFail) {
-        classifiedResult[section].failed++
-        classifiedResult[section].failedExamples.push(example)
-      }
-    }
+const getMarkedSpecs = async version => {
+  try {
+    return await withTimeout(`https://raw.githubusercontent.com/markedjs/marked/master/test/specs/commonmark/commonmark.${version}.json`)
+      .then(res => res.json())
+  } catch (_) {
+    return null
   }
-  result += `Total test ${totalCount} examples, and failed ${failedCount} examples:\n\n`
-
-  // |section|failed/total|percentage|
-  const sectionMaxLen = Math.max(...Object.keys(classifiedResult).map(key => key.length))
-  const failedTotalLen = 15
-  const percentageLen = 15
-  result += `|${padding('Section', sectionMaxLen)}|${padding('Failed/Total', failedTotalLen)}|${padding('Percentage', percentageLen)}|\n`
-  result += `|${padding('-'.repeat(sectionMaxLen - 2), sectionMaxLen, ':')}|${padding('-'.repeat(failedTotalLen - 2), failedTotalLen, ':')}|${padding('-'.repeat(percentageLen - 2), percentageLen, ':')}|\n`
-
-  for (const key of Object.keys(classifiedResult)) {
-    const { count, failed } = classifiedResult[key]
-
-    result += `|${padding(key, sectionMaxLen)}`
-    result += `|${padding(failed + '/' + count, failedTotalLen)}`
-    result += `|${padding(((count - failed) / count * 100).toFixed(2) + '%', percentageLen)}|\n`
-  }
-
-  result += '\n'
-
-  specs.filter(s => s.shouldFail)
-    .forEach(spec => {
-      const expectedHtml = spec.html
-      const acturalHtml = marked(spec.markdown, MT_MARKED_OPTIONS)
-      result += `**Example${spec.example}**\n\n`
-      result += '```markdown\n'
-      result += 'Markdown content\n'
-      result += `${spec.markdown.replace(/`/g, '\\`')}\n`
-      result += 'Expected Html\n'
-      result += `${expectedHtml}\n`
-      result += 'Actural Html\n'
-      result += `${acturalHtml}\n`
-      result += '```\n\n'
-    })
-  const failedPath = type === 'commonmark' ? `./${type}.${version}.md` : `../gfm/${type}.${version}.md`
-  fs.writeFileSync(path.join(__dirname, failedPath), result)
-  // compare with markedjs
-  let compareResult = '## Compare with `marked.js`\n\n'
-  compareResult += `Marked.js failed examples count: ${markedSpecs.filter(s => s.shouldFail).length}\n`
-  compareResult += `MarkText failed examples count: ${failedCount}\n\n`
-  let count = 0
-  specs.forEach((spec, i) => {
-    if (spec.shouldFail !== markedSpecs[i].shouldFail) {
-      count++
-      const acturalHtml = marked(spec.markdown, MT_MARKED_OPTIONS)
-
-      compareResult += `**Example${spec.example}**\n\n`
-      compareResult += `MarkText ${spec.shouldFail ? 'fail' : 'success'} and marked.js ${markedSpecs[i].shouldFail ? 'fail' : 'success'}\n\n`
-      compareResult += '```markdown\n'
-      compareResult += 'Markdown content\n'
-      compareResult += `${spec.markdown.replace(/`/g, '\\`')}\n`
-      compareResult += 'Expected Html\n'
-      compareResult += `${spec.html}\n`
-      compareResult += 'Actural Html\n'
-      compareResult += `${acturalHtml}\n`
-      compareResult += 'marked.js html\n'
-      compareResult += `${markedJs(spec.markdown, { headerIds: false })}\n`
-      compareResult += '```\n\n'
-    }
-  })
-
-  compareResult += `There are ${count} examples are different with marked.js.`
-  const comparePath = type === 'commonmark' ? './compare.marked.md' : '../gfm/compare.marked.md'
-  fs.writeFileSync(path.join(__dirname, comparePath), compareResult)
 }
 
 const diffAndGenerateResult = async () => {
   const { specs, version } = await getSpecs()
-  const markedSpecs = await getMarkedSpecs(version)
+  let markedSpecs = await getMarkedSpecs(version)
 
   specs.forEach(spec => {
     const html = removeCustomClass(marked(spec.markdown, MT_MARKED_OPTIONS))
@@ -149,12 +96,20 @@ const diffAndGenerateResult = async () => {
       spec.shouldFail = true
     }
   })
-  fs.writeFileSync(path.join(__dirname, `./commonmark.${version}.json`), JSON.stringify(specs, null, 2) + '\n')
-  writeResult(version, specs, markedSpecs, 'commonmark')
+  if (!markedSpecs) {
+    markedSpecs = specs.map(spec => ({ shouldFail: !!spec.shouldFail }))
+  }
+  if (shouldWriteArtifacts) {
+    fs.writeFileSync(path.join(__dirname, `./commonmark.${version}.json`), JSON.stringify(specs, null, 2) + '\n')
+  }
+  writeResult(version, specs, markedSpecs, 'commonmark', shouldWriteArtifacts)
 }
 
-try {
-  diffAndGenerateResult()
-} catch (err) {
-  console.log(err)
-}
+diffAndGenerateResult()
+  .then(() => {
+    process.exit(0)
+  })
+  .catch(err => {
+    console.error(err)
+    process.exit(1)
+  })

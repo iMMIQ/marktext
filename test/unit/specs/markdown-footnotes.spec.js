@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest'
 import { Lexer } from '../../../src/muya/lib/parser/marked'
 
 const parseMarkdown = markdown => {

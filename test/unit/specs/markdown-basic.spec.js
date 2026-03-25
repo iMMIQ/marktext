@@ -1,8 +1,17 @@
+import { describe, expect, it, vi } from 'vitest'
 import ContentState from '../../../src/muya/lib/contentState'
 import EventCenter from '../../../src/muya/lib/eventHandler/event'
 import ExportMarkdown from '../../../src/muya/lib/utils/exportMarkdown'
 import { MUYA_DEFAULT_OPTION } from '../../../src/muya/lib/config'
 import * as templates from '../markdown'
+
+vi.mock('../../../src/muya/lib/prism/index', () => ({
+  default: {},
+  search: () => [],
+  loadLanguage: () => Promise.resolve([]),
+  loadedLanguages: new Set(),
+  transformAliasToOrigin: langs => langs
+}))
 
 const defaultOptions = { endOfLine: 'lf' }
 const defaultOptionsCrlf = Object.assign({}, defaultOptions, { endOfLine: 'crlf' })

@@ -41,7 +41,10 @@ module.exports = {
     // TODO: fix these errors someday
     'prefer-const': 'off',
     'no-mixed-operators': 'off',
-    'no-prototype-builtins': 'off'
+    'no-prototype-builtins': 'off',
+    'import/no-unresolved': ['error', {
+      ignore: ['\\?inline$', '\\?raw$']
+    }]
   },
   settings: {
     'import/resolver': {
