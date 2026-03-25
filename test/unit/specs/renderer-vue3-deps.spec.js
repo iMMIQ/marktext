@@ -28,6 +28,7 @@ describe('renderer Vue 3 dependency contract', () => {
   })
 
   it('imports the Vue 3 Vite plugin', () => {
+    expect(devDependencies['@vitejs/plugin-vue']).toBeTruthy()
     expect(viteRendererConfig).toMatch(vuePluginImportPattern)
   })
 
