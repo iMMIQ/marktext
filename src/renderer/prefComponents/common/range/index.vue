@@ -2,9 +2,9 @@
   <section class="pref-range-item" :class="{'ag-underdevelop': disable}">
     <div class="description">
       <span>{{description}}:</span> <span class="value" v-if="selectValue">{{selectValue}} <span v-if="unit">{{unit}}</span></span>
-      <i class="el-icon-info" v-if="more"
+      <info-icon v-if="more"
         @click="handleMoreClick"
-      ></i>
+      ></info-icon>
     </div>
     <el-slider
       v-model="selectValue"
@@ -18,7 +18,12 @@
 </template>
 
 <script>
+import InfoIcon from '../infoIcon.vue'
+
 export default {
+  components: {
+    InfoIcon
+  },
   data () {
     return {
       selectValue: this.value
@@ -26,7 +31,7 @@ export default {
   },
   props: {
     description: String,
-    value: String | Number,
+    value: [String, Number],
     min: Number,
     max: Number,
     onChange: Function,
@@ -92,12 +97,12 @@ export default {
   & .value {
     color: var(--editorColor80);
   }
-  & i {
+  & .pref-info-icon {
     cursor: pointer;
     opacity: .7;
     color: var(--iconColor);
   }
-  & i:hover {
+  & .pref-info-icon:hover {
     color: var(--themeColor);
   }
 }

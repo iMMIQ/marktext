@@ -6,7 +6,7 @@
         <el-tooltip class='item' effect='dark'
           content='Clipboard handling is only fully supported on macOS and Windows.'
           placement='top-start'>
-          <i class="el-icon-info"></i>
+          <info-icon></info-icon>
         </el-tooltip>
       </div>
       <CurSelect :value="imageInsertAction" :options="imageActions"
@@ -19,14 +19,18 @@
 </template>
 
 <script>
-import Separator from '../common/separator'
-import Uploader from './components/uploader'
-import CurSelect from '@/prefComponents/common/select'
-import FolderSetting from './components/folderSetting'
+import { mapActions, mapState } from 'pinia'
+import Separator from '../common/separator/index.vue'
+import InfoIcon from '../common/infoIcon.vue'
+import Uploader from './components/uploader/index.vue'
+import CurSelect from '@/prefComponents/common/select/index.vue'
+import FolderSetting from './components/folderSetting/index.vue'
 import { imageActions } from './config'
+import { usePreferencesStore } from '@/stores/preferences'
 
 export default {
   components: {
+    InfoIcon,
     Separator,
     CurSelect,
     FolderSetting,
@@ -38,15 +42,12 @@ export default {
     return {}
   },
   computed: {
-    imageInsertAction: {
-      get: function () {
-        return this.$store.state.preferences.imageInsertAction
-      }
-    }
+    ...mapState(usePreferencesStore, ['imageInsertAction'])
   },
   methods: {
+    ...mapActions(usePreferencesStore, ['setSinglePreference']),
     onSelectChange (type, value) {
-      this.$store.dispatch('SET_SINGLE_PREFERENCE', { type, value })
+      this.setSinglePreference({ type, value })
     }
   }
 }
@@ -61,6 +62,11 @@ export default {
     & label {
       display: block;
       margin: 20px 0;
+    }
+    & .pref-info-icon {
+      margin-left: 4px;
+      color: var(--iconColor);
+      cursor: pointer;
     }
   }
 }

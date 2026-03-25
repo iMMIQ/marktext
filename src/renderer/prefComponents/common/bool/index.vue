@@ -2,9 +2,9 @@
   <section class="pref-switch-item" :class="{'ag-underdevelop': disable}">
     <div class="description">
       <span>{{description}}:</span>
-      <i class="el-icon-info" v-if="more"
+      <info-icon v-if="more"
         @click="handleMoreClick"
-      ></i>
+      ></info-icon>
       <el-tooltip
         v-else-if="detailedDescription"
         :content="detailedDescription"
@@ -12,7 +12,7 @@
         effect="dark"
         placement="top-start"
       >
-        <i class="el-icon-info"></i>
+        <info-icon></info-icon>
       </el-tooltip>
       <span v-if="notes" class="notes">
         {{notes}}
@@ -26,7 +26,12 @@
 </template>
 
 <script>
+import InfoIcon from '../infoIcon.vue'
+
 export default {
+  components: {
+    InfoIcon
+  },
   data () {
     return {
       status: this.bool
@@ -75,12 +80,12 @@ export default {
     justify-content: space-between;
 
     & .description {
-      & i {
+      & .pref-info-icon {
         cursor: pointer;
         opacity: .7;
         color: var(--iconColor);
       }
-      & i:hover {
+      & .pref-info-icon:hover {
         color: var(--themeColor);
       }
     }

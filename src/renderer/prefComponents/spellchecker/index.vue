@@ -62,15 +62,16 @@
 
 <script>
 import log from 'electron-log'
-import { mapState } from 'vuex'
-import Compound from '../common/compound'
-import CurSelect from '../common/select'
-import Bool from '../common/bool'
-import Separator from '../common/separator'
+import { mapActions, mapState } from 'pinia'
+import Compound from '../common/compound/index.vue'
+import CurSelect from '../common/select/index.vue'
+import Bool from '../common/bool/index.vue'
+import Separator from '../common/separator/index.vue'
 import { isOsx } from '@/util'
 import { SpellChecker } from '@/spellchecker'
 import { getLanguageName } from '@/spellchecker/languageMap'
 import notice from '@/services/notification'
+import { usePreferencesStore } from '@/stores/preferences'
 
 export default {
   components: {
@@ -88,11 +89,11 @@ export default {
     }
   },
   computed: {
-    ...mapState({
-      spellcheckerEnabled: state => state.preferences.spellcheckerEnabled,
-      spellcheckerNoUnderline: state => state.preferences.spellcheckerNoUnderline,
-      spellcheckerLanguage: state => state.preferences.spellcheckerLanguage
-    })
+    ...mapState(usePreferencesStore, [
+      'spellcheckerEnabled',
+      'spellcheckerNoUnderline',
+      'spellcheckerLanguage'
+    ])
   },
   mounted () {
     if (!isOsx) {
@@ -108,6 +109,7 @@ export default {
     }
   },
   methods: {
+    ...mapActions(usePreferencesStore, ['setSinglePreference']),
     async getAvailableDictionaries () {
       const dictionaries = await SpellChecker.getAvailableDictionaries()
       return dictionaries.map(selectedItem => {
@@ -142,7 +144,7 @@ export default {
       this.onSelectChange('spellcheckerEnabled', isEnabled)
     },
     onSelectChange (type, value) {
-      this.$store.dispatch('SET_SINGLE_PREFERENCE', { type, value })
+      this.setSinglePreference({ type, value })
     },
     handleDeleteClick (selectedItem) {
       if (selectedItem && typeof selectedItem.word === 'string') {

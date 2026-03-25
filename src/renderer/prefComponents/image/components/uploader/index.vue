@@ -25,28 +25,28 @@
             <el-tooltip class="item" effect="dark"
               content="The token is saved by Keychain on macOS, Secret Service API/libsecret on Linux and Credential Vault on Windows"
               placement="top-start">
-              <i class="el-icon-info"></i>
+              <info-icon></info-icon>
             </el-tooltip>
           </div>
-          <el-input v-model="githubToken" placeholder="Input token" size="mini"></el-input>
+          <el-input v-model="githubToken" placeholder="Input token" size="small"></el-input>
         </div>
         <div class="form-group">
           <div class="label">Owner name:</div>
-          <el-input v-model="github.owner" placeholder="owner" size="mini"></el-input>
+          <el-input v-model="github.owner" placeholder="owner" size="small"></el-input>
         </div>
         <div class="form-group">
           <div class="label">Repo name:</div>
-          <el-input v-model="github.repo" placeholder="repo" size="mini"></el-input>
+          <el-input v-model="github.repo" placeholder="repo" size="small"></el-input>
         </div>
         <div class="form-group">
           <div class="label">Branch name (optional):</div>
-          <el-input v-model="github.branch" placeholder="branch" size="mini"></el-input>
+          <el-input v-model="github.branch" placeholder="branch" size="small"></el-input>
         </div>
         <legal-notices-checkbox class="github"
           :class="[{ 'error': legalNoticesErrorStates.github }]"
           :uploaderService="uploadServices.github"></legal-notices-checkbox>
         <div class="form-group">
-          <el-button size="mini" :disabled="githubDisable" @click="save('github')">Save
+          <el-button size="small" :disabled="githubDisable" @click="save('github')">Save
           </el-button>
         </div>
       </div>
@@ -57,10 +57,10 @@
         </div>
         <div class="form-group">
           <div class="label">Shell script location:</div>
-          <el-input v-model="cliScript" placeholder="Script absolute path" size="mini"></el-input>
+          <el-input v-model="cliScript" placeholder="Script absolute path" size="small"></el-input>
         </div>
         <div class="form-group">
-          <el-button size="mini" :disabled="cliScriptDisable" @click="save('cliScript')">Save
+          <el-button size="small" :disabled="cliScriptDisable" @click="save('cliScript')">Save
           </el-button>
         </div>
       </div>
@@ -70,14 +70,18 @@
 
 <script>
 import services, { isValidService } from './services.js'
-import legalNoticesCheckbox from './legalNoticesCheckbox'
+import { mapActions, mapState } from 'pinia'
+import legalNoticesCheckbox from './legalNoticesCheckbox.vue'
 import filesystem from '@/services/nativeApi/filesystem'
 import { isFileExecutable } from '@/util/fileSystem'
-import CurSelect from '@/prefComponents/common/select'
+import InfoIcon from '@/prefComponents/common/infoIcon.vue'
+import CurSelect from '@/prefComponents/common/select/index.vue'
 import notice from '@/services/notification'
+import { usePreferencesStore } from '@/stores/preferences'
 
 export default {
   components: {
+    InfoIcon,
     legalNoticesCheckbox,
     CurSelect
   },
@@ -107,26 +111,12 @@ export default {
     }
   },
   computed: {
-    currentUploader: {
-      get: function () {
-        return this.$store.state.preferences.currentUploader
-      }
-    },
-    imageBed: {
-      get: function () {
-        return this.$store.state.preferences.imageBed
-      }
-    },
-    prefGithubToken: {
-      get: function () {
-        return this.$store.state.preferences.githubToken
-      }
-    },
-    prefCliScript: {
-      get: function () {
-        return this.$store.state.preferences.cliScript
-      }
-    },
+    ...mapState(usePreferencesStore, {
+      currentUploader: 'currentUploader',
+      imageBed: 'imageBed',
+      prefGithubToken: 'githubToken',
+      prefCliScript: 'cliScript'
+    }),
     githubDisable () {
       return !this.githubToken || !this.github.owner || !this.github.repo
     },
@@ -161,6 +151,7 @@ export default {
     })
   },
   methods: {
+    ...mapActions(usePreferencesStore, ['setUserData']),
     isValidUploaderService (name) {
       return isValidService(name)
     },
@@ -179,18 +170,18 @@ export default {
         return
       }
       const newImageBedConfig = Object.assign({}, this.imageBed, { [type]: this[type] })
-      this.$store.dispatch('SET_USER_DATA', {
+      this.setUserData({
         type: 'imageBed',
         value: newImageBedConfig
       })
       if (type === 'github') {
-        this.$store.dispatch('SET_USER_DATA', {
+        this.setUserData({
           type: 'githubToken',
           value: this.githubToken
         })
       }
       if (type === 'cliScript') {
-        this.$store.dispatch('SET_USER_DATA', {
+        this.setUserData({
           type: 'cliScript',
           value: this.cliScript
         })
@@ -203,8 +194,7 @@ export default {
     },
 
     setCurrentUploader (value) {
-      const type = 'currentUploader'
-      this.$store.dispatch('SET_USER_DATA', { type, value })
+      this.setUserData({ type: 'currentUploader', value })
     },
 
     async testPicgo () {
@@ -265,6 +255,11 @@ export default {
   }
   & .label {
     margin-bottom: 10px;
+  }
+  & .pref-info-icon {
+    margin-left: 4px;
+    color: var(--iconColor);
+    cursor: pointer;
   }
   & .el-input__inner {
     background: transparent;

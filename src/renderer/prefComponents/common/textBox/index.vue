@@ -2,9 +2,9 @@
   <section class="pref-text-box-item" :class="{'ag-underdevelop': disable}">
     <div class="description">
       <span>{{description}}:</span>
-      <i class="el-icon-info" v-if="more"
+      <info-icon v-if="more"
         @click="handleMoreClick"
-      ></i>
+      ></info-icon>
     </div>
     <el-input
       class="input"
@@ -22,7 +22,12 @@
 </template>
 
 <script>
+import InfoIcon from '../infoIcon.vue'
+
 export default {
+  components: {
+    InfoIcon
+  },
   data () {
     this.inputTimer = null
     return {
@@ -131,12 +136,12 @@ export default {
     & .description {
       margin-bottom: 10px;
     }
-    & i {
+    & .pref-info-icon {
       cursor: pointer;
       opacity: .7;
       color: var(--iconColor);
     }
-    & i:hover {
+    & .pref-info-icon:hover {
       color: var(--themeColor);
     }
   }

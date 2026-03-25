@@ -113,11 +113,11 @@
 </template>
 
 <script>
-import Compound from '../common/compound'
-import Separator from '../common/separator'
-import { mapState } from 'vuex'
-import Bool from '../common/bool'
-import CurSelect from '../common/select'
+import { mapActions, mapState } from 'pinia'
+import Compound from '../common/compound/index.vue'
+import Separator from '../common/separator/index.vue'
+import Bool from '../common/bool/index.vue'
+import CurSelect from '../common/select/index.vue'
 import {
   bulletListMarkerOptions,
   orderListDelimiterOptions,
@@ -126,6 +126,7 @@ import {
   frontmatterTypeOptions,
   sequenceThemeOptions
 } from './config'
+import { usePreferencesStore } from '@/stores/preferences'
 
 export default {
   components: {
@@ -144,23 +145,24 @@ export default {
     return {}
   },
   computed: {
-    ...mapState({
-      preferLooseListItem: state => state.preferences.preferLooseListItem,
-      bulletListMarker: state => state.preferences.bulletListMarker,
-      orderListDelimiter: state => state.preferences.orderListDelimiter,
-      preferHeadingStyle: state => state.preferences.preferHeadingStyle,
-      listIndentation: state => state.preferences.listIndentation,
-      frontmatterType: state => state.preferences.frontmatterType,
-      superSubScript: state => state.preferences.superSubScript,
-      footnote: state => state.preferences.footnote,
-      isHtmlEnabled: state => state.preferences.isHtmlEnabled,
-      isGitlabCompatibilityEnabled: state => state.preferences.isGitlabCompatibilityEnabled,
-      sequenceTheme: state => state.preferences.sequenceTheme
-    })
+    ...mapState(usePreferencesStore, [
+      'preferLooseListItem',
+      'bulletListMarker',
+      'orderListDelimiter',
+      'preferHeadingStyle',
+      'listIndentation',
+      'frontmatterType',
+      'superSubScript',
+      'footnote',
+      'isHtmlEnabled',
+      'isGitlabCompatibilityEnabled',
+      'sequenceTheme'
+    ])
   },
   methods: {
+    ...mapActions(usePreferencesStore, ['setSinglePreference']),
     onSelectChange (type, value) {
-      this.$store.dispatch('SET_SINGLE_PREFERENCE', { type, value })
+      this.setSinglePreference({ type, value })
     }
   }
 }

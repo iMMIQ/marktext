@@ -32,12 +32,13 @@
 </template>
 
 <script>
-import { mapState } from 'vuex'
+import { mapActions, mapState } from 'pinia'
 import themeMd from './theme.md?raw'
 import { autoSwitchThemeOptions, themes } from './config'
 import markdownToHtml from '@/util/markdownToHtml'
-import CurSelect from '../common/select'
-import Separator from '../common/separator'
+import CurSelect from '../common/select/index.vue'
+import Separator from '../common/separator/index.vue'
+import { usePreferencesStore } from '@/stores/preferences'
 
 export default {
   components: {
@@ -51,10 +52,7 @@ export default {
     }
   },
   computed: {
-    ...mapState({
-      autoSwitchTheme: state => state.preferences.autoSwitchTheme,
-      theme: state => state.preferences.theme
-    })
+    ...mapState(usePreferencesStore, ['autoSwitchTheme', 'theme'])
   },
   created () {
     this.$nextTick(async () => {
@@ -71,8 +69,9 @@ export default {
     })
   },
   methods: {
+    ...mapActions(usePreferencesStore, ['setSinglePreference']),
     onSelectChange (type, value) {
-      this.$store.dispatch('SET_SINGLE_PREFERENCE', { type, value })
+      this.setSinglePreference({ type, value })
     }
   }
 }

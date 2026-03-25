@@ -5,8 +5,8 @@
       :regexValidator="/^(?:$|([a-zA-Z]:)?[\/\\].*$)/" :defaultValue="folderPathPlaceholder"
       :onChange="value => modifyImageFolderPath(value)"></text-box>
     <div>
-      <el-button size="mini" @click="modifyImageFolderPath(undefined)">Open...</el-button>
-      <el-button size="mini" @click="openImageFolder">Show in Folder</el-button>
+      <el-button size="small" @click="modifyImageFolderPath(undefined)">Open...</el-button>
+      <el-button size="small" @click="openImageFolder">Show in Folder</el-button>
     </div>
     <compound>
       <template #head>
@@ -29,10 +29,11 @@
 </template>
 
 <script>
-import { mapState } from 'vuex'
-import Bool from '@/prefComponents/common/bool'
-import Compound from '@/prefComponents/common/compound'
-import TextBox from '@/prefComponents/common/textBox'
+import { mapActions, mapState } from 'pinia'
+import Bool from '@/prefComponents/common/bool/index.vue'
+import Compound from '@/prefComponents/common/compound/index.vue'
+import TextBox from '@/prefComponents/common/textBox/index.vue'
+import { usePreferencesStore } from '@/stores/preferences'
 
 export default {
   components: {
@@ -45,36 +46,28 @@ export default {
     }
   },
   computed: {
-    ...mapState({
-      imageFolderPath: state => state.preferences.imageFolderPath,
-      imagePreferRelativeDirectory: state => state.preferences.imagePreferRelativeDirectory,
-      imageRelativeDirectoryName: state => state.preferences.imageRelativeDirectoryName
-    }),
-    imageInsertAction: {
-      get: function () {
-        return this.$store.state.preferences.imageInsertAction
-      }
+    ...mapState(usePreferencesStore, [
+      'imageFolderPath',
+      'imagePreferRelativeDirectory',
+      'imageRelativeDirectoryName'
+    ]),
+    folderPathPlaceholder () {
+      return this.imageFolderPath || ''
     },
-    folderPathPlaceholder: {
-      get: function () {
-        return this.$store.state.preferences.imageFolderPath || ''
-      }
-    },
-    relativeDirectoryNamePlaceholder: {
-      get: function () {
-        return this.$store.state.preferences.imageRelativeDirectoryName || 'assets'
-      }
+    relativeDirectoryNamePlaceholder () {
+      return this.imageRelativeDirectoryName || 'assets'
     }
   },
   methods: {
+    ...mapActions(usePreferencesStore, ['setImageFolderPath', 'setSinglePreference']),
     openImageFolder () {
       this.$nativeApi.shell.openPath(this.imageFolderPath)
     },
     modifyImageFolderPath (value) {
-      return this.$store.dispatch('SET_IMAGE_FOLDER_PATH', value)
+      return this.setImageFolderPath(value)
     },
     onSelectChange (type, value) {
-      this.$store.dispatch('SET_SINGLE_PREFERENCE', { type, value })
+      this.setSinglePreference({ type, value })
     }
   }
 }

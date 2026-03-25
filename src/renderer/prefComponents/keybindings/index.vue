@@ -31,13 +31,13 @@
     </section>
     <section class="footer">
       <separator></separator>
-      <el-button size="medium" @click="saveKeybindings">Save</el-button>
-      <el-button size="medium" @click="restoreDefaults">Restore default key bindings</el-button>
+      <el-button size="default" @click="saveKeybindings">Save</el-button>
+      <el-button size="default" @click="restoreDefaults">Restore default key bindings</el-button>
     </section>
     <section v-if="showDebugTools" class="keyboard-debug">
       <separator></separator>
       <div><strong>Debug options:</strong></div>
-      <el-button size="medium" @click="dumpKeyboardInformation">Dump keyboard information</el-button>
+      <el-button size="default" @click="dumpKeyboardInformation">Dump keyboard information</el-button>
     </section>
     <key-input-dialog
       :showWithId="selectedShortcutId"
