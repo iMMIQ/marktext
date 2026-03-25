@@ -1,10 +1,25 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { getRuntime, initializeRuntime, resetRuntime } from '@/services/runtime'
+import { getPlatform, getRuntime, initializeRuntime, resetRuntime } from '@/services/runtime'
 
 describe('renderer runtime bootstrap', () => {
+  const originalNavigatorPlatform = window.navigator.platform
+
   afterEach(() => {
     resetRuntime()
     delete window.mtNative
+    Object.defineProperty(window.navigator, 'platform', {
+      configurable: true,
+      value: originalNavigatorPlatform
+    })
+  })
+
+  it('falls back to browser platform before runtime initialization', () => {
+    Object.defineProperty(window.navigator, 'platform', {
+      configurable: true,
+      value: 'MacIntel'
+    })
+
+    expect(getPlatform()).toBe('darwin')
   })
 
   it('hydrates runtime info from preload', async () => {

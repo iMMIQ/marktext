@@ -3,6 +3,34 @@ import nativeRuntime from '../nativeApi/runtime'
 let runtime = null
 let initialState = null
 
+const mapPlatform = platform => {
+  if (!platform || typeof platform !== 'string') {
+    return ''
+  }
+
+  const normalized = platform.toLowerCase()
+  if (normalized.includes('mac')) {
+    return 'darwin'
+  }
+  if (normalized.includes('win')) {
+    return 'win32'
+  }
+  if (normalized.includes('linux')) {
+    return 'linux'
+  }
+
+  return ''
+}
+
+const getBrowserPlatform = () => {
+  if (typeof navigator === 'undefined') {
+    return ''
+  }
+
+  const userAgentDataPlatform = navigator.userAgentData && navigator.userAgentData.platform
+  return mapPlatform(userAgentDataPlatform || navigator.platform || navigator.userAgent)
+}
+
 const freezeValue = value => {
   if (!value || typeof value !== 'object') {
     return value
@@ -37,6 +65,10 @@ export const getRuntime = () => {
     throw new Error('Renderer runtime not initialized')
   }
   return runtime
+}
+
+export const getPlatform = () => {
+  return runtime ? runtime.platform : getBrowserPlatform()
 }
 
 export const getInitialState = () => initialState

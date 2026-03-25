@@ -1,4 +1,4 @@
-import { getRuntime } from '../services/runtime'
+import { getPlatform } from '../services/runtime'
 
 export const delay = time => {
   let timerId
@@ -156,7 +156,7 @@ export const deepClone = obj => {
   return JSON.parse(JSON.stringify(obj))
 }
 
-const { platform } = getRuntime()
+const platform = getPlatform()
 
 export const isOsx = platform === 'darwin'
 export const isWindows = platform === 'win32'
