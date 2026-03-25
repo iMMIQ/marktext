@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia'
-import legacyTweet from '@/store/tweet'
+import moduleTweet from './modules/tweet'
 import { createLegacyState } from './index'
-import { createLegacyStoreActions } from './legacyActions'
+import { createModuleStoreActions } from './moduleDispatcher'
 
 export const useTweetStore = defineStore('tweet', {
-  state: createLegacyState(legacyTweet.state),
-  actions: createLegacyStoreActions()
+  state: createLegacyState(moduleTweet.state),
+  actions: createModuleStoreActions()
 })

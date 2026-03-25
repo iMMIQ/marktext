@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia'
-import legacyProject from '@/store/project'
+import moduleProject from './modules/project'
 import { createLegacyState } from './index'
-import { createLegacyStoreActions } from './legacyActions'
+import { createModuleStoreActions } from './moduleDispatcher'
 
 export const useProjectStore = defineStore('project', {
-  state: createLegacyState(legacyProject.state),
-  actions: createLegacyStoreActions()
+  state: createLegacyState(moduleProject.state),
+  actions: createModuleStoreActions()
 })

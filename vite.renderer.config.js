@@ -11,15 +11,7 @@ export default defineConfig({
   root: rendererRoot,
   base: './',
   plugins: [
-    vue({
-      template: {
-        compilerOptions: {
-          compatConfig: {
-            MODE: 2
-          }
-        }
-      }
-    }),
+    vue(),
     marktextCodemirrorAssets()
   ],
   define: {
@@ -41,7 +33,6 @@ export default defineConfig({
       common: path.resolve(__dirname, 'src/common'),
       main: path.resolve(__dirname, 'src/main'),
       muya: path.resolve(__dirname, 'src/muya'),
-      vue: '@vue/compat',
       'electron-log': path.resolve(__dirname, 'src/renderer/shims/electronLog.js'),
       path: 'path-browserify',
       snapsvg: path.resolve(__dirname, 'src/muya/lib/assets/libs/snapSvg.js')

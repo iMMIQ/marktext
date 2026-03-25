@@ -1,6 +1,6 @@
-import notice from '../services/notification'
-import events from '../services/nativeApi/events'
-import shell from '../services/nativeApi/shell'
+import notice from '../../services/notification'
+import events from '../../services/nativeApi/events'
+import shell from '../../services/nativeApi/shell'
 
 const state = {}
 

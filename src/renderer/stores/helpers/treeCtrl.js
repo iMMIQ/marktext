@@ -1,6 +1,6 @@
 import path from 'path'
-import { getUniqueId } from '../util'
-import { PATH_SEPARATOR } from '../config'
+import { getUniqueId } from '../../util'
+import { PATH_SEPARATOR } from '../../config'
 
 /**
  * Return all sub-directories relative to the root directory.

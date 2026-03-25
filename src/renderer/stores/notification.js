@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia'
-import legacyNotification from '@/store/notification'
+import moduleNotification from './modules/notification'
 import { createLegacyState } from './index'
-import { createLegacyStoreActions } from './legacyActions'
+import { createModuleStoreActions } from './moduleDispatcher'
 
 export const useNotificationStore = defineStore('notification', {
-  state: createLegacyState(legacyNotification.state),
-  actions: createLegacyStoreActions()
+  state: createLegacyState(moduleNotification.state),
+  actions: createModuleStoreActions()
 })

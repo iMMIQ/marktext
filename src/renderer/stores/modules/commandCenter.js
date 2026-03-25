@@ -1,7 +1,7 @@
 import log from 'electron-log'
-import bus from '../bus'
-import staticCommands, { RootCommand } from '../commands'
-import events from '../services/nativeApi/events'
+import bus from '../../bus'
+import staticCommands, { RootCommand } from '../../commands'
+import events from '../../services/nativeApi/events'
 
 const state = {
   rootCommand: new RootCommand(staticCommands)

@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia'
-import legacyListenForMain from '@/store/listenForMain'
+import moduleListenForMain from './modules/listenForMain'
 import { createLegacyState } from './index'
-import { createLegacyStoreActions } from './legacyActions'
+import { createModuleStoreActions } from './moduleDispatcher'
 
 export const useListenForMainStore = defineStore('listenForMain', {
-  state: createLegacyState(legacyListenForMain.state),
-  actions: createLegacyStoreActions()
+  state: createLegacyState(moduleListenForMain.state),
+  actions: createModuleStoreActions()
 })

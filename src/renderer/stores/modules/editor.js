@@ -1,23 +1,23 @@
 import path from 'path'
 import equal from 'fast-deep-equal'
 import { isSamePathSync } from 'common/filesystem/paths'
-import bus from '../bus'
-import { hasKeys, getUniqueId } from '../util'
-import listToTree from '../util/listToTree'
-import { createDocumentState, getOptionsFromState, getSingleFileState, getBlankFileState } from './help'
-import notice from '../services/notification'
-import app from '../services/nativeApi/app'
-import clipboard from '../services/nativeApi/clipboard'
-import events from '../services/nativeApi/events'
-import shell from '../services/nativeApi/shell'
-import nativeWindow from '../services/nativeApi/window'
-import { getRuntime } from '../services/runtime'
+import bus from '../../bus'
+import { hasKeys, getUniqueId } from '../../util'
+import listToTree from '../../util/listToTree'
+import { createDocumentState, getOptionsFromState, getSingleFileState, getBlankFileState } from '../helpers/editorDocuments'
+import notice from '../../services/notification'
+import app from '../../services/nativeApi/app'
+import clipboard from '../../services/nativeApi/clipboard'
+import events from '../../services/nativeApi/events'
+import shell from '../../services/nativeApi/shell'
+import nativeWindow from '../../services/nativeApi/window'
+import { getRuntime } from '../../services/runtime'
 import {
   FileEncodingCommand,
   LineEndingCommand,
   QuickOpenCommand,
   TrailingNewlineCommand
-} from '../commands'
+} from '../../commands'
 
 const autoSaveTimers = new Map()
 

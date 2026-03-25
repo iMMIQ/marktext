@@ -1,16 +1,16 @@
 import { defineStore } from 'pinia'
 import app from '@/services/nativeApi/app'
 import events from '@/services/nativeApi/events'
-import legacyPreferences from '@/store/preferences'
+import modulePreferences from './modules/preferences'
 import { createLegacyState } from './index'
-import { createLegacyStoreActions } from './legacyActions'
+import { createModuleStoreActions } from './moduleDispatcher'
 
 let isUserPreferenceListenerBound = false
 
 export const usePreferencesStore = defineStore('preferences', {
-  state: createLegacyState(legacyPreferences.state),
+  state: createLegacyState(modulePreferences.state),
   actions: {
-    ...createLegacyStoreActions(),
+    ...createModuleStoreActions(),
     askForUserPreference () {
       if (!isUserPreferenceListenerBound) {
         events.on('mt::user-preference', (e, preferences) => {

@@ -1,15 +1,17 @@
 # Vue 3 Migration Inventory
 
-Temporary bridges allowed in Phase 3:
+Phase 3 exit status:
 
-- `@vue/compat` in `vite.renderer.config.js`
-- `vuex@4` only until Pinia stores and the Pinia legacy bridge are stable
-- `src/renderer/stores/legacyBridge.js` until all `$store` consumers are migrated
-- `src/renderer/store/*` is now pending deletion once Pinia-backed consumers stop relying on the legacy bridge
+- `@vue/compat` removed from runtime and test tooling
+- `vuex@4` removed from renderer dependencies
+- `src/renderer/stores/legacyBridge.js` removed from the renderer boot path
+- `src/renderer/store/*` deleted
+- renderer state now lives under `src/renderer/stores/*`
+- shared store implementation helpers now live under `src/renderer/stores/modules/*` and `src/renderer/stores/helpers/*`
 
-Known blockers at plan start:
+Resolved blockers:
 
-- `src/renderer/main.js` still uses `new Vue()` and `Vue.use()`
-- dialog components still use `:visible.sync`
-- table/autocomplete components still use `slot-scope`
-- many components still depend on `mapState` and `this.$store.dispatch(...)`
+- `src/renderer/main.js` now boots Vue 3 directly with Pinia and Vue Router
+- dialog components on the migrated renderer path use Vue 3-compatible bindings
+- renderer tests run without compat mode
+- the editor and preference shells render through the Vue 3 runtime in Electron smoke coverage

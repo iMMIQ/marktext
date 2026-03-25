@@ -42,7 +42,6 @@
     "@hfelix/electron-localshortcut": "^4.0.1",
     "@marktext/file-icons": "^1.0.6",
     "@octokit/rest": "^18.12.0",
-    "@vue/compat": "^3.5.13",
     "arg": "^5.0.1",
     "axios": "^0.26.1",
     "ced": "^2.0.0",
@@ -91,7 +90,6 @@
     "vscode-ripgrep": "^1.12.1",
     "vue": "^3.5.13",
     "vue-router": "^4.5.1",
-    "vuex": "^4.1.0",
     "webfontloader": "^1.6.28"
   },
   "devDependencies": {

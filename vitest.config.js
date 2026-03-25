@@ -3,21 +3,12 @@ import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
-  plugins: [vue({
-    template: {
-      compilerOptions: {
-        compatConfig: {
-          MODE: 2
-        }
-      }
-    }
-  })],
+  plugins: [vue()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src/renderer'),
       common: path.resolve(__dirname, 'src/common'),
-      muya: path.resolve(__dirname, 'src/muya'),
-      vue: '@vue/compat'
+      muya: path.resolve(__dirname, 'src/muya')
     }
   },
   test: {

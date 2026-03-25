@@ -1,4 +1,4 @@
-import { configureCompat, createApp, h } from 'vue'
+import { createApp, h } from 'vue'
 import { createPinia } from 'pinia'
 import bootstrapRenderer from './bootstrap'
 import { RouterView } from 'vue-router'
@@ -8,8 +8,6 @@ import { addElementStyle } from '@/util/theme'
 
 import './assets/styles/index.css'
 import './assets/styles/printService.css'
-
-configureCompat({ MODE: 2 })
 
 const RootShell = {
   name: 'RendererRootShell',
@@ -22,26 +20,21 @@ const start = async () => {
 
   const [
     { default: createRendererRouter },
-    { createLegacyStoreBridge },
     { installElementPlus },
     { installServices }
   ] = await Promise.all([
     import('./router'),
-    import('./stores/legacyBridge'),
     import('./plugins/elementPlus'),
     import('./plugins/services')
   ])
 
   const app = createApp(RootShell)
   const pinia = createPinia()
-  const legacyStore = createLegacyStoreBridge(pinia)
   const router = createRendererRouter(getRuntime().env.type)
 
   installElementPlus(app)
   installServices(app)
   app.use(pinia)
-  app.use(legacyStore)
-  app.provide('legacyStore', legacyStore)
   app.use(router)
 
   await router.isReady()

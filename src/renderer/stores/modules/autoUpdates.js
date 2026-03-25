@@ -1,6 +1,6 @@
-import notice from '../services/notification'
-import app from '../services/nativeApi/app'
-import events from '../services/nativeApi/events'
+import notice from '../../services/notification'
+import app from '../../services/nativeApi/app'
+import events from '../../services/nativeApi/events'
 
 const state = {}
 

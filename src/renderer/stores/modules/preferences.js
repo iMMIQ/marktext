@@ -1,7 +1,7 @@
-import bus from '../bus'
-import app from '../services/nativeApi/app'
-import events from '../services/nativeApi/events'
-import { getRuntime } from '../services/runtime'
+import bus from '../../bus'
+import app from '../../services/nativeApi/app'
+import events from '../../services/nativeApi/events'
+import { getRuntime } from '../../services/runtime'
 
 // user preference
 const state = {
@@ -127,15 +127,18 @@ const actions = {
   },
 
   SET_SINGLE_PREFERENCE ({ commit }, { type, value }) {
+    commit('SET_USER_PREFERENCE', { [type]: value })
     // save to electron-store
     app.send('mt::set-user-preference', { [type]: value })
   },
 
   SET_USER_DATA ({ commit }, { type, value }) {
+    commit('SET_USER_PREFERENCE', { [type]: value })
     app.send('mt::set-user-data', { [type]: value })
   },
 
   SET_IMAGE_FOLDER_PATH ({ commit }, value) {
+    commit('SET_USER_PREFERENCE', { imageFolderPath: value })
     app.send('mt::ask-for-modify-image-folder-path', value)
   },
 

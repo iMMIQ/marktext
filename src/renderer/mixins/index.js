@@ -2,7 +2,6 @@ import { isSamePathSync } from 'common/filesystem/paths'
 import { useEditorStore } from '@/stores/editor'
 import { useProjectStore } from '@/stores/project'
 import { useEventBus } from '@/composables/useEventBus'
-import bus from '../bus'
 
 export const tabsMixins = {
   methods: {

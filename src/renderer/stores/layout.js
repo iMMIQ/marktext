@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia'
-import legacyLayout from '@/store/layout'
+import moduleLayout from './modules/layout'
 import { createLegacyState } from './index'
-import { createLegacyStoreActions } from './legacyActions'
+import { createModuleStoreActions } from './moduleDispatcher'
 
 export const useLayoutStore = defineStore('layout', {
-  state: createLegacyState(legacyLayout.state),
-  actions: createLegacyStoreActions()
+  state: createLegacyState(moduleLayout.state),
+  actions: createModuleStoreActions()
 })

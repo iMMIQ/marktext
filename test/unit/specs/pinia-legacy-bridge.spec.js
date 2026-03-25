@@ -1,8 +1,8 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { describe, expect, it } from 'vitest'
 
-describe('pinia legacy bridge', () => {
-  it('maps legacy dispatch calls onto pinia actions', async () => {
+describe('pinia store dispatch contract', () => {
+  it('routes string-based preference updates through the preferences store', async () => {
     if (typeof globalThis.localStorage !== 'object' || typeof globalThis.localStorage.getItem !== 'function') {
       globalThis.localStorage = {
         getItem: () => null,
@@ -12,18 +12,14 @@ describe('pinia legacy bridge', () => {
       }
     }
 
-    const [{ createLegacyStoreBridge }, { usePreferencesStore }] = await Promise.all([
-      import('@/stores/legacyBridge'),
-      import('@/stores/preferences')
-    ])
+    const { usePreferencesStore } = await import('@/stores/preferences')
 
-    setActivePinia(createPinia())
-    const bridge = createLegacyStoreBridge()
-    const preferences = usePreferencesStore()
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const preferences = usePreferencesStore(pinia)
 
-    await bridge.dispatch('SET_SINGLE_PREFERENCE', { type: 'theme', value: 'dark' })
+    await preferences.dispatch('SET_SINGLE_PREFERENCE', { type: 'theme', value: 'dark' })
 
     expect(preferences.theme).toBe('dark')
-    expect(bridge.state.preferences.theme).toBe('dark')
   })
 })

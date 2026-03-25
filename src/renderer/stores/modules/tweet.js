@@ -1,5 +1,5 @@
-import bus from '../bus'
-import events from '../services/nativeApi/events'
+import bus from '../../bus'
+import events from '../../services/nativeApi/events'
 
 const state = {}
 

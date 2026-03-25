@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia'
-import legacyAutoUpdates from '@/store/autoUpdates'
+import moduleAutoUpdates from './modules/autoUpdates'
 import { createLegacyState } from './index'
-import { createLegacyStoreActions } from './legacyActions'
+import { createModuleStoreActions } from './moduleDispatcher'
 
 export const useAutoUpdatesStore = defineStore('autoUpdates', {
-  state: createLegacyState(legacyAutoUpdates.state),
-  actions: createLegacyStoreActions()
+  state: createLegacyState(moduleAutoUpdates.state),
+  actions: createModuleStoreActions()
 })

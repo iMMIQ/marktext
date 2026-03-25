@@ -1,7 +1,7 @@
-import bus from '../bus'
-import app from '../services/nativeApi/app'
-import events from '../services/nativeApi/events'
-import { getRuntime } from '../services/runtime'
+import bus from '../../bus'
+import app from '../../services/nativeApi/app'
+import events from '../../services/nativeApi/events'
+import { getRuntime } from '../../services/runtime'
 
 const width = localStorage.getItem('side-bar-width')
 const sideBarWidth = typeof +width === 'number' ? Math.max(+width, 220) : 280

@@ -1,12 +1,12 @@
 import { defineStore } from 'pinia'
-import legacyEditor from '@/store/editor'
+import moduleEditor from './modules/editor'
 import { createLegacyState } from './index'
-import { createLegacyStoreActions } from './legacyActions'
+import { createModuleStoreActions } from './moduleDispatcher'
 
 export const useEditorStore = defineStore('editor', {
-  state: createLegacyState(legacyEditor.state),
+  state: createLegacyState(moduleEditor.state),
   actions: {
-    ...createLegacyStoreActions(),
+    ...createModuleStoreActions(),
     consumeCurrentTabNotification (status) {
       const notifications = this.currentFile?.notifications
       if (!notifications || notifications.length === 0) {

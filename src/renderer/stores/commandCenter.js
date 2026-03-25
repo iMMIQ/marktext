@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia'
-import legacyCommandCenter from '@/store/commandCenter'
+import moduleCommandCenter from './modules/commandCenter'
 import { createLegacyState } from './index'
-import { createLegacyStoreActions } from './legacyActions'
+import { createModuleStoreActions } from './moduleDispatcher'
 
 export const useCommandCenterStore = defineStore('commandCenter', {
-  state: createLegacyState(legacyCommandCenter.state),
-  actions: createLegacyStoreActions()
+  state: createLegacyState(moduleCommandCenter.state),
+  actions: createModuleStoreActions()
 })

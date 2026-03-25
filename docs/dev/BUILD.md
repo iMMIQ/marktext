@@ -77,3 +77,14 @@ Unit tests now run through Vitest:
 - `yarn run unit` and `yarn run unit:vite` both execute `vitest run`
 
 The standalone Muya bundle still uses `src/muya/webpack.config.js`. At runtime, `src/main/config.js` points both BrowserWindow variants at the bundled preload file in `dist/electron/preload.js`, and the renderer consumes native capabilities through `src/renderer/services/nativeApi/*` rather than importing Electron directly.
+
+## Renderer Runtime
+
+The renderer now boots directly with Vue 3, Pinia, and Vue Router. There is no Vuex compatibility bridge in the renderer entrypoint, and the retired `src/renderer/store/*` tree has been replaced by `src/renderer/stores/*`.
+
+Phase 3 verification commands:
+
+- `yarn run lint`
+- `./node_modules/.bin/vitest run`
+- `yarn run pack`
+- `./node_modules/.bin/playwright test -c test/e2e/playwright.config.js test/e2e/launch.spec.js test/e2e/phase-3-smoke.spec.js`

@@ -1,4 +1,4 @@
-import { getUniqueId, cloneObj } from '../util'
+import { getUniqueId, cloneObj } from '../../util'
 
 /**
  * Default internel markdown document with editor options.
