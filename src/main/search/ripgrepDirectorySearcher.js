@@ -23,7 +23,7 @@
 
 import { spawn } from 'child_process'
 import path from 'path'
-import { getRuntime } from '../services/runtime'
+import { getRipgrepPath } from './ripgrepPath'
 
 function cleanResultLine (resultLine) {
   resultLine = getText(resultLine)
@@ -49,7 +49,6 @@ function processUnicodeMatch (match) {
   const text = getText(match.lines)
 
   if (text.length === Buffer.byteLength(text)) {
-    // fast codepath for lines that only contain characters of 1 byte length.
     return
   }
 
@@ -67,28 +66,18 @@ function processUnicodeMatch (match) {
     return currentLength
   }
 
-  // Iterate over all the submatches to find the convert the start and end values
-  // (which come as bytes from ripgrep) to character positions.
-  // We can do this because submatches come ordered by position.
   for (const submatch of match.submatches) {
     submatch.start = convertPosition(submatch.start)
     submatch.end = convertPosition(submatch.end)
   }
 }
 
-// This function processes a ripgrep submatch to create the correct
-// range. This is mostly needed for multi-line results, since the range
-// will have differnt start and end rows and we need to calculate these
-// based on the lines that ripgrep returns.
 function processSubmatch (submatch, lineText, offsetRow) {
   const lineParts = lineText.split('\n')
 
   const start = getPositionFromColumn(lineParts, submatch.start)
   const end = getPositionFromColumn(lineParts, submatch.end)
 
-  // Make sure that the lineText string only contains lines that are
-  // relevant to this submatch. This means getting rid of lines above
-  // the start row and below the end row.
   for (let i = start[0]; i > 0; i--) {
     lineParts.shift()
   }
@@ -111,43 +100,9 @@ function getText (input) {
 
 class RipgrepDirectorySearcher {
   constructor () {
-    this.rgPath = getRuntime().paths.ripgrepBinaryPath
+    this.rgPath = getRipgrepPath()
   }
 
-  // Performs a text search for files in the specified `Directory`s, subject to the
-  // specified parameters.
-  //
-  // Results are streamed back to the caller by invoking methods on the specified `options`,
-  // such as `didMatch`.
-  //
-  // * `directories` {Array} of absolute {string} paths to search.
-  // * `pattern` {string} to search with.
-  // * `options` {Object} with the following properties:
-  //   * `didMatch` {Function} call with a search result structured as follows:
-  //     * `searchResult` {Object} with the following keys:
-  //       * `filePath` {String} absolute path to the matching file.
-  //       * `matches` {Array} with object elements with the following keys:
-  //         * `lineText` {String} The full text of the matching line (without a line terminator character).
-  //         * `matchText` {String} The text that matched the `regex` used for the search.
-  //         * `range` {Range} Identifies the matching region in the file. (Likely as an array of numeric arrays.)
-  //   * `didSearchPaths` {Function} periodically call with the number of paths searched that contain results thus far.
-  //   * `inclusions` {Array} of glob patterns (as strings) to search within. Note that this
-  //   array may be empty, indicating that all files should be searched.
-  //
-  //   Each item in the array is a file/directory pattern, e.g., `src` to search in the "src"
-  //   directory or `*.js` to search all JavaScript files. In practice, this often comes from the
-  //   comma-delimited list of patterns in the bottom text input of the ProjectFindView dialog.
-  //   * `noIgnore` {boolean} whether to ignore ignore files like `.gitignore`.
-  //   * `exclusions` {Array} similar to inclusions
-  //   * `followSymlinks` {boolean} whether symlinks should be followed.
-  //   * `isWholeWord` {boolean} whether to search for whole words.
-  //   * `isRegexp` {boolean} whether `pattern` is a RegEx.
-  //   * `isCaseSensitive` {boolean} whether to search case sensitive or not.
-  //   * `maxFileSize` {number} the maximal file size.
-  //   * `includeHidden` {boolean} whether to search in hidden files and directories.
-
-  // Returns a *thenable* `DirectorySearch` that includes a `cancel()` method. If `cancel()` is
-  // invoked before the `DirectorySearch` is determined, it will resolve the `DirectorySearch`.
   search (directories, pattern, options) {
     const numPathsFound = { num: 0 }
 
@@ -158,8 +113,8 @@ class RipgrepDirectorySearcher {
     const promise = Promise.all(allPromises)
 
     promise.cancel = () => {
-      for (const promise of allPromises) {
-        promise.cancel()
+      for (const searchPromise of allPromises) {
+        searchPromise.cancel()
       }
     }
 
@@ -245,8 +200,7 @@ class RipgrepDirectorySearcher {
       let pendingLeadingContext
       let pendingTrailingContexts
 
-      child.on('close', (code, signal) => {
-        // code 1 is used when no results are found.
+      child.on('close', code => {
         if (code !== null && code > 1) {
           reject(new Error(bufferError))
         } else {
@@ -314,15 +268,10 @@ class RipgrepDirectorySearcher {
     return returnedPromise
   }
 
-  // We need to prepare the "globs" that we receive from the user to make their behaviour more
-  // user-friendly (e.g when adding `src/` the user probably means `src/**/*`).
-  // This helper function takes care of that.
-  prepareGlobs (globs, projectRootPath) {
+  prepareGlobs (globs = [], projectRootPath) {
     const output = []
 
     for (let pattern of globs) {
-      // we need to replace path separators by slashes since globs should
-      // always use always slashes as path separators.
       pattern = pattern.replace(new RegExp(`\\${path.sep}`, 'g'), '/')
 
       if (pattern.length === 0) {
@@ -331,8 +280,6 @@ class RipgrepDirectorySearcher {
 
       const projectName = path.basename(projectRootPath)
 
-      // The user can just search inside one of the opened projects. When we detect
-      // this scenario we just consider the glob to include every file.
       if (pattern === projectName) {
         output.push('**/*')
         continue
@@ -356,25 +303,15 @@ class RipgrepDirectorySearcher {
   }
 
   prepareRegexp (regexpStr) {
-    // ripgrep handles `--` as the arguments separator, so we need to escape it if the
-    // user searches for that exact same string.
     if (regexpStr === '--') {
       return '\\-\\-'
     }
 
-    // ripgrep is quite picky about unnecessarily escaped sequences, so we need to unescape
-    // them: https://github.com/BurntSushi/ripgrep/issues/434.
-    regexpStr = regexpStr.replace(/\\\//g, '/')
-
-    return regexpStr
+    return regexpStr.replace(/\\\//g, '/')
   }
 
   isMultilineRegexp (regexpStr) {
-    if (regexpStr.includes('\\n')) {
-      return true
-    }
-
-    return false
+    return regexpStr.includes('\\n')
   }
 }
 

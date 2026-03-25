@@ -11,8 +11,10 @@ describe('renderer native API facade', () => {
       'app',
       'clipboard',
       'events',
+      'filesystem',
       'menu',
       'runtime',
+      'search',
       'shell',
       'window'
     ])
@@ -175,6 +177,36 @@ describe('renderer native API facade', () => {
 
     expect(result).toBe(runtimeInfo)
     expect(isUpdatable).toBe(true)
+  })
+
+  it('routes filesystem and search access through the bridge contract', async () => {
+    const calls = []
+    const create = (pathname, type) => {
+      calls.push(['create', pathname, type])
+      return Promise.resolve()
+    }
+    const searchText = (directories, pattern, options) => {
+      calls.push(['searchText', directories, pattern, options])
+      return Promise.resolve([{ filePath: '/tmp/demo.md', matches: [] }])
+    }
+
+    window.mtNative = {
+      filesystem: {
+        create
+      },
+      search: {
+        searchText
+      }
+    }
+
+    await nativeApi.filesystem.create('/tmp/demo', 'directory')
+    const result = await nativeApi.search.searchText(['/tmp'], 'demo', { isRegexp: false })
+
+    expect(result).toHaveLength(1)
+    expect(calls).toEqual([
+      ['create', '/tmp/demo', 'directory'],
+      ['searchText', ['/tmp'], 'demo', { isRegexp: false }]
+    ])
   })
 
   it('routes window controls through the bridge contract', async () => {

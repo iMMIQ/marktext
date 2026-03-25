@@ -14,8 +14,10 @@ test('renderer exposes the native bridge contract', async () => {
     'app',
     'clipboard',
     'events',
+    'filesystem',
     'menu',
     'runtime',
+    'search',
     'shell',
     'window'
   ])

@@ -2,9 +2,9 @@ import path from 'path'
 import { isChildOfDirectory, hasMarkdownExtension, MARKDOWN_INCLUSIONS } from '../../common/filesystem/paths'
 import bus from '../bus'
 import { delay } from '@/util'
-import FileSearcher from '@/node/fileSearcher'
 import app from '../services/nativeApi/app'
 import { getRuntime } from '../services/runtime'
+import nativeSearch from '../services/nativeApi/search'
 
 const SPECIAL_CHARS = /[\[\]\\^$.\|\?\*\+\(\)\/]{1}/g // eslint-disable-line no-useless-escape
 
@@ -23,7 +23,6 @@ class QuickOpenCommand {
     this._editorState = rootState.editor
     this._folderState = rootState.project
 
-    this._directorySearcher = new FileSearcher()
     this._cancelFn = null
   }
 
@@ -128,26 +127,16 @@ class QuickOpenCommand {
     // Search root directory on disk.
     return new Promise((resolve, reject) => {
       let canceled = false
-      const promises = this._directorySearcher.search([rootPath], '', {
-        didMatch: result => {
-          if (canceled) return
-          searchResult.push(result)
-        },
-        didSearchPaths: numPathsFound => {
-          // Cancel when more than 30 files were found. User should specify the search query.
-          if (!canceled && numPathsFound > 30) {
-            canceled = true
-            if (promises.cancel) {
-              promises.cancel()
-            }
-          }
-        },
-
-        // Only search markdown files that contain the query string.
+      nativeSearch.searchFiles(rootPath, {
         inclusions: this._getInclusions(query)
       })
-        .then(() => {
+        .then(results => {
+          if (canceled) {
+            return
+          }
+
           this._cancelFn = null
+          searchResult.push(...results.slice(0, 30))
           resolve(
             searchResult
               .map(pathname => {
@@ -158,6 +147,9 @@ class QuickOpenCommand {
           )
         })
         .catch(error => {
+          if (canceled) {
+            return
+          }
           this._cancelFn = null
           reject(error)
         })
@@ -165,9 +157,6 @@ class QuickOpenCommand {
       this._cancelFn = () => {
         this._cancelFn = null
         canceled = true
-        if (promises.cancel) {
-          promises.cancel()
-        }
       }
     })
   }

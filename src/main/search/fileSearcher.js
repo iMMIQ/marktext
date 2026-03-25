@@ -1,7 +1,6 @@
 import { spawn } from 'child_process'
-import RipgrepDirectorySearcher from './ripgrepSearcher'
+import RipgrepDirectorySearcher from './ripgrepDirectorySearcher'
 
-// Use ripgrep searcher to search for files on disk only.
 class FileSearcher extends RipgrepDirectorySearcher {
   searchInDirectory (directoryPath, pattern, options, numPathsFound) {
     const args = ['--files']
@@ -40,8 +39,7 @@ class FileSearcher extends RipgrepDirectorySearcher {
       let buffer = ''
       let bufferError = ''
 
-      child.on('close', (code, signal) => {
-        // code 1 is used when no results are found.
+      child.on('close', code => {
         if (code !== null && code > 1) {
           reject(new Error(bufferError))
         } else {

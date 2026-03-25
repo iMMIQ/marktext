@@ -1,7 +1,7 @@
 import { app as electronApp, BrowserWindow, ipcMain } from 'electron'
 import path from 'path'
 import { isFile } from 'common/filesystem'
-import { getRipgrepPath } from '../../../renderer/node/paths'
+import { getRipgrepPath } from '../../search/ripgrepPath'
 
 const getWindowFromEvent = event => BrowserWindow.fromWebContents(event.sender)
 

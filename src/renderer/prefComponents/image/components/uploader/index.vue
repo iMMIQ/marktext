@@ -71,7 +71,7 @@
 <script>
 import services, { isValidService } from './services.js'
 import legalNoticesCheckbox from './legalNoticesCheckbox'
-import { isFileExecutableSync } from '@/util/fileSystem'
+import { isFileExecutable } from '@/util/fileSystem'
 import CurSelect from '@/prefComponents/common/select'
 import commandExists from 'command-exists'
 import notice from '@/services/notification'
@@ -97,6 +97,7 @@ export default {
         branch: ''
       },
       cliScript: '',
+      cliScriptExecutable: false,
       picgoExists: true,
       uploadServices: services,
       legalNoticesErrorStates: {
@@ -132,7 +133,7 @@ export default {
       if (!this.cliScript) {
         return true
       }
-      return !isFileExecutableSync(this.cliScript)
+      return !this.cliScriptExecutable
     }
   },
   watch: {
@@ -140,6 +141,9 @@ export default {
       if (value !== oldValue) {
         this.github = value.github
       }
+    },
+    cliScript () {
+      this.updateCliScriptExecutable()
     }
   },
   created () {
@@ -147,6 +151,7 @@ export default {
       this.github = this.imageBed.github
       this.githubToken = this.prefGithubToken
       this.cliScript = this.prefCliScript
+      this.updateCliScriptExecutable()
       this.testPicgo()
 
       if (services.hasOwnProperty(this.currentUploader)) {
@@ -203,6 +208,11 @@ export default {
 
     testPicgo () {
       this.picgoExists = commandExists.sync('picgo')
+    },
+    async updateCliScriptExecutable () {
+      this.cliScriptExecutable = this.cliScript
+        ? await isFileExecutable(this.cliScript)
+        : false
     },
 
     validate (value) {

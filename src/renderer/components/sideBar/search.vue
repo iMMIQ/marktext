@@ -90,7 +90,7 @@ import { mapState } from 'vuex'
 import bus from '../../bus'
 import log from 'electron-log'
 import SearchResultItem from './searchResultItem.vue'
-import RipgrepDirectorySearcher from '../../node/ripgrepSearcher'
+import nativeSearch from '@/services/nativeApi/search'
 import EmptyIcon from '@/assets/icons/undraw_empty.svg'
 import FindCaseIcon from '@/assets/icons/searchIcons/iconCase.svg'
 import FindWordIcon from '@/assets/icons/searchIcons/iconWord.svg'
@@ -103,7 +103,7 @@ export default {
     this.lastSearchTime = new Date()
     this.keyUpTimer = null
     this.searcherCancelCallback = null
-    this.ripgrepDirectorySearcher = new RipgrepDirectorySearcher()
+    this.searchGeneration = 0
     this.EmptyIcon = EmptyIcon
     this.FindCaseIcon = FindCaseIcon
     this.FindWordIcon = FindWordIcon
@@ -181,8 +181,7 @@ export default {
         searcherCancelCallback,
         isCaseSensitive,
         isWholeWord,
-        isRegexp,
-        ripgrepDirectorySearcher
+        isRegexp
       } = this
 
       if (searcherRunning && searcherCancelCallback) {
@@ -199,64 +198,39 @@ export default {
       }
 
       let canceled = false
+      const generation = ++this.searchGeneration
       this.searcherRunning = true
       this.startShowSearchCancelAreaTimer()
 
-      const newSearchResult = []
-      const promises = ripgrepDirectorySearcher.search([rootDirectoryPath], keyword, {
-        didMatch: searchResult => {
-          if (canceled) return
-
-          // filePath: "<file>"
-          // matches: Array(1)
-          // 0:
-          //   leadingContextLines: []
-          //   lineText: "foo-test"
-          //   matchText: "foo"
-          //   range: Array(2)
-          //     0: (2) [0, 0]
-          //     1: (2) [0, 3]
-          //   length: 2
-          //   trailingContextLines: []
-
-          newSearchResult.push(searchResult)
-        },
-        didSearchPaths: numPathsFound => {
-          // More than 100 files with (multiple) matches were found.
-          if (!canceled && numPathsFound > 100) {
-            canceled = true
-            if (promises.cancel) {
-              promises.cancel()
-            }
-            this.searchErrorString = 'Search was limited to 100 files.'
-          }
-        },
-
-        // UI options
+      nativeSearch.searchText([rootDirectoryPath], keyword, {
         isCaseSensitive,
         isWholeWord,
         isRegexp,
-
-        // Options loaded from settings
         exclusions: this.searchExclusions,
         maxFileSize: this.searchMaxFileSize || null,
         includeHidden: this.searchIncludeHidden,
         noIgnore: this.searchNoIgnore,
         followSymlinks: this.searchFollowSymlinks,
-
-        // Only search markdown files
         inclusions: MARKDOWN_INCLUSIONS
       })
-        .then(() => {
-          this.searchResult = newSearchResult
+        .then(searchResult => {
+          if (canceled || generation !== this.searchGeneration) {
+            return
+          }
+
+          if (searchResult.length > 100) {
+            this.searchErrorString = 'Search was limited to 100 files.'
+            this.searchResult = searchResult.slice(0, 100)
+          } else {
+            this.searchResult = searchResult
+          }
           this.searcherRunning = false
           this.searcherCancelCallback = null
           this.stopShowSearchCancelAreaTimer()
         })
         .catch(err => {
-          canceled = true
-          if (promises.cancel) {
-            promises.cancel()
+          if (canceled || generation !== this.searchGeneration) {
+            return
           }
           this.searcherRunning = false
           this.searcherCancelCallback = null
@@ -269,8 +243,9 @@ export default {
       this.searcherCancelCallback = () => {
         this.stopShowSearchCancelAreaTimer()
         canceled = true
-        if (promises.cancel) {
-          promises.cancel()
+        if (generation === this.searchGeneration) {
+          this.searchGeneration++
+          this.searcherRunning = false
         }
       }
     },
