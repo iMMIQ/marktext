@@ -23,7 +23,8 @@ const bridge = {
     openExternal: target => ipcRenderer.invoke('mt::shell-open-external', target)
   },
   runtime: {
-    getInfo: () => ipcRenderer.invoke('mt::runtime-get-info')
+    getInfo: () => ipcRenderer.invoke('mt::runtime-get-info'),
+    isUpdatable: () => ipcRenderer.sendSync('mt::runtime-is-updatable-sync')
   },
   app: {
     openSettingsWindow: () => ipcRenderer.send('mt::open-setting-window'),

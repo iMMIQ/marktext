@@ -165,13 +165,16 @@ describe('renderer native API facade', () => {
 
     window.mtNative = {
       runtime: {
-        getInfo: () => Promise.resolve(runtimeInfo)
+        getInfo: () => Promise.resolve(runtimeInfo),
+        isUpdatable: () => true
       }
     }
 
     const result = await nativeApi.runtime.getInfo()
+    const isUpdatable = nativeApi.runtime.isUpdatable()
 
     expect(result).toBe(runtimeInfo)
+    expect(isUpdatable).toBe(true)
   })
 
   it('routes window controls through the bridge contract', async () => {

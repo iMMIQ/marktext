@@ -1,7 +1,22 @@
 import { app as electronApp, BrowserWindow, ipcMain } from 'electron'
+import path from 'path'
+import { isFile } from 'common/filesystem'
 import { getRipgrepPath } from '../../../renderer/node/paths'
 
 const getWindowFromEvent = event => BrowserWindow.fromWebContents(event.sender)
+
+const isUpdatableAtRuntime = () => {
+  const resFile = isFile(path.join(process.resourcesPath, 'app-update.yml'))
+  if (!resFile) {
+    return false
+  } else if (process.env.APPIMAGE) {
+    return true
+  } else if (process.platform === 'win32' && isFile(path.join(process.resourcesPath, 'md.ico'))) {
+    return true
+  }
+
+  return false
+}
 
 const getRendererType = event => {
   try {
@@ -19,6 +34,10 @@ const getRendererType = event => {
 }
 
 const registerRuntimeHandlers = app => {
+  ipcMain.on('mt::runtime-is-updatable-sync', event => {
+    event.returnValue = isUpdatableAtRuntime()
+  })
+
   ipcMain.handle('mt::runtime-get-info', event => {
     const win = getWindowFromEvent(event)
     const { env, paths } = app._accessor
