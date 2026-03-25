@@ -1,7 +1,7 @@
 <template>
   <div class="about-dialog">
     <el-dialog
-      :visible.sync="showAboutDialog"
+      v-model="showAboutDialog"
       :show-close="false"
       :modal="true"
       custom-class="ag-dialog-table"
@@ -49,7 +49,7 @@ export default {
   created () {
     bus.$on('aboutDialog', this.showDialog)
   },
-  beforeDestroy () {
+  beforeUnmount () {
     bus.$off('aboutDialog', this.showDialog)
   },
   methods: {

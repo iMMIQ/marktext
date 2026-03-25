@@ -2,7 +2,7 @@
   <section class="pref-font-input-item" :class="{'ag-underdevelop': disable}">
     <div class="description">
       <span>{{description}}:</span>
-      <i class="el-icon-info" v-if="more" @click="handleMoreClick"></i>
+      <span v-if="more" class="font-textbox-info" @click="handleMoreClick">i</span>
     </div>
     <el-autocomplete
       class="font-autocomplete"
@@ -12,8 +12,10 @@
       placeholder="Select font..."
       @select="handleSelect"
     >
-      <i class="el-icon-arrow-down el-input__icon" slot="suffix"></i>
-      <template slot-scope="{ item }">
+      <template #suffix>
+        <span class="el-input__icon font-autocomplete-suffix" aria-hidden="true">v</span>
+      </template>
+      <template #default="{ item }">
         <div class="family">{{ item }}</div>
       </template>
     </el-autocomplete>
@@ -159,12 +161,20 @@ export default {
 }
 .pref-font-input-item .description {
   margin-bottom: 10px;
-  & i {
+  & .font-textbox-info {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    margin-left: 4px;
     cursor: pointer;
     opacity: 0.7;
     color: var(--iconColor);
+    font-size: 12px;
+    font-style: normal;
   }
-  & i:hover {
+  & .font-textbox-info:hover {
     color: var(--themeColor);
   }
 }

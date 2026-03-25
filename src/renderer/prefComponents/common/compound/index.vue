@@ -9,7 +9,6 @@
     <div v-if="notes" class="notes">
       {{notes}}
     </div>
-    </div>
   </section>
 </template>
 

@@ -9,12 +9,12 @@
         placeholder="Search preferences"
         :trigger-on-focus="false"
         @select="handleSelect">
-        <i
-          class="el-icon-search el-input__icon"
-          slot="suffix"
-        >
-        </i>
-        <template slot-scope="{ item }">
+        <template #suffix>
+          <svg class="el-input__icon pref-sidebar-search-icon" :viewBox="SearchIcon.viewBox" aria-hidden="true">
+            <use :xlink:href="SearchIcon.url"></use>
+          </svg>
+        </template>
+        <template #default="{ item }">
           <div class="name">{{ item.category }}</div>
           <span class="addr">{{ item.preference }}</span>
         </template>
@@ -35,10 +35,12 @@
 </template>
 <script>
 import { category, searchContent } from './config'
+import SearchIcon from '@/assets/icons/search.svg'
 
 export default {
   data () {
     this.category = category
+    this.SearchIcon = SearchIcon
     return {
       currentCategory: 'general',
       offIpcCategoryChange: null,
@@ -105,9 +107,6 @@ export default {
     }
     this.offIpcCategoryChange = this.$nativeApi.events.on('settings::change-tab', this.onIpcCategoryChange)
   },
-  beforeDestroy () {
-    this.teardownIpcCategoryChange()
-  },
   unmounted () {
     this.teardownIpcCategoryChange()
   }
@@ -143,6 +142,12 @@ export default {
       height: 35px;
       line-height: 35px;
     }
+  }
+  .pref-sidebar-search-icon {
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    color: var(--iconColor);
   }
   .pref-autocomplete.el-autocomplete-suggestion {
     background: var(--floatBgColor);

@@ -1,15 +1,17 @@
 <template>
   <div class="tweet-dialog">
     <el-dialog
-      :visible.sync="showTweetDialog"
+      v-model="showTweetDialog"
       :show-close="false"
       :modal="true"
       custom-class="ag-dialog-table"
       width="450px"
     >
-      <div slot="title" class="title">
-        <span>Send us feedback via tweet</span>
-      </div>
+      <template #header>
+        <div class="title">
+          <span>Send us feedback via tweet</span>
+        </div>
+      </template>
       <div class="body">
         <div class="feeling">
           <div>What's your experience feelings?</div>
@@ -80,7 +82,7 @@ export default {
   created () {
     bus.$on('tweetDialog', this.showDialog)
   },
-  beforeDestroy () {
+  beforeUnmount () {
     bus.$off('tweetDialog', this.showDialog)
   },
   methods: {

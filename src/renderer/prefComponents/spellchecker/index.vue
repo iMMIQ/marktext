@@ -49,9 +49,9 @@
         </el-table-column>
 
         <el-table-column fixed="right" label="Options" width="90">
-          <template slot-scope="scope">
+          <template #default="scope">
             <el-button @click="handleDeleteClick(scope.row)" type="text" size="small" title="Delete">
-              <i class="el-icon-delete"></i>
+              Delete
             </el-button>
           </template>
         </el-table-column>

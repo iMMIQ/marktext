@@ -2,14 +2,15 @@
   <div class="key-input-dialog">
     <div v-if="showKeyInputDialog" class="input-overlay"></div>
     <el-dialog
-      :visible.sync="showKeyInputDialog"
+      v-model="showKeyInputDialog"
       :show-close="false"
       :modal="false"
       @close="cancelKeybinding"
       custom-class="ag-dialog-table"
       width="350px"
     >
-      <div slot="title" class="key-input-wrapper">
+      <template #header>
+        <div class="key-input-wrapper">
         <div class="input-wrapper">
           <input
             tabindex="0"
@@ -31,7 +32,8 @@
             Current key combination cannot be bound!
           </div>
         </div>
-      </div>
+        </div>
+      </template>
     </el-dialog>
   </div>
 </template>

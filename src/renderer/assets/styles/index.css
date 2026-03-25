@@ -195,6 +195,10 @@ body {
   padding: 8px 6px;
 }
 
+.el-overlay {
+  background-color: var(--maskColor) !important;
+}
+
 input.el-input__inner {
   background: var(--inputBgColor);
   border: 1px solid var(--editorColor10);

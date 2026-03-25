@@ -1,7 +1,7 @@
 <template>
   <div class="import-dialog">
     <el-dialog
-      :visible.sync="showImport"
+      v-model="showImport"
       :show-close="false"
       :modal="true"
       custom-class="ag-dialog-table"
@@ -48,7 +48,7 @@ export default {
   created () {
     bus.$on('importDialog', this.showDialog)
   },
-  beforeDestroy () {
+  beforeUnmount () {
     bus.$off('importDialog', this.showDialog)
   },
   methods: {
