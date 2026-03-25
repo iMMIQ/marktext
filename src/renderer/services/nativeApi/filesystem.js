@@ -5,7 +5,9 @@ const fallbackFilesystemApi = {
   moveToRelativeFolder: async () => '',
   moveImageToFolder: async () => '',
   uploadImage: async () => '',
-  isFileExecutable: async () => false
+  isFileExecutable: async () => false,
+  readDirectory: async () => [],
+  readFile: async () => ''
 }
 
 const getFilesystemApi = () => {
@@ -23,5 +25,7 @@ export default {
   moveToRelativeFolder: payload => getFilesystemApi().moveToRelativeFolder(payload),
   moveImageToFolder: payload => getFilesystemApi().moveImageToFolder(payload),
   uploadImage: payload => getFilesystemApi().uploadImage(payload),
-  isFileExecutable: filepath => getFilesystemApi().isFileExecutable(filepath)
+  isFileExecutable: filepath => getFilesystemApi().isFileExecutable(filepath),
+  readDirectory: pathname => getFilesystemApi().readDirectory(pathname),
+  readFile: (pathname, encoding) => getFilesystemApi().readFile(pathname, encoding)
 }

@@ -1,11 +1,7 @@
-import fs from 'fs'
-import path from 'path'
 import Slugger from 'muya/lib/parser/marked/slugger'
-import { isFile } from 'common/filesystem'
 import { escapeHTML, unescapeHTML } from 'muya/lib/utils'
-import academicTheme from '@/assets/themes/export/academic.theme.css'
-import liberTheme from '@/assets/themes/export/liber.theme.css'
-import { getRuntime } from '@/services/runtime'
+import academicTheme from '@/assets/themes/export/academic.theme.css?inline'
+import liberTheme from '@/assets/themes/export/liber.theme.css?inline'
 import { cloneObj } from '../util'
 import { sanitize, EXPORT_DOMPURIFY_CONFIG } from '../util/dompurify'
 
@@ -22,6 +18,7 @@ export const getCssForOptions = options => {
     autoNumberingHeadings,
     showFrontMatter,
     theme,
+    themeCss,
     headerFooterFontSize
   } = options
   const isPrintable = type !== 'styledHtml'
@@ -57,22 +54,12 @@ export const getCssForOptions = options => {
   }
 
   if (theme) {
-    if (theme === 'academic') {
+    if (themeCss) {
+      output += themeCss
+    } else if (theme === 'academic') {
       output += academicTheme
     } else if (theme === 'liber') {
       output += liberTheme
-    } else {
-      // Read theme from disk
-      const { userDataPath } = getRuntime().paths
-      const themePath = path.join(userDataPath, 'themes/export', theme)
-      if (isFile(themePath)) {
-        try {
-          const themeCSS = fs.readFileSync(themePath, 'utf8')
-          output += themeCSS
-        } catch (_) {
-          // No-op
-        }
-      }
     }
   }
 

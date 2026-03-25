@@ -220,16 +220,14 @@
 
 <script>
 import { mapState } from 'vuex'
-import fs from 'fs'
-import fsPromises from 'fs/promises'
 import path from 'path'
-import { isDirectory, isFile } from 'common/filesystem'
 import bus from '../../bus'
 import Bool from '@/prefComponents/common/bool'
 import CurSelect from '@/prefComponents/common/select'
 import FontTextBox from '@/prefComponents/common/fontTextBox'
 import Range from '@/prefComponents/common/range'
 import TextBox from '@/prefComponents/common/textBox'
+import filesystem from '@/services/nativeApi/filesystem'
 import { getRuntime } from '@/services/runtime'
 import {
   pageSizeList,
@@ -285,7 +283,8 @@ export default {
       headerFooterStyled: true,
       headerFooterFontSize: 12,
       tocTitle: '',
-      tocIncludeTopHeading: true
+      tocIncludeTopHeading: true,
+      customThemeCss: {}
     }
   },
   computed: {
@@ -361,6 +360,7 @@ export default {
         autoNumberingHeadings,
         showFrontMatter,
         theme: theme === 'default' ? null : theme,
+        themeCss: this.customThemeCss[theme] || null,
         tocTitle,
         tocIncludeTopHeading
       }
@@ -412,37 +412,33 @@ export default {
     onSelectChange (key, value) {
       this[key] = value
     },
-    loadThemesFromDisk () {
+    async loadThemesFromDisk () {
       const { userDataPath } = getRuntime().paths
       const themeDir = path.join(userDataPath, 'themes/export')
 
-      // Search for dictionaries on filesystem.
-      if (isDirectory(themeDir)) {
-        fs.readdirSync(themeDir).forEach(async filename => {
-          const fullname = path.join(themeDir, filename)
-          if (/.+\.css$/i.test(filename) && isFile(fullname)) {
-            try {
-              const content = await fsPromises.readFile(fullname, 'utf8')
-
-              // Match comment with theme name in first line only.
-              const match = content.match(/^(?:\/\*+[ \t]*([A-z0-9 -]+)[ \t]*(?:\*+\/|[\n\r])?)/)
-
-              let label
-              if (match && match[1]) {
-                label = match[1]
-              } else {
-                label = filename
-              }
-
-              this.themeList.push({
-                value: filename,
-                label
-              })
-            } catch (e) {
-              console.error('loadThemesFromDisk failed:', e)
-            }
+      try {
+        const filenames = await filesystem.readDirectory(themeDir)
+        for (const filename of filenames) {
+          if (!/.+\.css$/i.test(filename)) {
+            continue
           }
-        })
+
+          const fullname = path.join(themeDir, filename)
+          const content = await filesystem.readFile(fullname, 'utf8')
+          const match = content.match(/^(?:\/\*+[ \t]*([A-z0-9 -]+)[ \t]*(?:\*+\/|[\n\r])?)/)
+          const label = match && match[1] ? match[1] : filename
+
+          this.customThemeCss = {
+            ...this.customThemeCss,
+            [filename]: content
+          }
+          this.themeList.push({
+            value: filename,
+            label
+          })
+        }
+      } catch (e) {
+        console.error('loadThemesFromDisk failed:', e)
       }
     }
   }

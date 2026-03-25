@@ -1,6 +1,4 @@
 import Vue from 'vue'
-import VueElectron from 'vue-electron'
-import sourceMapSupport from 'source-map-support'
 import bootstrapRenderer from './bootstrap'
 import VueRouter from 'vue-router'
 import lang from 'element-ui/lib/locale/lang/en'
@@ -37,15 +35,6 @@ import { getRuntime } from './services/runtime'
 
 import './assets/styles/index.css'
 import './assets/styles/printService.css'
-
-// -----------------------------------------------
-
-// Decode source map in production - must be registered first
-sourceMapSupport.install({
-  environment: 'node',
-  handleUncaughtExceptions: false,
-  hookRequire: false
-})
 
 const start = async () => {
   await bootstrapRenderer()
@@ -96,8 +85,6 @@ const start = async () => {
   Vue.use(Input)
 
   Vue.use(VueRouter)
-
-  Vue.use(VueElectron)
   Vue.http = Vue.prototype.$http = axios
   Vue.config.productionTip = false
 

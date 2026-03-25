@@ -1,0 +1,50 @@
+import path from 'path'
+import { defineConfig } from 'vite'
+import { createVuePlugin } from 'vite-plugin-vue2'
+import postcssPresetEnv from 'postcss-preset-env'
+import marktextCodemirrorAssets from './tools/vite/codemirrorAssets'
+
+const rendererRoot = path.resolve(__dirname, 'src/renderer')
+
+export default defineConfig({
+  root: rendererRoot,
+  base: './',
+  plugins: [
+    createVuePlugin(),
+    marktextCodemirrorAssets()
+  ],
+  define: {
+    global: 'window',
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
+    'process.env.UNSPLASH_ACCESS_KEY': JSON.stringify(process.env.UNSPLASH_ACCESS_KEY || '')
+  },
+  css: {
+    postcss: {
+      plugins: [
+        postcssPresetEnv({ stage: 0 })
+      ]
+    }
+  },
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, 'src/renderer'),
+      common: path.resolve(__dirname, 'src/common'),
+      main: path.resolve(__dirname, 'src/main'),
+      muya: path.resolve(__dirname, 'src/muya'),
+      path: 'path-browserify',
+      snapsvg: path.resolve(__dirname, 'src/muya/lib/assets/libs/snapSvg.js'),
+      'vue$': 'vue/dist/vue.esm.js'
+    },
+    extensions: ['.mjs', '.js', '.vue', '.json', '.css', '.node']
+  },
+  server: {
+    host: '127.0.0.1',
+    port: 9091,
+    strictPort: true
+  },
+  build: {
+    outDir: path.resolve(__dirname, 'dist/electron'),
+    emptyOutDir: false,
+    rollupOptions: {}
+  }
+})

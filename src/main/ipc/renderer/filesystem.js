@@ -206,6 +206,14 @@ const isFileExecutable = filepath => {
   }
 }
 
+const readDirectory = async pathname => {
+  return fs.readdir(pathname)
+}
+
+const readFile = async (pathname, encoding = 'utf8') => {
+  return fs.readFile(pathname, encoding)
+}
+
 const registerFilesystemHandlers = () => {
   ipcMain.handle('mt::fs-create', async (event, pathname, type) => create(pathname, type))
   ipcMain.handle('mt::fs-paste', async (event, payload) => paste(payload))
@@ -214,6 +222,8 @@ const registerFilesystemHandlers = () => {
   ipcMain.handle('mt::fs-move-image-to-folder', async (event, payload) => moveImageToFolder(payload))
   ipcMain.handle('mt::fs-upload-image', async (event, payload) => uploadImage(payload))
   ipcMain.handle('mt::fs-is-file-executable', async (event, filepath) => isFileExecutable(filepath))
+  ipcMain.handle('mt::fs-read-directory', async (event, pathname) => readDirectory(pathname))
+  ipcMain.handle('mt::fs-read-file', async (event, pathname, encoding) => readFile(pathname, encoding))
 }
 
 export default registerFilesystemHandlers
