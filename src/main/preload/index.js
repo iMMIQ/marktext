@@ -36,6 +36,7 @@ const bridge = {
     isUpdatable: () => ipcRenderer.sendSync('mt::runtime-is-updatable-sync')
   },
   search: {
+    cancel: requestId => ipcRenderer.invoke('mt::search-cancel', requestId),
     searchFiles: (rootPath, options) => ipcRenderer.invoke('mt::search-files', rootPath, options),
     searchText: (directories, pattern, options) => ipcRenderer.invoke('mt::search-text', directories, pattern, options)
   },

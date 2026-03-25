@@ -98,6 +98,7 @@ export default {
       },
       cliScript: '',
       cliScriptExecutable: false,
+      cliScriptCheckId: 0,
       picgoExists: true,
       uploadServices: services,
       legalNoticesErrorStates: {
@@ -210,9 +211,17 @@ export default {
       this.picgoExists = commandExists.sync('picgo')
     },
     async updateCliScriptExecutable () {
-      this.cliScriptExecutable = this.cliScript
-        ? await isFileExecutable(this.cliScript)
+      const currentPath = this.cliScript
+      const checkId = ++this.cliScriptCheckId
+      const isExecutable = currentPath
+        ? await isFileExecutable(currentPath)
         : false
+
+      if (checkId !== this.cliScriptCheckId || currentPath !== this.cliScript) {
+        return
+      }
+
+      this.cliScriptExecutable = isExecutable
     },
 
     validate (value) {

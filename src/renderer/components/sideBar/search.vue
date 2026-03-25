@@ -198,11 +198,13 @@ export default {
       }
 
       let canceled = false
-      const generation = ++this.searchGeneration
+      const requestId = `search:${++this.searchGeneration}`
       this.searcherRunning = true
       this.startShowSearchCancelAreaTimer()
 
       nativeSearch.searchText([rootDirectoryPath], keyword, {
+        requestId,
+        maxResults: 100,
         isCaseSensitive,
         isWholeWord,
         isRegexp,
@@ -214,7 +216,7 @@ export default {
         inclusions: MARKDOWN_INCLUSIONS
       })
         .then(searchResult => {
-          if (canceled || generation !== this.searchGeneration) {
+          if (canceled || requestId !== `search:${this.searchGeneration}`) {
             return
           }
 
@@ -229,7 +231,7 @@ export default {
           this.stopShowSearchCancelAreaTimer()
         })
         .catch(err => {
-          if (canceled || generation !== this.searchGeneration) {
+          if (canceled || requestId !== `search:${this.searchGeneration}`) {
             return
           }
           this.searcherRunning = false
@@ -243,8 +245,9 @@ export default {
       this.searcherCancelCallback = () => {
         this.stopShowSearchCancelAreaTimer()
         canceled = true
-        if (generation === this.searchGeneration) {
-          this.searchGeneration++
+        nativeSearch.cancel(requestId).catch(() => {})
+        if (requestId === `search:${this.searchGeneration}`) {
+          this.searchGeneration += 1
           this.searcherRunning = false
         }
       }

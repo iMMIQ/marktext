@@ -1,4 +1,5 @@
 const fallbackSearchApi = {
+  cancel: async () => false,
   searchFiles: async () => [],
   searchText: async () => []
 }
@@ -12,6 +13,7 @@ const getSearchApi = () => {
 }
 
 export default {
+  cancel: requestId => getSearchApi().cancel(requestId),
   searchFiles: (rootPath, options) => getSearchApi().searchFiles(rootPath, options),
   searchText: (directories, pattern, options) => getSearchApi().searchText(directories, pattern, options)
 }

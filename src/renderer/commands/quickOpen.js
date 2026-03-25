@@ -127,7 +127,10 @@ class QuickOpenCommand {
     // Search root directory on disk.
     return new Promise((resolve, reject) => {
       let canceled = false
+      const requestId = `quick-open:${Date.now()}:${Math.random()}`
       nativeSearch.searchFiles(rootPath, {
+        requestId,
+        maxResults: 30,
         inclusions: this._getInclusions(query)
       })
         .then(results => {
@@ -157,6 +160,7 @@ class QuickOpenCommand {
       this._cancelFn = () => {
         this._cancelFn = null
         canceled = true
+        nativeSearch.cancel(requestId).catch(() => {})
       }
     })
   }

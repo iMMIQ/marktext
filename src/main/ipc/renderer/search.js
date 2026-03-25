@@ -2,9 +2,38 @@ import { ipcMain } from 'electron'
 import FileSearcher from '../../search/fileSearcher'
 import RipgrepDirectorySearcher from '../../search/ripgrepDirectorySearcher'
 
-const noop = () => {}
+const activeSearches = new Map()
+
+const registerCancelableSearch = (requestId, searchPromise) => {
+  if (!requestId) {
+    return
+  }
+
+  activeSearches.set(requestId, () => {
+    if (searchPromise.cancel) {
+      searchPromise.cancel()
+    }
+  })
+}
+
+const clearCancelableSearch = requestId => {
+  if (requestId) {
+    activeSearches.delete(requestId)
+  }
+}
 
 const registerSearchHandlers = () => {
+  ipcMain.handle('mt::search-cancel', async (event, requestId) => {
+    const cancel = activeSearches.get(requestId)
+    if (!cancel) {
+      return false
+    }
+
+    cancel()
+    activeSearches.delete(requestId)
+    return true
+  })
+
   ipcMain.handle('mt::search-files', async (event, rootPath, options = {}) => {
     if (!rootPath) {
       return []
@@ -12,11 +41,28 @@ const registerSearchHandlers = () => {
 
     const results = []
     const searcher = new FileSearcher()
-    await searcher.search([rootPath], '', {
+    const { requestId, maxResults = Infinity } = options
+    let limitReached = false
+    const searchPromise = searcher.search([rootPath], '', {
       ...options,
-      didMatch: result => results.push(result),
-      didSearchPaths: noop
+      didMatch: result => {
+        if (!limitReached && results.length < maxResults) {
+          results.push(result)
+        }
+      },
+      didSearchPaths: numPathsFound => {
+        if (numPathsFound > maxResults && searchPromise.cancel) {
+          limitReached = true
+          searchPromise.cancel()
+        }
+      }
     })
+    registerCancelableSearch(requestId, searchPromise)
+    try {
+      await searchPromise
+    } finally {
+      clearCancelableSearch(requestId)
+    }
 
     return results
   })
@@ -28,11 +74,28 @@ const registerSearchHandlers = () => {
 
     const results = []
     const searcher = new RipgrepDirectorySearcher()
-    await searcher.search(directories, pattern, {
+    const { requestId, maxResults = Infinity } = options
+    let limitReached = false
+    const searchPromise = searcher.search(directories, pattern, {
       ...options,
-      didMatch: result => results.push(result),
-      didSearchPaths: noop
+      didMatch: result => {
+        if (!limitReached && results.length < maxResults) {
+          results.push(result)
+        }
+      },
+      didSearchPaths: numPathsFound => {
+        if (numPathsFound > maxResults && searchPromise.cancel) {
+          limitReached = true
+          searchPromise.cancel()
+        }
+      }
     })
+    registerCancelableSearch(requestId, searchPromise)
+    try {
+      await searchPromise
+    } finally {
+      clearCancelableSearch(requestId)
+    }
 
     return results
   })

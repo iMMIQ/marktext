@@ -189,23 +189,31 @@ describe('renderer native API facade', () => {
       calls.push(['searchText', directories, pattern, options])
       return Promise.resolve([{ filePath: '/tmp/demo.md', matches: [] }])
     }
+    const cancel = requestId => {
+      calls.push(['cancel', requestId])
+      return Promise.resolve(true)
+    }
 
     window.mtNative = {
       filesystem: {
         create
       },
       search: {
+        cancel,
         searchText
       }
     }
 
     await nativeApi.filesystem.create('/tmp/demo', 'directory')
     const result = await nativeApi.search.searchText(['/tmp'], 'demo', { isRegexp: false })
+    const canceled = await nativeApi.search.cancel('search:1')
 
     expect(result).toHaveLength(1)
+    expect(canceled).toBe(true)
     expect(calls).toEqual([
       ['create', '/tmp/demo', 'directory'],
-      ['searchText', ['/tmp'], 'demo', { isRegexp: false }]
+      ['searchText', ['/tmp'], 'demo', { isRegexp: false }],
+      ['cancel', 'search:1']
     ])
   })
 

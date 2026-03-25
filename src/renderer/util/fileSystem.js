@@ -1,4 +1,3 @@
-import crypto from 'crypto'
 import filesystem from '../services/nativeApi/filesystem'
 
 export const create = async (pathname, type) => {
@@ -13,11 +12,46 @@ export const rename = async (src, dest) => {
   return filesystem.rename(src, dest)
 }
 
-export const getHash = (content, encoding, type) => {
-  return crypto.createHash(type).update(content, encoding).digest('hex')
+const HASH_ALGORITHM_MAP = {
+  sha1: 'SHA-1',
+  sha256: 'SHA-256',
+  sha384: 'SHA-384',
+  sha512: 'SHA-512'
 }
 
-export const getContentHash = content => {
+const toUint8Array = (content, encoding = 'utf8') => {
+  if (content instanceof Uint8Array) {
+    return content
+  }
+
+  if (content instanceof ArrayBuffer) {
+    return new Uint8Array(content)
+  }
+
+  if (typeof content === 'string') {
+    return new TextEncoder().encode(content)
+  }
+
+  return new Uint8Array(content)
+}
+
+const bufferToHex = buffer => {
+  return Array.from(new Uint8Array(buffer))
+    .map(item => item.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+export const getHash = async (content, encoding, type) => {
+  const algorithm = HASH_ALGORITHM_MAP[type]
+  if (!algorithm) {
+    throw new Error(`Unsupported hash type: ${type}`)
+  }
+
+  const digest = await window.crypto.subtle.digest(algorithm, toUint8Array(content, encoding))
+  return bufferToHex(digest)
+}
+
+export const getContentHash = async content => {
   return getHash(content, 'utf8', 'sha1')
 }
 
