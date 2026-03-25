@@ -21,7 +21,8 @@ describe('renderer runtime bootstrap', () => {
           paths: {
             userDataPath: '/tmp/marktext-user-data',
             logPath: '/tmp/marktext-user-data/logs',
-            ripgrepBinaryPath: '/usr/bin/rg'
+            ripgrepBinaryPath: '/usr/bin/rg',
+            resourcesPath: '/tmp/marktext-resources'
           }
         })
       }
@@ -32,5 +33,6 @@ describe('renderer runtime bootstrap', () => {
     expect(getRuntime().platform).toBe('linux')
     expect(getRuntime().env.windowId).toBe(7)
     expect(getRuntime().paths.ripgrepBinaryPath).toBe('/usr/bin/rg')
+    expect(getRuntime().paths.resourcesPath).toBeUndefined()
   })
 })

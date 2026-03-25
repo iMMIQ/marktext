@@ -5,8 +5,8 @@ import { getRuntime } from '../services/runtime'
 /// Check whether the package is updatable at runtime.
 export const isUpdatable = () => {
   // TODO: If not updatable, allow to check whether there is a new version available.
-  const { platform, paths } = getRuntime()
-  const { resourcesPath } = paths
+  const { platform } = getRuntime()
+  const resourcesPath = process.resourcesPath
 
   const resFile = isFile(path.join(resourcesPath, 'app-update.yml'))
   if (!resFile) {

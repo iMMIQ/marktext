@@ -15,12 +15,17 @@ const freezeValue = value => {
 export const initializeRuntime = async ({ initialState: nextInitialState = null } = {}) => {
   const runtimeInfo = await nativeRuntime.getInfo()
   runtime = freezeValue({
-    ...runtimeInfo,
+    platform: runtimeInfo.platform,
+    appVersion: runtimeInfo.appVersion,
     env: {
-      ...runtimeInfo.env
+      debug: runtimeInfo.env.debug,
+      windowId: runtimeInfo.env.windowId,
+      type: runtimeInfo.env.type
     },
     paths: {
-      ...runtimeInfo.paths
+      userDataPath: runtimeInfo.paths.userDataPath,
+      logPath: runtimeInfo.paths.logPath,
+      ripgrepBinaryPath: runtimeInfo.paths.ripgrepBinaryPath
     }
   })
   initialState = nextInitialState ? freezeValue({ ...nextInitialState }) : null

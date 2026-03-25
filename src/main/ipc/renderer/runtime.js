@@ -34,8 +34,7 @@ const registerRuntimeHandlers = app => {
       paths: {
         userDataPath: paths.userDataPath,
         logPath: paths.logPath,
-        ripgrepBinaryPath: getRipgrepPath(),
-        resourcesPath: process.resourcesPath
+        ripgrepBinaryPath: getRipgrepPath()
       }
     }
   })
