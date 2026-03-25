@@ -1,5 +1,5 @@
-import ElementPlus from 'element-plus'
-import locale from 'element-plus/es/locale/lang/en'
+import ElementPlus from 'element-plus/dist/index.full.mjs'
+import locale from 'element-plus/dist/locale/en.mjs'
 
 const installElementPlus = app => {
   app.use(ElementPlus, {
