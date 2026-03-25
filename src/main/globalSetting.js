@@ -1,6 +1,7 @@
 import path from 'path'
 
-// Set `__static` path to static files in production.
-if (process.env.NODE_ENV !== 'development') {
-  global.__static = path.resolve(__dirname, 'static').replace(/\\/g, '\\\\')
-}
+const staticPath = process.env.NODE_ENV === 'development'
+  ? path.resolve(process.cwd(), 'static')
+  : path.resolve(__dirname, 'static')
+
+global.__static = staticPath.replace(/\\/g, '\\\\')
