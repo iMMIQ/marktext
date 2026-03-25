@@ -4,33 +4,42 @@ import RipgrepDirectorySearcher from '../../search/ripgrepDirectorySearcher'
 
 const activeSearches = new Map()
 
-const registerCancelableSearch = (requestId, searchPromise) => {
+const getSearchKey = (event, requestId) => {
   if (!requestId) {
+    return null
+  }
+
+  return `${event.sender.id}:${requestId}`
+}
+
+const registerCancelableSearch = (searchKey, searchPromise) => {
+  if (!searchKey) {
     return
   }
 
-  activeSearches.set(requestId, () => {
+  activeSearches.set(searchKey, () => {
     if (searchPromise.cancel) {
       searchPromise.cancel()
     }
   })
 }
 
-const clearCancelableSearch = requestId => {
-  if (requestId) {
-    activeSearches.delete(requestId)
+const clearCancelableSearch = searchKey => {
+  if (searchKey) {
+    activeSearches.delete(searchKey)
   }
 }
 
 const registerSearchHandlers = () => {
   ipcMain.handle('mt::search-cancel', async (event, requestId) => {
-    const cancel = activeSearches.get(requestId)
+    const searchKey = getSearchKey(event, requestId)
+    const cancel = activeSearches.get(searchKey)
     if (!cancel) {
       return false
     }
 
     cancel()
-    activeSearches.delete(requestId)
+    activeSearches.delete(searchKey)
     return true
   })
 
@@ -42,6 +51,7 @@ const registerSearchHandlers = () => {
     const results = []
     const searcher = new FileSearcher()
     const { requestId, maxResults = Infinity } = options
+    const searchKey = getSearchKey(event, requestId)
     let limitReached = false
     const searchPromise = searcher.search([rootPath], '', {
       ...options,
@@ -57,11 +67,11 @@ const registerSearchHandlers = () => {
         }
       }
     })
-    registerCancelableSearch(requestId, searchPromise)
+    registerCancelableSearch(searchKey, searchPromise)
     try {
       await searchPromise
     } finally {
-      clearCancelableSearch(requestId)
+      clearCancelableSearch(searchKey)
     }
 
     return results
@@ -75,6 +85,7 @@ const registerSearchHandlers = () => {
     const results = []
     const searcher = new RipgrepDirectorySearcher()
     const { requestId, maxResults = Infinity } = options
+    const searchKey = getSearchKey(event, requestId)
     let limitReached = false
     const searchPromise = searcher.search(directories, pattern, {
       ...options,
@@ -90,11 +101,11 @@ const registerSearchHandlers = () => {
         }
       }
     })
-    registerCancelableSearch(requestId, searchPromise)
+    registerCancelableSearch(searchKey, searchPromise)
     try {
       await searchPromise
     } finally {
-      clearCancelableSearch(requestId)
+      clearCancelableSearch(searchKey)
     }
 
     return results
