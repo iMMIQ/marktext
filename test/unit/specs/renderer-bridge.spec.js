@@ -1,3 +1,4 @@
+import { afterEach, describe, expect, it } from 'vitest'
 import nativeApi from '../../../src/renderer/services/nativeApi'
 
 describe('renderer native API facade', () => {
@@ -6,7 +7,7 @@ describe('renderer native API facade', () => {
   })
 
   it('exposes the expected top-level modules', () => {
-    expect(Object.keys(nativeApi).sort()).to.deep.equal([
+    expect(Object.keys(nativeApi).sort()).toEqual([
       'app',
       'clipboard',
       'events',
@@ -17,15 +18,15 @@ describe('renderer native API facade', () => {
   })
 
   it('exposes the app and events bridge contract', () => {
-    expect(nativeApi.app.openSettingsWindow).to.be.a('function')
-    expect(nativeApi.app.send).to.be.a('function')
-    expect(nativeApi.app.sendSync).to.be.a('function')
-    expect(nativeApi.app.invoke).to.be.a('function')
+    expect(typeof nativeApi.app.openSettingsWindow).toBe('function')
+    expect(typeof nativeApi.app.send).toBe('function')
+    expect(typeof nativeApi.app.sendSync).toBe('function')
+    expect(typeof nativeApi.app.invoke).toBe('function')
 
-    expect(nativeApi.events.on).to.be.a('function')
-    expect(nativeApi.events.once).to.be.a('function')
-    expect(nativeApi.events.off).to.be.a('function')
-    expect(nativeApi.events.emit).to.be.a('function')
+    expect(typeof nativeApi.events.on).toBe('function')
+    expect(typeof nativeApi.events.once).toBe('function')
+    expect(typeof nativeApi.events.off).toBe('function')
+    expect(typeof nativeApi.events.emit).toBe('function')
   })
 
   it('routes app and event operations through the bridge contract', async () => {
@@ -68,11 +69,11 @@ describe('renderer native API facade', () => {
     nativeApi.events.off('mt::event-off', handler)
     nativeApi.events.emit('mt::event-emit', 'payload')
 
-    expect(sync).to.equal(syncResult)
-    expect(result).to.equal(invokeResult)
-    expect(await result).to.deep.equal({ ok: true })
-    expect(stopListening).to.equal(unsubscribe)
-    expect(eventCalls).to.deep.equal([
+    expect(sync).toBe(syncResult)
+    expect(result).toBe(invokeResult)
+    expect(await result).toEqual({ ok: true })
+    expect(stopListening).toBe(unsubscribe)
+    expect(eventCalls).toEqual([
       ['openSettingsWindow'],
       ['send', 'mt::channel', 1, 2],
       ['sendSync', 'mt::sync-channel', 4],
@@ -98,7 +99,7 @@ describe('renderer native API facade', () => {
       hasPath: true
     })
 
-    expect(calls).to.deep.equal([{
+    expect(calls).toEqual([{
       scope: 'tabs',
       position: { x: 12, y: 34 },
       tabId: 'tab-1',
@@ -119,7 +120,7 @@ describe('renderer native API facade', () => {
       hasPathCache: false
     })
 
-    expect(calls).to.deep.equal([{
+    expect(calls).toEqual([{
       scope: 'sidebar',
       position: { x: 56, y: 78 },
       hasPathCache: false
@@ -140,9 +141,9 @@ describe('renderer native API facade', () => {
     const syncFilePath = nativeApi.clipboard.readFilePathSync()
     nativeApi.clipboard.writeText('copied-value')
 
-    expect(filePath).to.equal('/tmp/example.png')
-    expect(syncFilePath).to.equal('/tmp/example.png')
-    expect(clipboardWrites).to.deep.equal(['copied-value'])
+    expect(filePath).toBe('/tmp/example.png')
+    expect(syncFilePath).toBe('/tmp/example.png')
+    expect(clipboardWrites).toEqual(['copied-value'])
   })
 
   it('routes window controls through the bridge contract', async () => {
@@ -168,11 +169,11 @@ describe('renderer native API facade', () => {
     nativeApi.window.setZoomFactor(1.25)
     const state = await nativeApi.window.getState()
 
-    expect(state).to.deep.equal({
+    expect(state).toEqual({
       isFullScreen: true,
       isMaximized: false
     })
-    expect(calls).to.deep.equal([
+    expect(calls).toEqual([
       ['minimize'],
       ['maximizeOrRestore'],
       ['toggleFullScreen'],

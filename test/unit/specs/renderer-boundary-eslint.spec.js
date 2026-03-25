@@ -1,3 +1,5 @@
+// @vitest-environment node
+import { describe, expect, it } from 'vitest'
 import fs from 'fs'
 import path from 'path'
 import { execFileSync } from 'child_process'
@@ -32,8 +34,9 @@ const lintRendererSource = source => {
   }
 }
 
-describe('renderer boundary eslint guardrail', function () {
-  this.timeout(10000)
+const SPEC_TIMEOUT = 10000
+
+describe('renderer boundary eslint guardrail', () => {
 
   const getBoundaryMessages = messages => messages.filter(({ ruleId }) => {
     return ruleId === 'no-restricted-imports' || ruleId === 'no-restricted-syntax'
@@ -42,30 +45,30 @@ describe('renderer boundary eslint guardrail', function () {
   it('rejects direct electron imports in renderer sources', () => {
     const messages = getBoundaryMessages(lintRendererSource("import 'electron'\n"))
 
-    expect(messages).to.have.length(1)
-    expect(messages[0].ruleId).to.equal('no-restricted-imports')
-    expect(messages[0].message).to.include('Use src/renderer/services/nativeApi instead.')
-  })
+    expect(messages).toHaveLength(1)
+    expect(messages[0].ruleId).toBe('no-restricted-imports')
+    expect(messages[0].message).toContain('Use src/renderer/services/nativeApi instead.')
+  }, SPEC_TIMEOUT)
 
   it('rejects direct electron requires in renderer sources', () => {
     const messages = getBoundaryMessages(lintRendererSource("require('electron')\n"))
 
-    expect(messages).to.have.length(1)
-    expect(messages[0].ruleId).to.equal('no-restricted-syntax')
-    expect(messages[0].message).to.include('Use src/renderer/services/nativeApi instead.')
-  })
+    expect(messages).toHaveLength(1)
+    expect(messages[0].ruleId).toBe('no-restricted-syntax')
+    expect(messages[0].message).toContain('Use src/renderer/services/nativeApi instead.')
+  }, SPEC_TIMEOUT)
 
   it('rejects direct @electron/remote requires in renderer sources', () => {
     const messages = getBoundaryMessages(lintRendererSource("require('@electron/remote')\n"))
 
-    expect(messages).to.have.length(1)
-    expect(messages[0].ruleId).to.equal('no-restricted-syntax')
-    expect(messages[0].message).to.include('Use src/renderer/services/nativeApi instead.')
-  })
+    expect(messages).toHaveLength(1)
+    expect(messages[0].ruleId).toBe('no-restricted-syntax')
+    expect(messages[0].message).toContain('Use src/renderer/services/nativeApi instead.')
+  }, SPEC_TIMEOUT)
 
   it('allows other renderer requires', () => {
     const messages = getBoundaryMessages(lintRendererSource("require('fontmanager-redux')\n"))
 
-    expect(messages).to.deep.equal([])
-  })
+    expect(messages).toEqual([])
+  }, SPEC_TIMEOUT)
 })
