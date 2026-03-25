@@ -15,9 +15,25 @@ test('renderer exposes the native bridge contract', async () => {
     'clipboard',
     'events',
     'menu',
+    'runtime',
     'shell',
     'window'
   ])
+})
+
+test('renderer runtime info is exposed through the preload bridge', async () => {
+  const { app, page } = await launchElectron()
+  const runtimeInfo = await page.evaluate(() => window.mtNative.runtime.getInfo())
+
+  await app.close()
+
+  expect(typeof runtimeInfo.platform).toBe('string')
+  expect(typeof runtimeInfo.appVersion).toBe('string')
+  expect(typeof runtimeInfo.env.windowId).toBe('number')
+  expect(typeof runtimeInfo.env.type).toBe('string')
+  expect(typeof runtimeInfo.paths.userDataPath).toBe('string')
+  expect(typeof runtimeInfo.paths.logPath).toBe('string')
+  expect(typeof runtimeInfo.paths.ripgrepBinaryPath).toBe('string')
 })
 
 test('custom title bar actions route through mtNative.window', async () => {

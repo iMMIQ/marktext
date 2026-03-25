@@ -22,6 +22,9 @@ const bridge = {
     showItemInFolder: target => ipcRenderer.invoke('mt::shell-show-item-in-folder', target),
     openExternal: target => ipcRenderer.invoke('mt::shell-open-external', target)
   },
+  runtime: {
+    getInfo: () => ipcRenderer.invoke('mt::runtime-get-info')
+  },
   app: {
     openSettingsWindow: () => ipcRenderer.send('mt::open-setting-window'),
     send: (channel, ...args) => ipcRenderer.send(channel, ...args),

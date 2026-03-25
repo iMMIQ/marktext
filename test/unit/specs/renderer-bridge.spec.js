@@ -12,6 +12,7 @@ describe('renderer native API facade', () => {
       'clipboard',
       'events',
       'menu',
+      'runtime',
       'shell',
       'window'
     ])
@@ -144,6 +145,33 @@ describe('renderer native API facade', () => {
     expect(filePath).toBe('/tmp/example.png')
     expect(syncFilePath).toBe('/tmp/example.png')
     expect(clipboardWrites).toEqual(['copied-value'])
+  })
+
+  it('routes runtime access through the bridge contract', async () => {
+    const runtimeInfo = {
+      platform: 'linux',
+      appVersion: 'v0.17.1',
+      env: {
+        debug: true,
+        windowId: 7,
+        type: 'editor'
+      },
+      paths: {
+        userDataPath: '/tmp/marktext-user-data',
+        logPath: '/tmp/marktext-user-data/logs',
+        ripgrepBinaryPath: '/usr/bin/rg'
+      }
+    }
+
+    window.mtNative = {
+      runtime: {
+        getInfo: () => Promise.resolve(runtimeInfo)
+      }
+    }
+
+    const result = await nativeApi.runtime.getInfo()
+
+    expect(result).toBe(runtimeInfo)
   })
 
   it('routes window controls through the bridge contract', async () => {

@@ -20,6 +20,7 @@ import { loadingPageMixins } from '@/mixins'
 import { addThemeStyle } from '@/util/theme'
 import { DEFAULT_STYLE } from '@/config'
 import { isOsx } from '@/util'
+import { getInitialState } from '@/services/runtime'
 
 export default {
   data () {
@@ -49,7 +50,7 @@ export default {
   },
   created () {
     this.$nextTick(() => {
-      const state = global.marktext.initialState || DEFAULT_STYLE
+      const state = getInitialState() || DEFAULT_STYLE
       addThemeStyle(state.theme)
 
       this.$store.dispatch('ASK_FOR_USER_PREFERENCE')

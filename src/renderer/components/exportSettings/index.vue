@@ -230,6 +230,7 @@ import CurSelect from '@/prefComponents/common/select'
 import FontTextBox from '@/prefComponents/common/fontTextBox'
 import Range from '@/prefComponents/common/range'
 import TextBox from '@/prefComponents/common/textBox'
+import { getRuntime } from '@/services/runtime'
 import {
   pageSizeList,
   headerFooterTypes,
@@ -412,7 +413,7 @@ export default {
       this[key] = value
     },
     loadThemesFromDisk () {
-      const { userDataPath } = global.marktext.paths
+      const { userDataPath } = getRuntime().paths
       const themeDir = path.join(userDataPath, 'themes/export')
 
       // Search for dictionaries on filesystem.

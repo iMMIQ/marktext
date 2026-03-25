@@ -54,6 +54,7 @@ import Separator from '../common/separator'
 import KeyInputDialog from './key-input-dialog.vue'
 import KeybindingConfigurator from './KeybindingConfigurator'
 import notice from '@/services/notification'
+import { getRuntime } from '@/services/runtime'
 
 export default {
   components: {
@@ -87,7 +88,7 @@ export default {
 
     // Show keyboard debugging tools which has been moved from CLI because we
     // need an active window on Windows.
-    this.showDebugTools = global.marktext.env.debug
+    this.showDebugTools = getRuntime().env.debug
   },
 
   unmounted () {

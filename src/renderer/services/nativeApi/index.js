@@ -2,6 +2,7 @@ import app from './app'
 import clipboard from './clipboard'
 import events from './events'
 import menu from './menu'
+import runtime from './runtime'
 import shell from './shell'
 import window from './window'
 
@@ -10,6 +11,7 @@ const nativeApi = {
   clipboard,
   events,
   menu,
+  runtime,
   shell,
   window
 }

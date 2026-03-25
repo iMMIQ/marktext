@@ -5,6 +5,7 @@ import { isFile } from 'common/filesystem'
 import { escapeHTML, unescapeHTML } from 'muya/lib/utils'
 import academicTheme from '@/assets/themes/export/academic.theme.css'
 import liberTheme from '@/assets/themes/export/liber.theme.css'
+import { getRuntime } from '@/services/runtime'
 import { cloneObj } from '../util'
 import { sanitize, EXPORT_DOMPURIFY_CONFIG } from '../util/dompurify'
 
@@ -62,7 +63,7 @@ export const getCssForOptions = options => {
       output += liberTheme
     } else {
       // Read theme from disk
-      const { userDataPath } = global.marktext.paths
+      const { userDataPath } = getRuntime().paths
       const themePath = path.join(userDataPath, 'themes/export', theme)
       if (isFile(themePath)) {
         try {

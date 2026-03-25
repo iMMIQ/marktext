@@ -23,6 +23,7 @@
 
 import { spawn } from 'child_process'
 import path from 'path'
+import { getRuntime } from '../services/runtime'
 
 function cleanResultLine (resultLine) {
   resultLine = getText(resultLine)
@@ -110,7 +111,7 @@ function getText (input) {
 
 class RipgrepDirectorySearcher {
   constructor () {
-    this.rgPath = global.marktext.paths.ripgrepBinaryPath
+    this.rgPath = getRuntime().paths.ripgrepBinaryPath
   }
 
   // Performs a text search for files in the specified `Directory`s, subject to the

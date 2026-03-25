@@ -1,6 +1,7 @@
 import bus from '../bus'
 import app from '../services/nativeApi/app'
 import events from '../services/nativeApi/events'
+import { getRuntime } from '../services/runtime'
 
 // user preference
 const state = {
@@ -161,7 +162,7 @@ const actions = {
   },
 
   DISPATCH_EDITOR_VIEW_STATE (_, viewState) {
-    const { windowId } = global.marktext.env
+    const { windowId } = getRuntime().env
     app.send('mt::view-layout-changed', windowId, viewState)
   }
 }

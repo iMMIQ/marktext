@@ -11,6 +11,7 @@ import clipboard from '../services/nativeApi/clipboard'
 import events from '../services/nativeApi/events'
 import shell from '../services/nativeApi/shell'
 import nativeWindow from '../services/nativeApi/window'
+import { getRuntime } from '../services/runtime'
 import {
   FileEncodingCommand,
   LineEndingCommand,
@@ -402,7 +403,7 @@ const actions = {
   UPDATE_LINE_ENDING_MENU ({ state }) {
     const { lineEnding } = state.currentFile
     if (lineEnding) {
-      const { windowId } = global.marktext.env
+      const { windowId } = getRuntime().env
       app.send('mt::update-line-ending-menu', windowId, lineEnding)
     }
   },
@@ -1029,12 +1030,12 @@ const actions = {
       })
     }
 
-    const { windowId } = global.marktext.env
+    const { windowId } = getRuntime().env
     app.send('mt::editor-selection-changed', windowId, createApplicationMenuState(changes))
   },
 
   SELECTION_FORMATS (_, formats) {
-    const { windowId } = global.marktext.env
+    const { windowId } = getRuntime().env
     app.send('mt::update-format-menu', windowId, createSelectionFormatState(formats))
   },
 

@@ -52,6 +52,7 @@ import { loadingPageMixins } from '@/mixins'
 import { mapState } from 'vuex'
 import bus from '@/bus'
 import { DEFAULT_STYLE } from '@/config'
+import { getInitialState } from '@/services/runtime'
 
 export default {
   name: 'marktext',
@@ -110,10 +111,11 @@ export default {
   },
   created () {
     const { commit, dispatch } = this.$store
+    const initialState = getInitialState()
 
     // Apply initial state (theme and titleBarStyle) and delay load other values.
-    if (global.marktext.initialState) {
-      commit('SET_USER_PREFERENCE', global.marktext.initialState)
+    if (initialState) {
+      commit('SET_USER_PREFERENCE', initialState)
     }
 
     // store/index.js
@@ -191,7 +193,7 @@ export default {
     }, false)
 
     this.$nextTick(() => {
-      const style = global.marktext.initialState || DEFAULT_STYLE
+      const style = initialState || DEFAULT_STYLE
       addStyles(style)
       this.hideLoadingPage()
     })

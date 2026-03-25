@@ -1,6 +1,7 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
 import events from '../services/nativeApi/events'
+import { getRuntime } from '../services/runtime'
 
 import listenForMain from './listenForMain'
 import project from './project'
@@ -15,9 +16,10 @@ import commandCenter from './commandCenter'
 Vue.use(Vuex)
 
 // global states
+const runtime = getRuntime()
 const state = {
-  platform: process.platform, // platform of system `darwin` | `win32` | `linux`
-  appVersion: process.versions.MARKTEXT_VERSION_STRING, // MarkText version string
+  platform: runtime.platform, // platform of system `darwin` | `win32` | `linux`
+  appVersion: runtime.appVersion, // MarkText version string
   windowActive: true, // whether current window is active or focused
   init: false // whether MarkText is initialized
 }
