@@ -1,14 +1,23 @@
 import path from 'path'
 import { defineConfig } from 'vitest/config'
-import { createVuePlugin } from 'vite-plugin-vue2'
+import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
-  plugins: [createVuePlugin()],
+  plugins: [vue({
+    template: {
+      compilerOptions: {
+        compatConfig: {
+          MODE: 2
+        }
+      }
+    }
+  })],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src/renderer'),
       common: path.resolve(__dirname, 'src/common'),
-      muya: path.resolve(__dirname, 'src/muya')
+      muya: path.resolve(__dirname, 'src/muya'),
+      vue: '@vue/compat'
     }
   },
   test: {

@@ -1,5 +1,3 @@
-import Vue from 'vue'
-import Vuex from 'vuex'
 import events from '../services/nativeApi/events'
 import { getRuntime } from '../services/runtime'
 
@@ -12,8 +10,6 @@ import autoUpdates from './autoUpdates'
 import notification from './notification'
 import tweet from './tweet'
 import commandCenter from './commandCenter'
-
-Vue.use(Vuex)
 
 // global states
 const runtime = getRuntime()
@@ -47,7 +43,7 @@ const actions = {
   }
 }
 
-const store = new Vuex.Store({
+const storeOptions = {
   state,
   getters,
   mutations,
@@ -65,6 +61,6 @@ const store = new Vuex.Store({
     layout,
     commandCenter
   }
-})
+}
 
-export default store
+export default storeOptions

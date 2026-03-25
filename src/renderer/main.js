@@ -1,106 +1,49 @@
-import Vue from 'vue'
+import { configureCompat, createApp, h } from 'vue'
 import bootstrapRenderer from './bootstrap'
-import VueRouter from 'vue-router'
-import lang from 'element-ui/lib/locale/lang/en'
-import locale from 'element-ui/lib/locale'
-import axios from './axios'
+import { RouterView } from 'vue-router'
+import { createStore } from 'vuex'
 import './assets/symbolIcon'
-import {
-  Dialog,
-  Form,
-  FormItem,
-  InputNumber,
-  Button,
-  Tooltip,
-  Upload,
-  Slider,
-  Checkbox,
-  ColorPicker,
-  Col,
-  Row,
-  Tree,
-  Autocomplete,
-  Switch,
-  Select,
-  Option,
-  Radio,
-  RadioGroup,
-  Table,
-  TableColumn,
-  Tabs,
-  TabPane,
-  Input
-} from 'element-ui'
 import { getRuntime } from './services/runtime'
 
 import './assets/styles/index.css'
 import './assets/styles/printService.css'
 
+configureCompat({ MODE: 2 })
+
+const RootShell = {
+  name: 'RendererRootShell',
+  render: () => h(RouterView, { class: 'view' })
+}
+
 const start = async () => {
   await bootstrapRenderer()
 
   const [
-    { default: store },
-    { default: routes },
-    { addElementStyle },
-    { default: services }
+    { default: storeOptions },
+    { default: createRendererRouter },
+    { installElementPlus },
+    { installServices },
+    { addElementStyle }
   ] = await Promise.all([
     import('./store'),
     import('./router'),
-    import('@/util/theme'),
-    import('./services')
+    import('./plugins/elementPlus'),
+    import('./plugins/services'),
+    import('@/util/theme')
   ])
 
+  const app = createApp(RootShell)
+  const store = createStore(storeOptions)
+  const router = createRendererRouter(getRuntime().env.type)
+
   addElementStyle()
+  installElementPlus(app)
+  installServices(app)
+  app.use(store)
+  app.use(router)
 
-  // -----------------------------------------------
-  // Be careful when changing code before this line!
-
-  // Configure Vue
-  locale.use(lang)
-
-  Vue.use(Dialog)
-  Vue.use(Form)
-  Vue.use(FormItem)
-  Vue.use(InputNumber)
-  Vue.use(Button)
-  Vue.use(Tooltip)
-  Vue.use(Upload)
-  Vue.use(Slider)
-  Vue.use(Checkbox)
-  Vue.use(ColorPicker)
-  Vue.use(Col)
-  Vue.use(Row)
-  Vue.use(Tree)
-  Vue.use(Autocomplete)
-  Vue.use(Switch)
-  Vue.use(Select)
-  Vue.use(Option)
-  Vue.use(Radio)
-  Vue.use(RadioGroup)
-  Vue.use(Table)
-  Vue.use(TableColumn)
-  Vue.use(Tabs)
-  Vue.use(TabPane)
-  Vue.use(Input)
-
-  Vue.use(VueRouter)
-  Vue.http = Vue.prototype.$http = axios
-  Vue.config.productionTip = false
-
-  services.forEach(s => {
-    Vue.prototype['$' + s.name] = s[s.name]
-  })
-
-  const router = new VueRouter({
-    routes: routes(getRuntime().env.type)
-  })
-
-  new Vue({
-    store,
-    router,
-    render: h => h('router-view', { class: 'view' })
-  }).$mount('#app')
+  await router.isReady()
+  app.mount('#app')
 }
 
 start().catch(error => {

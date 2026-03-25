@@ -1,7 +1,7 @@
 import { THEME_STYLE_ID, COMMON_STYLE_ID, DEFAULT_CODE_FONT_FAMILY, oneDarkThemes, railscastsThemes } from '../config'
 import { dark, graphite, materialDark, oneDark, ulysses } from './themeColor'
 import { isLinux } from './index'
-import elementStyle from 'element-ui/lib/theme-chalk/index.css'
+import elementStyle from 'element-plus/theme-chalk/index.css?inline'
 
 const ORIGINAL_THEME = '#409EFF'
 const patchTheme = css => {
@@ -163,7 +163,7 @@ export const addElementStyle = () => {
   }
   sheet = document.createElement('style')
   sheet.id = ID
-  // NOTE: Prepend element UI style, otherwise we cannot overwrite the style with the default light theme.
+  // NOTE: Prepend component library styles so the theme overrides still win.
   document.head.insertBefore(sheet, document.head.firstChild)
   sheet.innerHTML = newElementStyle
 }

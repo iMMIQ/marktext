@@ -1,4 +1,3 @@
-import Vue from 'vue'
+import { configureCompat } from 'vue'
 
-Vue.config.devtools = false
-Vue.config.productionTip = false
+configureCompat({ MODE: 2 })

@@ -1,6 +1,6 @@
 import path from 'path'
 import { defineConfig } from 'vite'
-import { createVuePlugin } from 'vite-plugin-vue2'
+import vue from '@vitejs/plugin-vue'
 import postcssPresetEnv from 'postcss-preset-env'
 import marktextCodemirrorAssets from './tools/vite/codemirrorAssets'
 import { getMarkTextDefines } from './tools/vite/marktextEnvironment'
@@ -11,7 +11,15 @@ export default defineConfig({
   root: rendererRoot,
   base: './',
   plugins: [
-    createVuePlugin(),
+    vue({
+      template: {
+        compilerOptions: {
+          compatConfig: {
+            MODE: 2
+          }
+        }
+      }
+    }),
     marktextCodemirrorAssets()
   ],
   define: {
@@ -33,10 +41,10 @@ export default defineConfig({
       common: path.resolve(__dirname, 'src/common'),
       main: path.resolve(__dirname, 'src/main'),
       muya: path.resolve(__dirname, 'src/muya'),
+      vue: '@vue/compat',
       'electron-log': path.resolve(__dirname, 'src/renderer/shims/electronLog.js'),
       path: 'path-browserify',
-      snapsvg: path.resolve(__dirname, 'src/muya/lib/assets/libs/snapSvg.js'),
-      'vue$': 'vue/dist/vue.esm.js'
+      snapsvg: path.resolve(__dirname, 'src/muya/lib/assets/libs/snapSvg.js')
     },
     extensions: ['.mjs', '.js', '.vue', '.json', '.css', '.node']
   },
