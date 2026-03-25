@@ -1,7 +1,7 @@
 import { configureCompat, createApp, h } from 'vue'
+import { createPinia } from 'pinia'
 import bootstrapRenderer from './bootstrap'
 import { RouterView } from 'vue-router'
-import { createStore } from 'vuex'
 import './assets/symbolIcon'
 import { getRuntime } from './services/runtime'
 import { addElementStyle } from '@/util/theme'
@@ -21,24 +21,27 @@ const start = async () => {
   addElementStyle()
 
   const [
-    { default: storeOptions },
     { default: createRendererRouter },
+    { createLegacyStoreBridge },
     { installElementPlus },
     { installServices }
   ] = await Promise.all([
-    import('./store'),
     import('./router'),
+    import('./stores/legacyBridge'),
     import('./plugins/elementPlus'),
     import('./plugins/services')
   ])
 
   const app = createApp(RootShell)
-  const store = createStore(storeOptions)
+  const pinia = createPinia()
+  const legacyStore = createLegacyStoreBridge(pinia)
   const router = createRendererRouter(getRuntime().env.type)
 
   installElementPlus(app)
   installServices(app)
-  app.use(store)
+  app.use(pinia)
+  app.use(legacyStore)
+  app.provide('legacyStore', legacyStore)
   app.use(router)
 
   await router.isReady()
