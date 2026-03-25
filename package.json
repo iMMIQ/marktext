@@ -20,6 +20,7 @@
     "lint:fix": "eslint --ext .js,.vue -f ./node_modules/eslint-friendly-formatter --fix src test",
     "pack": "yarn run pack:main && yarn run pack:renderer",
     "pack:main": "cross-env NODE_ENV=production webpack --progress --config .electron-vue/webpack.main.config.js",
+    "pack:main:vite": "cross-env NODE_ENV=production vite build --config vite.main.config.js && cross-env NODE_ENV=production vite build --config vite.preload.config.js",
     "pack:renderer": "cross-env NODE_ENV=production webpack --progress --config .electron-vue/webpack.renderer.config.js",
     "pack:renderer:vite": "cross-env NODE_ENV=production vite build --config vite.renderer.config.js",
     "postinstall": "node .electron-vue/postinstall.js && yarn run rebuild && yarn run lint:fix",

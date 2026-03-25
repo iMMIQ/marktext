@@ -8,8 +8,9 @@ import window from './window'
 import paragraph from './paragraph'
 import format from './format'
 import theme from './theme'
+import dockMenu from './dock'
 
-export dockMenu from './dock'
+export { dockMenu }
 
 /**
  * Create the setting window menu.
