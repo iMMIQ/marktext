@@ -3,6 +3,7 @@ import { defineConfig } from 'vite'
 import { createVuePlugin } from 'vite-plugin-vue2'
 import postcssPresetEnv from 'postcss-preset-env'
 import marktextCodemirrorAssets from './tools/vite/codemirrorAssets'
+import { getMarkTextDefines } from './tools/vite/marktextEnvironment'
 
 const rendererRoot = path.resolve(__dirname, 'src/renderer')
 
@@ -14,6 +15,7 @@ export default defineConfig({
     marktextCodemirrorAssets()
   ],
   define: {
+    ...getMarkTextDefines(),
     global: 'window',
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
     'process.env.UNSPLASH_ACCESS_KEY': JSON.stringify(process.env.UNSPLASH_ACCESS_KEY || '')
