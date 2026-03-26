@@ -1,4 +1,4 @@
-import { ipcMain, shell } from 'electron'
+import { shell } from 'electron'
 import log from 'electron-log'
 import EventEmitter from 'events'
 import fsPromises from 'fs/promises'
@@ -65,13 +65,4 @@ export const dumpKeyboardInfo = async () => {
   } catch (error) {
     log.error('Error dumping keyboard information:', error)
   }
-}
-
-export const registerKeyboardListeners = () => {
-  ipcMain.handle('mt::keybinding-get-keyboard-info', async () => {
-    return getKeyboardInfo()
-  })
-  ipcMain.on('mt::keybinding-debug-dump-keyboard-info', async () => {
-    dumpKeyboardInfo()
-  })
 }

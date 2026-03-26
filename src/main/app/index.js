@@ -9,7 +9,6 @@ import { isLinux, isOsx, isWindows } from '../config'
 import parseArgs from '../cli/parser'
 import { normalizeAndResolvePath } from '../filesystem'
 import { normalizeMarkdownPath } from '../filesystem/markdown'
-import { registerKeyboardListeners } from '../keyboard'
 import { selectTheme } from '../menu/actions/theme'
 import { dockMenu } from '../menu/templates'
 import registerSpellcheckerListeners from '../spellchecker'
@@ -424,7 +423,6 @@ class App {
   }
 
   _listenForIpcMain () {
-    registerKeyboardListeners()
     registerSpellcheckerListeners()
 
     ipcMain.on('app-create-editor-window', () => {

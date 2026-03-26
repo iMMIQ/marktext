@@ -4,6 +4,9 @@ import log from 'electron-log'
 const require = createRequire(import.meta.url)
 
 let fontManager = null
+let fontManagerLoader = null
+
+const requireFontManager = () => require('fontmanager-redux')
 
 const loadFontManager = () => {
   if (fontManager !== null) {
@@ -11,7 +14,8 @@ const loadFontManager = () => {
   }
 
   try {
-    fontManager = require('fontmanager-redux')
+    const load = fontManagerLoader || requireFontManager
+    fontManager = load()
   } catch (error) {
     log.error('Unable to load fontmanager-redux:', error)
     fontManager = false
@@ -35,4 +39,14 @@ export const listFontFamilies = async ({ onlyMonospace = false } = {}) => {
     log.error('Unable to list system fonts:', error)
     return []
   }
+}
+
+export const setFontManagerLoader = loader => {
+  fontManagerLoader = loader
+  fontManager = null
+}
+
+export const resetFontManagerLoader = () => {
+  fontManagerLoader = null
+  fontManager = null
 }

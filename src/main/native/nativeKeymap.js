@@ -4,11 +4,14 @@ import log from 'electron-log'
 const require = createRequire(import.meta.url)
 
 let nativeKeymap = null
+let nativeKeymapLoader = null
 
 const EMPTY_KEYBOARD_INFO = {
   layout: '',
   keymap: {}
 }
+
+const requireNativeKeymap = () => require('native-keymap')
 
 const loadNativeKeymap = () => {
   if (nativeKeymap !== null) {
@@ -16,7 +19,8 @@ const loadNativeKeymap = () => {
   }
 
   try {
-    nativeKeymap = require('native-keymap')
+    const load = nativeKeymapLoader || requireNativeKeymap
+    nativeKeymap = load()
   } catch (error) {
     log.error('Unable to load native-keymap:', error)
     nativeKeymap = false
@@ -55,4 +59,14 @@ export const subscribeToKeyboardLayoutChange = callback => {
     log.error('Unable to subscribe to keyboard layout changes:', error)
     return () => {}
   }
+}
+
+export const setNativeKeymapLoader = loader => {
+  nativeKeymapLoader = loader
+  nativeKeymap = null
+}
+
+export const resetNativeKeymapLoader = () => {
+  nativeKeymapLoader = null
+  nativeKeymap = null
 }
