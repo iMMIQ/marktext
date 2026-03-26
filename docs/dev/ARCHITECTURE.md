@@ -62,6 +62,8 @@ The boundary is now:
 
 Renderer code should call the facade, not Electron directly. The preload bridge owns access to `ipcRenderer`, `webFrame`, and the `window.mtNative` contract, while the main process owns the matching IPC handlers and BrowserWindow state.
 
+The preload bridge now runs with `contextIsolation: true`, `sandbox: true`, and `nodeIntegration: false`. Native modules such as `keytar`, `native-keymap`, and `fontmanager-redux` are loaded lazily in main-process adapters under `src/main/native/*`, and renderer code can only access those capabilities through typed facades in `src/renderer/services/nativeApi/*`.
+
 ### Test Architecture
 
 Unit tests now run through Vitest via `vitest.config.js` and `test/unit/setup.js`. The `test/unit/specs/*.spec.js` suite imports runtime dependencies directly and no longer depends on Karma globals, webpack preprocessors, or `require.context`.
