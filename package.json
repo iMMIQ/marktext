@@ -86,7 +86,7 @@
     "vega": "^5.33.1",
     "vega-embed": "^6.29.0",
     "vega-lite": "^5.23.0",
-    "vscode-ripgrep": "^1.12.1",
+    "vscode-ripgrep": "^1.13.2",
     "vue": "^3.5.31",
     "vue-router": "^4.6.4",
     "webfontloader": "^1.6.28"
