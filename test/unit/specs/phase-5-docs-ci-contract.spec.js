@@ -10,9 +10,30 @@ const buildDoc = fs.readFileSync(path.join(root, 'docs/dev/BUILD.md'), 'utf8')
 const releaseDoc = fs.readFileSync(path.join(root, 'docs/dev/RELEASE.md'), 'utf8')
 const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8')
 
-const getSetupNodeSteps = workflow => Array.from(workflow.matchAll(/^\s*-\s.*?(?=^\s*-\s|\Z)/gms))
-  .map(match => match[0])
-  .filter(step => /uses:\s*actions\/setup-node@/m.test(step))
+const getSetupNodeSteps = workflow => {
+  const steps = []
+  let currentStep = []
+
+  for (const line of workflow.split('\n')) {
+    if (/^\s*-\s/.test(line)) {
+      if (currentStep.length > 0) {
+        steps.push(currentStep.join('\n'))
+      }
+      currentStep = [line]
+      continue
+    }
+
+    if (currentStep.length > 0) {
+      currentStep.push(line)
+    }
+  }
+
+  if (currentStep.length > 0) {
+    steps.push(currentStep.join('\n'))
+  }
+
+  return steps.filter(step => /uses:\s*actions\/setup-node@/m.test(step))
+}
 
 const expectNode24Baseline = workflow => {
   const setupNodeSteps = getSetupNodeSteps(workflow)

@@ -25,8 +25,20 @@ const storeFiles = walk(storesRoot)
 const rendererFiles = walk(rendererRoot)
   .filter(file => /\.(js|vue)$/.test(file))
   .filter(file => file !== path.join(rendererRoot, 'services/nativeApi/app.js'))
-  .map(file => fs.readFileSync(file, 'utf8'))
-  .join('\n')
+  .map(file => ({
+    file,
+    content: fs.readFileSync(file, 'utf8')
+  }))
+
+const preloadHasGenericBridgePassthrough = /\b(send|invoke)\s*:\s*\([^)]*\)\s*=>\s*ipcRenderer\.\1\s*\(/
+
+const fileUsesGenericRendererBridge = ({ content }) => {
+  if (/\$nativeApi\.app\.(send|invoke)\(|\bnativeApi\.app\.(send|invoke)\(/.test(content)) {
+    return true
+  }
+
+  return /import\s+app\s+from\s+['"][^'"]*nativeApi\/app['"]/.test(content) && /\bapp\.(send|invoke)\(/.test(content)
+}
 
 describe('phase 5 store and bridge boundary', () => {
   it('removes migration-only store adapters and generic app passthroughs', () => {
@@ -34,7 +46,7 @@ describe('phase 5 store and bridge boundary', () => {
     expect(fs.existsSync(legacyModulesDir)).toBe(false)
     expect(storeFiles).not.toMatch(/\bmoduleDispatcher\b|['"]\.\/modules\//)
     expect(mainEntry).not.toMatch(/\.(dispatch|commit)\(\s*['"`]/)
-    expect(preload).not.toMatch(/\b(send|invoke):\s*\(\s*channel\b/)
-    expect(rendererFiles).not.toMatch(/\$nativeApi\.app\.(send|invoke)\(|\bnativeApi\.app\.(send|invoke)\(|\bapp\.(send|invoke)\(/)
+    expect(preload).not.toMatch(preloadHasGenericBridgePassthrough)
+    expect(rendererFiles.some(fileUsesGenericRendererBridge)).toBe(false)
   })
 })

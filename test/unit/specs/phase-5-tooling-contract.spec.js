@@ -9,6 +9,8 @@ const babelConfig = fs.readFileSync(path.join(root, 'babel.config.js'), 'utf8')
 const legacyLifecycleScripts = [pkg.scripts.preinstall, pkg.scripts.postinstall]
   .filter(Boolean)
   .join('\n')
+const allScriptCommands = Object.values(pkg.scripts).join('\n')
+const legacyAliasPattern = /\b(?:dev:vite|pack:vite|unit:vite)\b/
 
 describe('phase 5 tooling contract', () => {
   it('keeps one official script surface and no electron-vue leftovers', () => {
@@ -16,6 +18,7 @@ describe('phase 5 tooling contract', () => {
     expect(pkg.scripts.pack || '').not.toContain('pack:vite')
     expect(pkg.scripts.unit || '').not.toContain('unit:vite')
     expect(pkg.scripts.build || '').not.toContain('pack:vite')
+    expect(allScriptCommands).not.toMatch(legacyAliasPattern)
     expect(legacyLifecycleScripts).not.toMatch(/\.electron-vue[\\/]/)
     expect(pkg.scripts.format).toBeTruthy()
     expect(pkg.scripts['format:check']).toBeTruthy()
