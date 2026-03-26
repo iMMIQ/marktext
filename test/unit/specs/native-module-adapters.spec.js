@@ -8,10 +8,7 @@ afterEach(() => {
 describe('native adapters', () => {
   it('returns neutral fallbacks when keytar cannot be loaded', async () => {
     vi.doMock('keytar', () => ({
-      default: {
-        getPassword: vi.fn().mockRejectedValue(new Error('native load failed')),
-        setPassword: vi.fn().mockRejectedValue(new Error('native load failed'))
-      }
+      default: false
     }))
 
     const { getPassword, setPassword } = await import('../../../src/main/native/keytar')

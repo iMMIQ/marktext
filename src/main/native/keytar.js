@@ -8,7 +8,7 @@ const loadKeytar = async () => {
   }
 
   keytarPromise = import('keytar')
-    .then(module => module.default || module)
+    .then(module => module.default ?? module)
     .catch(error => {
       log.error('Unable to load keytar:', error)
       return false
