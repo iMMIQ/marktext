@@ -2,6 +2,7 @@ productName: "MarkText"
 appId: "com.github.marktext.marktext"
 
 asar: true
+npmRebuild: false
 asarUnpack:
 - "**/*.node"
 directories:

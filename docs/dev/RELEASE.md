@@ -1,5 +1,11 @@
 # Steps to release MarkText
 
+- Prerequisites
+  - Use Node.js `>=24` (the repo pins `24` in `.nvmrc`)
+  - Install platform native build dependencies required by `node-gyp`
+  - Run `yarn install`
+  - Run `yarn run rebuild`
+  - Run `yarn run pack`
 - Create a release candidate
   - Create branch `release-v%version%`
   - Set environment variable `MARKTEXT_IS_STABLE` to `1` (default on AppVeyor and Travis CI)
@@ -9,6 +15,8 @@
   - Bump Flathub version ([marktext.appdata.xml](https://github.com/marktext/marktext/blob/master/resources/linux/marktext.appdata.xml))
   - Create commit `release version %version%`
   - Ensure all tests pass
+  - Run `yarn run rebuild` on each target platform before packaging
+  - Run `yarn run pack`
   - A new draft release should be available or create one
 - Publish GitHub release
   - Add git tag `v%version%`

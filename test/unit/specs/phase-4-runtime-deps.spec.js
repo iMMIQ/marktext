@@ -16,7 +16,7 @@ describe('phase 4 runtime dependency contract', () => {
     expect(pkg.devDependencies['@electron/rebuild']).toMatch(/^\^4\./)
     expect(pkg.devDependencies['electron-updater']).toMatch(/^\^6\./)
     expect(pkg.dependencies['native-keymap']).toMatch(/^\^3\.3\.9$/)
-    expect(pkg.engines.node).toBe('>=24 <25')
+    expect(pkg.engines.node).toBe('>=24')
     expect(nvmrc).toBe('24')
   })
 })
