@@ -6727,13 +6727,13 @@ import-local@^3.0.2:
     pkg-dir "^4.2.0"
     resolve-cwd "^3.0.0"
 
-imports-loader@^0.8.0:
-  version "0.8.0"
-  resolved "https://registry.yarnpkg.com/imports-loader/-/imports-loader-0.8.0.tgz#030ea51b8ca05977c40a3abfd9b4088fe0be9a69"
-  integrity sha512-kXWL7Scp8KQ4552ZcdVTeaQCZSLW+e6nJfp3cwUMB673T7Hr98Xjx5JK+ql7ADlJUvj1JS5O01RLbKoutN5QDQ==
+imports-loader@^5.0.0:
+  version "5.0.0"
+  resolved "https://registry.npmmirror.com/imports-loader/-/imports-loader-5.0.0.tgz#b18635fd7fe28001518a1f54f30cd1dfbd3c5f38"
+  integrity sha512-tXgL8xxZFjOjQLLiE7my00UUQfktg4G8fdpXcZphL0bJWbk9eCxKKFaCwmFRcwyRJQl95GXBL1DoE1rCS/tcPw==
   dependencies:
-    loader-utils "^1.0.2"
-    source-map "^0.6.1"
+    source-map-js "^1.0.2"
+    strip-comments "^2.0.1"
 
 imurmurhash@^0.1.4:
   version "0.1.4"
@@ -10184,7 +10184,7 @@ socks@^2.8.3:
     ip-address "^10.0.1"
     smart-buffer "^4.2.0"
 
-source-map-js@^1.0.1, source-map-js@^1.2.1:
+source-map-js@^1.0.1, source-map-js@^1.0.2, source-map-js@^1.2.1:
   version "1.2.1"
   resolved "https://registry.npmmirror.com/source-map-js/-/source-map-js-1.2.1.tgz#1ce5650fddd87abc099eda37dcff024c2667ae46"
   integrity sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==
@@ -10212,7 +10212,7 @@ source-map@0.4.x:
   dependencies:
     amdefine ">=0.0.4"
 
-source-map@^0.6.0, source-map@^0.6.1:
+source-map@^0.6.0:
   version "0.6.1"
   resolved "https://registry.npmjs.org/source-map/-/source-map-0.6.1.tgz#74722af32e9614e9c287a8d0bbde48b5e2f1a263"
   integrity sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g==
@@ -10452,6 +10452,11 @@ strip-bom@^3.0.0:
   version "3.0.0"
   resolved "https://registry.npmjs.org/strip-bom/-/strip-bom-3.0.0.tgz#2334c18e9c759f7bdd56fdef7e9ae3d588e68ed3"
   integrity sha1-IzTBjpx1n3vdVv3vfprj1YjmjtM=
+
+strip-comments@^2.0.1:
+  version "2.0.1"
+  resolved "https://registry.npmmirror.com/strip-comments/-/strip-comments-2.0.1.tgz#4ad11c3fbcac177a67a40ac224ca339ca1c1ba9b"
+  integrity sha512-ZprKx+bBLXv067WTCALv8SSz5l2+XhpYCsVtSqlMnkAXMWDq+/ekVbl1ghqP9rUHTzv6sm/DwCOiYutU/yp1fw==
 
 strip-json-comments@^3.1.1:
   version "3.1.1"

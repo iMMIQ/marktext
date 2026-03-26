@@ -12,6 +12,7 @@ const thirdPartyChecker = fs.readFileSync(thirdPartyCheckerPath, 'utf8')
 const validateLicenses = fs.readFileSync(path.join(root, 'tools/validateLicenses.js'), 'utf8')
 const generateThirdPartyLicense = fs.readFileSync(path.join(root, 'tools/generateThirdPartyLicense.js'), 'utf8')
 const viteDevRunner = fs.readFileSync(path.join(root, 'tools/dev/vite-dev-runner.js'), 'utf8')
+const muyaWebpackConfig = fs.readFileSync(path.join(root, 'src/muya/webpack.config.js'), 'utf8')
 const legacyLifecycleScripts = [pkg.scripts.preinstall, pkg.scripts.postinstall]
   .filter(Boolean)
   .join('\n')
@@ -107,5 +108,13 @@ describe('phase 5 tooling contract', () => {
     expect(pkg.dependencies?.chokidar).toMatch(/^\^5\./)
     expect(viteDevRunner).toContain("await import('chokidar')")
     expect(viteDevRunner).not.toContain("require('chokidar')")
+  })
+
+  it('keeps the Muya webpack config on supported imports-loader syntax', () => {
+    expect(pkg.devDependencies?.['imports-loader']).toMatch(/^\^5\./)
+    expect(muyaWebpackConfig).toContain("loader: 'imports-loader'")
+    expect(muyaWebpackConfig).toContain("additionalCode: 'module.exports = 0;'")
+    expect(muyaWebpackConfig).toContain("wrapper: 'window'")
+    expect(muyaWebpackConfig).not.toContain('imports-loader?')
   })
 })

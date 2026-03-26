@@ -137,7 +137,7 @@
     "eslint-plugin-vue": "^8.7.1",
     "esm": "^3.2.25",
     "git-revision-webpack-plugin": "^5.0.0",
-    "imports-loader": "^0.8.0",
+    "imports-loader": "^5.0.0",
     "jsdom": "^29.0.1",
     "license-checker": "^25.0.1",
     "listr": "^0.14.3",
