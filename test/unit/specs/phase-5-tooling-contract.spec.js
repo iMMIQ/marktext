@@ -11,6 +11,7 @@ const thirdPartyCheckerPath = path.join(root, 'tools/licenses/thirdPartyChecker.
 const thirdPartyChecker = fs.readFileSync(thirdPartyCheckerPath, 'utf8')
 const validateLicenses = fs.readFileSync(path.join(root, 'tools/validateLicenses.js'), 'utf8')
 const generateThirdPartyLicense = fs.readFileSync(path.join(root, 'tools/generateThirdPartyLicense.js'), 'utf8')
+const viteDevRunner = fs.readFileSync(path.join(root, 'tools/dev/vite-dev-runner.js'), 'utf8')
 const legacyLifecycleScripts = [pkg.scripts.preinstall, pkg.scripts.postinstall]
   .filter(Boolean)
   .join('\n')
@@ -100,5 +101,11 @@ describe('phase 5 tooling contract', () => {
     for (const dependency of retainedDevDependencies) {
       expect(pkg.devDependencies?.[dependency], dependency).toBeTruthy()
     }
+  })
+
+  it('keeps the dev runner compatible with the installed chokidar major', () => {
+    expect(pkg.dependencies?.chokidar).toMatch(/^\^5\./)
+    expect(viteDevRunner).toContain("await import('chokidar')")
+    expect(viteDevRunner).not.toContain("require('chokidar')")
   })
 })

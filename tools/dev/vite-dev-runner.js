@@ -4,7 +4,6 @@ const fs = require('fs')
 const http = require('http')
 const path = require('path')
 const { spawn } = require('child_process')
-const chokidar = require('chokidar')
 
 const viteBin = path.resolve(`node_modules/.bin/${process.platform === 'win32' ? 'vite.cmd' : 'vite'}`)
 const electronBin = path.resolve(`node_modules/.bin/${process.platform === 'win32' ? 'electron.cmd' : 'electron'}`)
@@ -120,53 +119,59 @@ process.on('SIGTERM', () => {
   process.exit(143)
 })
 
-spawnChild(viteBin, [
-  'build',
-  '--watch',
-  '--mode',
-  'development',
-  '--config',
-  'vite.main.config.js'
-], {
-  NODE_ENV: 'development'
-})
+const run = async () => {
+  const { watch } = await import('chokidar')
 
-spawnChild(viteBin, [
-  'build',
-  '--watch',
-  '--mode',
-  'development',
-  '--config',
-  'vite.preload.config.js'
-], {
-  NODE_ENV: 'development'
-})
+  spawnChild(viteBin, [
+    'build',
+    '--watch',
+    '--mode',
+    'development',
+    '--config',
+    'vite.main.config.js'
+  ], {
+    NODE_ENV: 'development'
+  })
 
-spawnChild(viteBin, [
-  '--host',
-  '127.0.0.1',
-  '--port',
-  '9091',
-  '--strictPort',
-  '--config',
-  'vite.renderer.config.js'
-], {
-  NODE_ENV: 'development'
-})
+  spawnChild(viteBin, [
+    'build',
+    '--watch',
+    '--mode',
+    'development',
+    '--config',
+    'vite.preload.config.js'
+  ], {
+    NODE_ENV: 'development'
+  })
 
-chokidar.watch([mainBundlePath, preloadBundlePath], {
-  ignoreInitial: true
-})
-  .on('add', scheduleElectronRestart)
-  .on('change', scheduleElectronRestart)
+  spawnChild(viteBin, [
+    '--host',
+    '127.0.0.1',
+    '--port',
+    '9091',
+    '--strictPort',
+    '--config',
+    'vite.renderer.config.js'
+  ], {
+    NODE_ENV: 'development'
+  })
 
-Promise.all([
-  waitForFile(mainBundlePath, runnerStartTime),
-  waitForFile(preloadBundlePath, runnerStartTime),
-  waitForRendererServer(rendererDevServerUrl)
-]).then(() => {
+  watch([mainBundlePath, preloadBundlePath], {
+    ignoreInitial: true
+  })
+    .on('add', scheduleElectronRestart)
+    .on('change', scheduleElectronRestart)
+
+  await Promise.all([
+    waitForFile(mainBundlePath, runnerStartTime),
+    waitForFile(preloadBundlePath, runnerStartTime),
+    waitForRendererServer(rendererDevServerUrl)
+  ])
+
   startElectron()
-}).catch(error => {
+}
+
+run().catch(error => {
   console.error(error)
   cleanup()
   process.exit(1)
