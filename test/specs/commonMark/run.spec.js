@@ -2,7 +2,6 @@
 import { removeCustomClass } from '../help'
 import { MT_MARKED_OPTIONS } from '../config'
 import { writeResult } from '../writeResult'
-const fetch = require('node-fetch')
 const marked = require('../../../src/muya/lib/parser/marked/index.js').default
 const HtmlDiffer = require('@markedjs/html-differ').HtmlDiffer
 const fs = require('fs')
@@ -14,11 +13,19 @@ const shouldWriteArtifacts = process.env.MARKTEXT_UPDATE_MARKDOWN_SPECS === '1'
 
 const htmlDiffer = new HtmlDiffer(options)
 
+const fetchWithFallback = (...args) => {
+  if (typeof globalThis.fetch === 'function') {
+    return globalThis.fetch(...args)
+  }
+
+  return import('node-fetch').then(({ default: fetch }) => fetch(...args))
+}
+
 const withTimeout = url => {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
 
-  return fetch(url, { signal: controller.signal }).finally(() => {
+  return fetchWithFallback(url, { signal: controller.signal }).finally(() => {
     clearTimeout(timer)
   })
 }

@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module'
 import log from 'electron-log'
 
-const require = createRequire(import.meta.url)
+const require = createRequire(typeof __filename === 'string' ? __filename : import.meta.url)
 
 let fontManager = null
 let fontManagerLoader = null

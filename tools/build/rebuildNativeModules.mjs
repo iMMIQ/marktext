@@ -7,7 +7,7 @@ const require = createRequire(import.meta.url)
 const { version: electronVersion } = require('electron/package.json')
 const electronBinary = require('electron')
 
-const onlyModules = ['keytar', 'native-keymap', 'fontmanager-redux']
+const onlyModules = ['keytar', 'native-keymap', 'fontmanager-redux', 'ced']
 const forceABI = Number(execFileSync(
   electronBinary,
   ['-p', 'process.versions.modules'],
