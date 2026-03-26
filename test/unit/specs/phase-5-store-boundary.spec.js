@@ -53,7 +53,7 @@ describe('phase 5 store and bridge boundary', () => {
 
   it('removes generic app send and invoke bridge calls from the task 4 renderer write set', () => {
     for (const { file, source } of typedBridgeWriteSet) {
-      expect(source, file).not.toMatch(/\bapp\.(send|invoke)\s*\(/)
+      expect(source, file).not.toMatch(/\b(?:app|nativeApp)\.(send|invoke)\s*\(/)
       expect(source, file).not.toMatch(/\$nativeApi\.app\.(send|invoke)\s*\(/)
     }
   })
