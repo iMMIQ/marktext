@@ -34,10 +34,6 @@ const getRendererType = event => {
 }
 
 const registerRuntimeHandlers = app => {
-  ipcMain.on('mt::runtime-is-updatable-sync', event => {
-    event.returnValue = isUpdatableAtRuntime()
-  })
-
   ipcMain.handle('mt::runtime-get-info', event => {
     const win = getWindowFromEvent(event)
     const { env, paths } = app._accessor
@@ -54,6 +50,9 @@ const registerRuntimeHandlers = app => {
         userDataPath: paths.userDataPath,
         logPath: paths.logPath,
         ripgrepBinaryPath: getRipgrepPath()
+      },
+      update: {
+        canAutoUpdate: isUpdatableAtRuntime()
       }
     }
   })

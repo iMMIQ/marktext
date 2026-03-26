@@ -1,8 +1,7 @@
 const fallbackRuntimeApi = {
   getInfo: async () => {
     throw new Error('Renderer runtime bridge is unavailable')
-  },
-  isUpdatable: () => false
+  }
 }
 
 const getRuntimeApi = () => {
@@ -14,6 +13,5 @@ const getRuntimeApi = () => {
 }
 
 export default {
-  getInfo: () => getRuntimeApi().getInfo(),
-  isUpdatable: () => getRuntimeApi().isUpdatable()
+  getInfo: () => getRuntimeApi().getInfo()
 }

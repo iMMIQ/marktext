@@ -1,6 +1,10 @@
-import runtime from '../services/nativeApi/runtime'
+import { getRuntime } from '../services/runtime'
 
 /// Check whether the package is updatable at runtime.
 export const isUpdatable = () => {
-  return runtime.isUpdatable()
+  try {
+    return getRuntime().update.canAutoUpdate
+  } catch {
+    return false
+  }
 }

@@ -30,7 +30,7 @@ describe('renderer native API facade', () => {
   it('exposes the app and events bridge contract', () => {
     expect(typeof nativeApi.app.openSettingsWindow).toBe('function')
     expect(typeof nativeApi.app.send).toBe('function')
-    expect(typeof nativeApi.app.sendSync).toBe('function')
+    expect(nativeApi.app.sendSync).toBeUndefined()
     expect(typeof nativeApi.app.invoke).toBe('function')
 
     expect(typeof nativeApi.events.on).toBe('function')
@@ -56,17 +56,12 @@ describe('renderer native API facade', () => {
     const eventCalls = []
     const unsubscribe = () => {}
     const invokeResult = Promise.resolve({ ok: true })
-    const syncResult = { ok: 'sync' }
     const handler = () => {}
 
     window.mtNative = {
       app: {
         openSettingsWindow: () => eventCalls.push(['openSettingsWindow']),
         send: (channel, ...args) => eventCalls.push(['send', channel, ...args]),
-        sendSync: (channel, ...args) => {
-          eventCalls.push(['sendSync', channel, ...args])
-          return syncResult
-        },
         invoke: (channel, ...args) => {
           eventCalls.push(['invoke', channel, ...args])
           return invokeResult
@@ -85,21 +80,18 @@ describe('renderer native API facade', () => {
 
     nativeApi.app.openSettingsWindow()
     nativeApi.app.send('mt::channel', 1, 2)
-    const sync = nativeApi.app.sendSync('mt::sync-channel', 4)
     const result = nativeApi.app.invoke('mt::invoke-channel', 3)
     const stopListening = nativeApi.events.on('mt::event-channel', handler)
     nativeApi.events.once('mt::event-once', handler)
     nativeApi.events.off('mt::event-off', handler)
     nativeApi.events.emit('mt::event-emit', 'payload')
 
-    expect(sync).toBe(syncResult)
     expect(result).toBe(invokeResult)
     expect(await result).toEqual({ ok: true })
     expect(stopListening).toBe(unsubscribe)
     expect(eventCalls).toEqual([
       ['openSettingsWindow'],
       ['send', 'mt::channel', 1, 2],
-      ['sendSync', 'mt::sync-channel', 4],
       ['invoke', 'mt::invoke-channel', 3],
       ['on', 'mt::event-channel', handler],
       ['once', 'mt::event-once', handler],
@@ -182,21 +174,22 @@ describe('renderer native API facade', () => {
         userDataPath: '/tmp/marktext-user-data',
         logPath: '/tmp/marktext-user-data/logs',
         ripgrepBinaryPath: '/usr/bin/rg'
+      },
+      update: {
+        canAutoUpdate: true
       }
     }
 
     window.mtNative = {
       runtime: {
-        getInfo: () => Promise.resolve(runtimeInfo),
-        isUpdatable: () => true
+        getInfo: () => Promise.resolve(runtimeInfo)
       }
     }
 
     const result = await nativeApi.runtime.getInfo()
-    const isUpdatable = nativeApi.runtime.isUpdatable()
 
     expect(result).toBe(runtimeInfo)
-    expect(isUpdatable).toBe(true)
+    expect(result.update.canAutoUpdate).toBe(true)
   })
 
   it('routes fonts and keyboard access through the bridge contract', async () => {

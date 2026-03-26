@@ -54,6 +54,9 @@ export const initializeRuntime = async ({ initialState: nextInitialState = null 
       userDataPath: runtimeInfo.paths.userDataPath,
       logPath: runtimeInfo.paths.logPath,
       ripgrepBinaryPath: runtimeInfo.paths.ripgrepBinaryPath
+    },
+    update: {
+      canAutoUpdate: runtimeInfo.update.canAutoUpdate
     }
   })
   initialState = nextInitialState ? freezeValue({ ...nextInitialState }) : null

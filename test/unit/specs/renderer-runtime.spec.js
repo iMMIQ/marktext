@@ -38,6 +38,9 @@ describe('renderer runtime bootstrap', () => {
             logPath: '/tmp/marktext-user-data/logs',
             ripgrepBinaryPath: '/usr/bin/rg',
             resourcesPath: '/tmp/marktext-resources'
+          },
+          update: {
+            canAutoUpdate: true
           }
         })
       }
@@ -49,5 +52,6 @@ describe('renderer runtime bootstrap', () => {
     expect(getRuntime().env.windowId).toBe(7)
     expect(getRuntime().paths.ripgrepBinaryPath).toBe('/usr/bin/rg')
     expect(getRuntime().paths.resourcesPath).toBeUndefined()
+    expect(getRuntime().update.canAutoUpdate).toBe(true)
   })
 })

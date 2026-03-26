@@ -1194,8 +1194,8 @@ const actions = {
     })
   },
 
-  ASK_FOR_IMAGE_PATH ({ commit }) {
-    return app.sendSync('mt::ask-for-image-path')
+  ASK_FOR_IMAGE_PATH () {
+    return app.invoke('mt::ask-for-image-path')
   },
 
   LISTEN_WINDOW_ZOOM ({ dispatch, rootState }) {
