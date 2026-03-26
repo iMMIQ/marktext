@@ -16,8 +16,8 @@ describe('renderer Vue 3 dependency contract', () => {
     expect(dependencies.vue).toMatch(/^\^3\./)
   })
 
-  it('pins vue-router to v4', () => {
-    expect(dependencies['vue-router']).toMatch(/^\^4\./)
+  it('pins vue-router to v5', () => {
+    expect(dependencies['vue-router']).toMatch(/^\^5\./)
   })
 
   it('adds pinia to the renderer dependency stack', () => {
