@@ -14,6 +14,11 @@ const legacyLifecycleScripts = [pkg.scripts.preinstall, pkg.scripts.postinstall]
 const allScriptCommands = Object.values(pkg.scripts).join('\n')
 const legacyAliasPattern = /\b(?:dev:vite|pack:vite|unit:vite)\b/
 const thirdPartyCheckerPattern = /\.electron-vue[\\/]thirdPartyChecker\.js/
+const legacyElectronVueFiles = [
+  '.electron-vue/preinstall.js',
+  '.electron-vue/postinstall.js',
+  '.electron-vue/thirdPartyChecker.js'
+]
 
 describe('phase 5 tooling contract', () => {
   it('keeps one official script surface and no electron-vue leftovers', () => {
@@ -28,7 +33,9 @@ describe('phase 5 tooling contract', () => {
     expect(pkg.scripts['dev:vite']).toBeUndefined()
     expect(pkg.scripts['pack:vite']).toBeUndefined()
     expect(pkg.scripts['unit:vite']).toBeUndefined()
-    expect(fs.existsSync(path.join(root, '.electron-vue/thirdPartyChecker.js'))).toBe(false)
+    for (const file of legacyElectronVueFiles) {
+      expect(fs.existsSync(path.join(root, file))).toBe(false)
+    }
     expect(validateLicenses).not.toMatch(thirdPartyCheckerPattern)
     expect(generateThirdPartyLicense).not.toMatch(thirdPartyCheckerPattern)
     expect(fs.existsSync(path.join(root, 'src/index.ejs'))).toBe(false)

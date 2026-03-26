@@ -30,7 +30,34 @@ const rendererFiles = walk(rendererRoot)
     content: fs.readFileSync(file, 'utf8')
   }))
 
-const preloadAppBridgeBlock = /app:\s*\{([\s\S]*?)\n\s*\},\n\s*events:/.exec(preload)?.[1] || ''
+const getObjectBlock = (source, propertyName) => {
+  const propertyIndex = source.indexOf(`${propertyName}:`)
+  if (propertyIndex === -1) {
+    return ''
+  }
+
+  const openBraceIndex = source.indexOf('{', propertyIndex)
+  if (openBraceIndex === -1) {
+    return ''
+  }
+
+  let depth = 0
+  for (let index = openBraceIndex; index < source.length; index++) {
+    const character = source[index]
+    if (character === '{') {
+      depth++
+    } else if (character === '}') {
+      depth--
+      if (depth === 0) {
+        return source.slice(openBraceIndex + 1, index)
+      }
+    }
+  }
+
+  return ''
+}
+
+const preloadAppBridgeBlock = getObjectBlock(preload, 'app')
 const preloadHasGenericBridgePassthrough = /^\s*(?:send|invoke)\s*(?::|\()/m
 
 const fileUsesGenericRendererBridge = ({ content }) => {
@@ -44,7 +71,17 @@ const fileUsesGenericRendererBridge = ({ content }) => {
   }
 
   const importedIdentifier = nativeApiImport[1]
-  return new RegExp(`\\b${importedIdentifier}\\.(send|invoke)\\(`).test(content)
+  if (new RegExp(`\\b${importedIdentifier}\\.(send|invoke)\\(`).test(content)) {
+    return true
+  }
+
+  const aggregateNativeApiImport = content.match(/import\s+([A-Za-z_$][\w$]*)\s+from\s+['"][^'"]*nativeApi(?:\/index)?['"]/)
+  if (!aggregateNativeApiImport) {
+    return false
+  }
+
+  const aggregateIdentifier = aggregateNativeApiImport[1]
+  return new RegExp(`\\b${aggregateIdentifier}\\.app\\.(send|invoke)\\(`).test(content)
 }
 
 describe('phase 5 store and bridge boundary', () => {
@@ -53,6 +90,7 @@ describe('phase 5 store and bridge boundary', () => {
     expect(fs.existsSync(legacyModulesDir)).toBe(false)
     expect(storeFiles).not.toMatch(/\bmoduleDispatcher\b|['"]\.\/modules\//)
     expect(mainEntry).not.toMatch(/\.(dispatch|commit)\(\s*['"`]/)
+    expect(preloadAppBridgeBlock).toBeTruthy()
     expect(preloadAppBridgeBlock).not.toMatch(preloadHasGenericBridgePassthrough)
     expect(rendererFiles.some(fileUsesGenericRendererBridge)).toBe(false)
   })
