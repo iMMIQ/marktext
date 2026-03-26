@@ -1,6 +1,8 @@
 import registerAppHandlers from './app'
 import registerClipboardHandlers from './clipboard'
 import registerFilesystemHandlers from './filesystem'
+import registerFontsHandlers from './fonts'
+import registerKeyboardHandlers from './keyboard'
 import registerMenuHandlers from './menu'
 import registerRuntimeHandlers from './runtime'
 import registerSearchHandlers from './search'
@@ -12,6 +14,8 @@ const registerRendererIpc = app => {
   registerMenuHandlers(app._accessor.menu)
   registerClipboardHandlers()
   registerFilesystemHandlers()
+  registerFontsHandlers()
+  registerKeyboardHandlers()
   registerRuntimeHandlers(app)
   registerSearchHandlers()
   registerShellHandlers()

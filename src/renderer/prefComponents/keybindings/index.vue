@@ -72,7 +72,7 @@ export default {
   },
 
   mounted () {
-    this.$nativeApi.app.invoke('mt::keybinding-get-keyboard-info')
+    this.$nativeApi.keyboard.getInfo()
       .then(({ layout, keymap }) => {
         // Update the key mapper to prevent problems on non-US keyboards.
         setKeyboardLayout(layout, keymap)
@@ -162,7 +162,7 @@ export default {
       })
     },
     dumpKeyboardInformation () {
-      this.$nativeApi.app.send('mt::keybinding-debug-dump-keyboard-info')
+      this.$nativeApi.keyboard.dumpInfo()
     }
   }
 }

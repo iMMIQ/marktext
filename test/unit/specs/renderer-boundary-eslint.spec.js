@@ -65,9 +65,11 @@ describe('renderer boundary eslint guardrail', () => {
     expect(messages[0].message).toContain('Use src/renderer/services/nativeApi instead.')
   }, SPEC_TIMEOUT)
 
-  it('allows other renderer requires', () => {
+  it('rejects direct fontmanager requires in renderer sources', () => {
     const messages = getBoundaryMessages(lintRendererSource("require('fontmanager-redux')\n"))
 
-    expect(messages).toEqual([])
+    expect(messages).toHaveLength(1)
+    expect(messages[0].ruleId).toBe('no-restricted-syntax')
+    expect(messages[0].message).toContain('Use src/renderer/services/nativeApi instead.')
   }, SPEC_TIMEOUT)
 })

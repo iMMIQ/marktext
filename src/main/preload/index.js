@@ -29,6 +29,13 @@ const bridge = {
     readDirectory: pathname => ipcRenderer.invoke('mt::fs-read-directory', pathname),
     readFile: (pathname, encoding) => ipcRenderer.invoke('mt::fs-read-file', pathname, encoding)
   },
+  fonts: {
+    listFamilies: options => ipcRenderer.invoke('mt::fonts-list-families', options)
+  },
+  keyboard: {
+    getInfo: () => ipcRenderer.invoke('mt::keyboard-get-info'),
+    dumpInfo: () => ipcRenderer.send('mt::keyboard-dump-info')
+  },
   shell: {
     openPath: target => ipcRenderer.invoke('mt::shell-open-path', target),
     showItemInFolder: target => ipcRenderer.invoke('mt::shell-show-item-in-folder', target),

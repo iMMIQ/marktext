@@ -2,6 +2,8 @@ import app from './app'
 import clipboard from './clipboard'
 import events from './events'
 import filesystem from './filesystem'
+import fonts from './fonts'
+import keyboard from './keyboard'
 import menu from './menu'
 import runtime from './runtime'
 import search from './search'
@@ -13,6 +15,8 @@ const nativeApi = {
   clipboard,
   events,
   filesystem,
+  fonts,
+  keyboard,
   menu,
   runtime,
   search,

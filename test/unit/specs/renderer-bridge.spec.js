@@ -1,5 +1,10 @@
+import fs from 'node:fs'
+import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import nativeApi from '../../../src/renderer/services/nativeApi'
+
+const root = path.resolve(__dirname, '../../..')
+const preloadSource = fs.readFileSync(path.join(root, 'src/main/preload/index.js'), 'utf8')
 
 describe('renderer native API facade', () => {
   afterEach(() => {
@@ -12,6 +17,8 @@ describe('renderer native API facade', () => {
       'clipboard',
       'events',
       'filesystem',
+      'fonts',
+      'keyboard',
       'menu',
       'runtime',
       'search',
@@ -30,6 +37,19 @@ describe('renderer native API facade', () => {
     expect(typeof nativeApi.events.once).toBe('function')
     expect(typeof nativeApi.events.off).toBe('function')
     expect(typeof nativeApi.events.emit).toBe('function')
+
+    expect(typeof nativeApi.fonts.listFamilies).toBe('function')
+
+    expect(typeof nativeApi.keyboard.getInfo).toBe('function')
+    expect(typeof nativeApi.keyboard.dumpInfo).toBe('function')
+  })
+
+  it('declares fonts and keyboard on the preload bridge contract', () => {
+    expect(preloadSource).toContain('fonts:')
+    expect(preloadSource).toContain("mt::fonts-list-families")
+    expect(preloadSource).toContain('keyboard:')
+    expect(preloadSource).toContain("mt::keyboard-get-info")
+    expect(preloadSource).toContain("mt::keyboard-dump-info")
   })
 
   it('routes app and event operations through the bridge contract', async () => {
@@ -177,6 +197,44 @@ describe('renderer native API facade', () => {
 
     expect(result).toBe(runtimeInfo)
     expect(isUpdatable).toBe(true)
+  })
+
+  it('routes fonts and keyboard access through the bridge contract', async () => {
+    const calls = []
+    const keyboardInfo = {
+      layout: 'com.example.layout',
+      keymap: {
+        KeyA: 'a'
+      }
+    }
+
+    window.mtNative = {
+      fonts: {
+        listFamilies: options => {
+          calls.push(['listFamilies', options])
+          return Promise.resolve(['JetBrains Mono'])
+        }
+      },
+      keyboard: {
+        getInfo: () => {
+          calls.push(['getInfo'])
+          return Promise.resolve(keyboardInfo)
+        },
+        dumpInfo: () => calls.push(['dumpInfo'])
+      }
+    }
+
+    const fonts = await nativeApi.fonts.listFamilies({ onlyMonospace: true })
+    const result = await nativeApi.keyboard.getInfo()
+    nativeApi.keyboard.dumpInfo()
+
+    expect(fonts).toEqual(['JetBrains Mono'])
+    expect(result).toBe(keyboardInfo)
+    expect(calls).toEqual([
+      ['listFamilies', { onlyMonospace: true }],
+      ['getInfo'],
+      ['dumpInfo']
+    ])
   })
 
   it('routes filesystem and search access through the bridge contract', async () => {

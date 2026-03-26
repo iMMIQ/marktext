@@ -72,6 +72,10 @@ module.exports = {
             {
               name: '@electron/remote',
               message: 'Use src/renderer/services/nativeApi instead.'
+            },
+            {
+              name: 'fontmanager-redux',
+              message: 'Use src/renderer/services/nativeApi instead.'
             }
           ]
         }],
@@ -82,6 +86,10 @@ module.exports = {
           },
           {
             selector: "CallExpression[callee.name='require'][arguments.length=1][arguments.0.type='Literal'][arguments.0.value='@electron/remote']",
+            message: 'Use src/renderer/services/nativeApi instead.'
+          },
+          {
+            selector: "CallExpression[callee.name='require'][arguments.length=1][arguments.0.type='Literal'][arguments.0.value='fontmanager-redux']",
             message: 'Use src/renderer/services/nativeApi instead.'
           }
         ]
