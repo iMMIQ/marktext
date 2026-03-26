@@ -1,18 +1,15 @@
 # Phase 5 Cleanup Ledger
 
-Must be removed in this phase:
+Completed removals:
 
-- `.electron-vue/preinstall.js`
-- `.electron-vue/postinstall.js`
-- `.electron-vue/thirdPartyChecker.js`
+- `.electron-vue/*`
 - `src/renderer/stores/moduleDispatcher.js`
 - `src/renderer/stores/modules/*`
-- generic renderer bridge calls via `nativeApi.app.send(...)`
-- generic renderer bridge calls via `nativeApi.app.invoke(...)`
+- generic renderer `app.send/invoke` bridge
 - `src/index.ejs`
-- outdated CI/docs references to Node 16, Travis CI, and AppVeyor
+- Node 16 / Travis / AppVeyor references in the maintained workflow and docs surface
 
-Explicitly retained after this phase:
+Still intentionally retained:
 
 - `src/muya/webpack.config.js`
   - reason: standalone Muya publishing is outside the modernization scope
