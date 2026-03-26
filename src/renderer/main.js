@@ -1,6 +1,6 @@
 import { createApp, h } from 'vue'
 import { createPinia } from 'pinia'
-import nativeApp from './services/nativeApi/app'
+import appApi from './services/nativeApi/app'
 import bootstrapRenderer from './bootstrap'
 import { RouterView } from 'vue-router'
 import './assets/symbolIcon'
@@ -103,7 +103,7 @@ const start = async () => {
   installServices(app)
   app.use(pinia)
   initializeStores(pinia)
-  nativeApp.send('mt::renderer-ready')
+  appApi.notifyRendererReady()
   app.use(router)
 
   await router.isReady()

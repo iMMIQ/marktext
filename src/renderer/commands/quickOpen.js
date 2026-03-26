@@ -2,7 +2,7 @@ import path from 'path'
 import { isChildOfDirectory, hasMarkdownExtension, MARKDOWN_INCLUSIONS } from '../../common/filesystem/paths'
 import bus from '../bus'
 import { delay } from '@/util'
-import app from '../services/nativeApi/app'
+import appApi from '../services/nativeApi/app'
 import { getRuntime } from '../services/runtime'
 import nativeSearch from '../services/nativeApi/search'
 
@@ -73,7 +73,7 @@ class QuickOpenCommand {
 
   executeSubcommand = async id => {
     const { windowId } = getRuntime().env
-    app.send('mt::open-file-by-window-id', windowId, id)
+    appApi.openFileByWindowId(windowId, id)
   }
 
   unload = () => {

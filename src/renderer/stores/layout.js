@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import bus from '@/bus'
-import app from '@/services/nativeApi/app'
 import events from '@/services/nativeApi/events'
+import preferencesApi from '@/services/nativeApi/preferences'
+import projectApi from '@/services/nativeApi/project'
 import { getRuntime } from '@/services/runtime'
 
 let isLayoutListenerBound = false
@@ -34,7 +35,7 @@ export const useLayoutStore = defineStore('layout', {
       if (layout.showSideBar !== undefined) {
         const windowId = getWindowId()
         if (windowId !== null) {
-          app.send('mt::update-sidebar-menu', windowId, !!layout.showSideBar)
+          projectApi.updateSidebarMenu(windowId, !!layout.showSideBar)
         }
       }
 
@@ -75,7 +76,7 @@ export const useLayoutStore = defineStore('layout', {
         this.toggleLayoutEntry(entryName)
         const windowId = getWindowId()
         if (windowId !== null) {
-          app.send('mt::view-layout-changed', windowId, { [entryName]: this[entryName] })
+          preferencesApi.notifyViewLayoutChanged(windowId, { [entryName]: this[entryName] })
         }
       })
 
@@ -87,7 +88,7 @@ export const useLayoutStore = defineStore('layout', {
         return
       }
 
-      app.send('mt::view-layout-changed', windowId, {
+      preferencesApi.notifyViewLayoutChanged(windowId, {
         showTabBar: this.showTabBar,
         showSideBar: this.showSideBar
       })

@@ -102,7 +102,7 @@ export default {
           this.availableDictionaries = dicts
         })
 
-      this.$nativeApi.app.invoke('mt::spellchecker-get-custom-dictionary-words')
+      this.$nativeApi.spellchecker.getCustomDictionaryWords()
         .then(words => {
           this.wordsInCustomDictionary = words.map(word => { return { word } })
         })
@@ -148,7 +148,7 @@ export default {
     },
     handleDeleteClick (selectedItem) {
       if (selectedItem && typeof selectedItem.word === 'string') {
-        this.$nativeApi.app.invoke('mt::spellchecker-remove-word', selectedItem.word)
+        this.$nativeApi.spellchecker.removeCustomDictionaryWord(selectedItem.word)
           .then(success => {
             if (success) {
               this.wordsInCustomDictionary = this.wordsInCustomDictionary.filter(item => item.word !== selectedItem.word)

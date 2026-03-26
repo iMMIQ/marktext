@@ -5,8 +5,10 @@ import bus from '@/bus'
 import { create, paste, rename } from '@/util/fileSystem'
 import { PATH_SEPARATOR } from '@/config'
 import notice from '@/services/notification'
-import app from '@/services/nativeApi/app'
+import appApi from '@/services/nativeApi/app'
 import events from '@/services/nativeApi/events'
+import filesystem from '@/services/nativeApi/filesystem'
+import projectApi from '@/services/nativeApi/project'
 import shell from '@/services/nativeApi/shell'
 import { getFileStateFromData } from '@/stores/helpers/editorDocuments'
 import { hasMarkdownExtension } from 'common/filesystem/paths'
@@ -131,7 +133,7 @@ export const useProjectStore = defineStore('project', {
       isUpdateProjectListenerBound = true
     },
     askForOpenProject () {
-      app.send('mt::ask-for-open-project-in-sidebar')
+      projectApi.openInSidebar()
     },
     bindSidebarContextMenu () {
       if (isSidebarContextMenuBound) {
@@ -150,7 +152,7 @@ export const useProjectStore = defineStore('project', {
       })
 
       bus.$on('SIDEBAR::remove', () => {
-        app.invoke('mt::fs-trash-item', this.activeItem.pathname).catch(err => {
+        filesystem.trashItem(this.activeItem.pathname).catch(err => {
           notice.notify({
             title: 'Error while deleting',
             type: 'error',
@@ -238,7 +240,7 @@ export const useProjectStore = defineStore('project', {
         })
     },
     openSettingWindow () {
-      app.openSettingsWindow()
+      appApi.openSettingsWindow()
     },
     dispatch (type, payload) {
       switch (type) {

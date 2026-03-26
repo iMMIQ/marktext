@@ -1,4 +1,4 @@
-import app from './services/nativeApi/app'
+import appApi from './services/nativeApi/app'
 import { initializeRuntime } from './services/runtime'
 
 let exceptionLogger = s => console.error(s)
@@ -58,7 +58,7 @@ const bootstrapRenderer = async () => {
       exceptionLogger(event.error)
 
       // Pass exception to main process exception handler to show a error dialog.
-      app.send('mt::handle-renderer-error', copy)
+      appApi.handleRendererError(copy)
     } else {
       console.error(event)
     }

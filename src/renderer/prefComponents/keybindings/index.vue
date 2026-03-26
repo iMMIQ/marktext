@@ -79,7 +79,7 @@ export default {
       })
       .catch(error => log.error('Error while loading keyboard information for settings:', error))
 
-    this.$nativeApi.app.invoke('mt::keybinding-get-pref-keybindings')
+    this.$nativeApi.app.getPreferenceKeybindings()
       .then(({ defaultKeybindings, userKeybindings }) => {
         this.keybindingConfigurator = new KeybindingConfigurator(defaultKeybindings, userKeybindings)
         this.keybindingList = this.keybindingConfigurator.getKeybindings()

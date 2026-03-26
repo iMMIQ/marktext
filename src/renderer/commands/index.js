@@ -1,7 +1,8 @@
 // List of all static commands that are loaded into command center.
 import bus from '../bus'
-import app from '../services/nativeApi/app'
+import appApi from '../services/nativeApi/app'
 import events from '../services/nativeApi/events'
+import preferencesApi from '../services/nativeApi/preferences'
 import shell from '../services/nativeApi/shell'
 import nativeWindow from '../services/nativeApi/window'
 import { delay, isOsx } from '@/util'
@@ -48,17 +49,17 @@ const commands = [
   }, {
     id: 'file.new-window',
     execute: async () => {
-      app.send('mt::cmd-new-editor-window')
+      appApi.newEditorWindow()
     }
   }, {
     id: 'file.open-file',
     execute: async () => {
-      app.send('mt::cmd-open-file')
+      appApi.openFile()
     }
   }, {
     id: 'file.open-folder',
     execute: async () => {
-      app.send('mt::cmd-open-folder')
+      appApi.openFolder()
     }
   }, {
     id: 'file.save',
@@ -84,14 +85,14 @@ const commands = [
   }, {
     id: 'file.close-window',
     execute: async () => {
-      app.send('mt::cmd-close-window')
+      appApi.closeWindow()
     }
   },
 
   {
     id: 'file.toggle-auto-save',
     execute: async () => {
-      app.send('mt::cmd-toggle-autosave')
+      appApi.toggleAutoSave()
     }
   }, {
     id: 'file.move-file',
@@ -107,7 +108,7 @@ const commands = [
   }, {
     id: 'file.import-file',
     execute: async () => {
-      app.send('mt::cmd-import-file')
+      appApi.importFile()
     }
   }, {
     id: 'file.export-file',
@@ -457,7 +458,7 @@ const commands = [
   }, {
     id: 'window.toggle-always-on-top',
     execute: async () => {
-      app.send('mt::window-toggle-always-on-top')
+      appApi.toggleAlwaysOnTop()
     }
   }, {
     id: 'window.toggle-full-screen',
@@ -554,7 +555,7 @@ const commands = [
       value: 'ulysses'
     }],
     executeSubcommand: async (_, theme) => {
-      app.send('mt::set-user-preference', { theme })
+      preferencesApi.setUserPreference({ theme })
     }
   },
 
@@ -604,7 +605,7 @@ const commands = [
       value: 'rtl'
     }],
     executeSubcommand: async (_, value) => {
-      app.send('mt::set-user-preference', { textDirection: value })
+      preferencesApi.setUserPreference({ textDirection: value })
     }
   },
 
@@ -619,7 +620,7 @@ const commands = [
   }, {
     id: 'file.quit',
     execute: async () => {
-      app.send('mt::app-try-quit')
+      appApi.tryQuit()
     }
   }, {
     id: 'docs.user-guide',
@@ -656,7 +657,7 @@ if (isUpdatable()) {
   commands.push({
     id: 'file.check-update',
     execute: async () => {
-      app.send('mt::check-for-update')
+      appApi.checkForUpdate()
     }
   })
 }
@@ -665,7 +666,7 @@ if (isOsx) {
   commands.push({
     id: 'edit.screenshot',
     execute: async () => {
-      app.send('mt::make-screenshot')
+      appApi.makeScreenshot()
     }
   })
 }

@@ -7,7 +7,7 @@ import { hasKeys, getUniqueId } from '@/util'
 import listToTree from '@/util/listToTree'
 import { createDocumentState, getOptionsFromState, getSingleFileState, getBlankFileState } from '@/stores/helpers/editorDocuments'
 import notice from '@/services/notification'
-import app from '@/services/nativeApi/app'
+import appApi from '@/services/nativeApi/app'
 import clipboard from '@/services/nativeApi/clipboard'
 import events from '@/services/nativeApi/events'
 import shell from '@/services/nativeApi/shell'
@@ -365,7 +365,7 @@ export const useEditorStore = defineStore('editor', {
         const { pathname } = this.tabs[index]
 
         if (pathname) {
-          app.send('mt::window-tab-closed', pathname)
+          appApi.notifyWindowTabClosed(pathname)
         }
 
         this.tabs.splice(index, 1)
@@ -432,7 +432,7 @@ export const useEditorStore = defineStore('editor', {
       })
     },
     FORMAT_LINK_CLICK ({ data, dirname }) {
-      app.send('mt::format-link-click', { data, dirname })
+      appApi.notifyFormatLinkClick({ data, dirname })
     },
     LISTEN_SCREEN_SHOT () {
       events.on('mt::screenshot-captured', () => {
@@ -453,7 +453,7 @@ export const useEditorStore = defineStore('editor', {
       events.once(`mt::response-of-image-path-${id}`, (event, files) => {
         resolveResult(files)
       })
-      app.send('mt::ask-for-image-auto-path', { pathname, src, id })
+      appApi.requestImageAutoPath({ pathname, src, id })
       return promise
     },
     SEARCH (value) {
@@ -474,20 +474,20 @@ export const useEditorStore = defineStore('editor', {
       this.REMOVE_FILE_WITHIN_TABS(file)
       const { pathname } = file
       if (pathname) {
-        app.send('mt::window-tab-closed', pathname)
+        appApi.notifyWindowTabClosed(pathname)
       }
     },
     UPDATE_LINE_ENDING_MENU () {
       const { lineEnding } = this.currentFile
       if (lineEnding) {
         const { windowId } = getRuntime().env
-        app.send('mt::update-line-ending-menu', windowId, lineEnding)
+        appApi.updateLineEndingMenu(windowId, lineEnding)
       }
     },
     CLOSE_UNSAVED_TAB (file) {
       const { id, pathname, filename, markdown } = file
       const options = getOptionsFromState(file)
-      app.send('mt::save-and-close-tabs', [{ id, pathname, filename, markdown, options }])
+      appApi.saveAndCloseTabs([{ id, pathname, filename, markdown, options }])
     },
     LISTEN_FOR_SAVE () {
       events.on('mt::editor-ask-file-save', () => {
@@ -495,7 +495,7 @@ export const useEditorStore = defineStore('editor', {
         const options = getOptionsFromState(this.currentFile)
         const defaultPath = getRootFolderFromProjectStore(useProjectStore(this.$pinia))
         if (id) {
-          app.send('mt::response-file-save', {
+          appApi.respondFileSave({
             id,
             filename,
             pathname,
@@ -512,7 +512,7 @@ export const useEditorStore = defineStore('editor', {
         const options = getOptionsFromState(this.currentFile)
         const defaultPath = getRootFolderFromProjectStore(useProjectStore(this.$pinia))
         if (id) {
-          app.send('mt::response-file-save-as', {
+          appApi.respondFileSaveAs({
             id,
             filename,
             pathname,
@@ -578,9 +578,9 @@ export const useEditorStore = defineStore('editor', {
           })
 
         if (unsavedFiles.length) {
-          app.send('mt::close-window-confirm', unsavedFiles)
+          appApi.closeWindowConfirm(unsavedFiles)
         } else {
-          app.send('mt::close-window')
+          appApi.forceCloseWindow()
         }
       })
     },
@@ -603,12 +603,12 @@ export const useEditorStore = defineStore('editor', {
       if (closeTabs) {
         if (unsavedFiles.length) {
           this.CLOSE_TABS(this.tabs.filter(file => file.isSaved).map(file => file.id))
-          app.send('mt::save-and-close-tabs', unsavedFiles)
+          appApi.saveAndCloseTabs(unsavedFiles)
         } else {
           this.CLOSE_TABS(this.tabs.map(file => file.id))
         }
       } else {
-        app.send('mt::save-tabs', unsavedFiles)
+        appApi.saveTabs(unsavedFiles)
       }
     },
     LISTEN_FOR_MOVE_TO () {
@@ -618,7 +618,7 @@ export const useEditorStore = defineStore('editor', {
         const defaultPath = getRootFolderFromProjectStore(useProjectStore(this.$pinia))
         if (!id) return
         if (!pathname) {
-          app.send('mt::response-file-save', {
+          appApi.respondFileSave({
             id,
             filename,
             pathname,
@@ -627,7 +627,7 @@ export const useEditorStore = defineStore('editor', {
             defaultPath
           })
         } else {
-          app.send('mt::response-file-move-to', { id, pathname })
+          appApi.respondFileMoveTo({ id, pathname })
         }
       })
     },
@@ -642,7 +642,7 @@ export const useEditorStore = defineStore('editor', {
       const defaultPath = getRootFolderFromProjectStore(useProjectStore(this.$pinia))
       if (!id) return
       if (!pathname) {
-        app.send('mt::response-file-save', {
+        appApi.respondFileSave({
           id,
           filename,
           pathname,
@@ -658,7 +658,7 @@ export const useEditorStore = defineStore('editor', {
       const { id, pathname, filename } = this.currentFile
       if (typeof filename === 'string' && filename !== newFilename) {
         const newPathname = path.join(path.dirname(pathname), newFilename)
-        app.send('mt::rename', { id, pathname, newPathname })
+        appApi.renameFile({ id, pathname, newPathname })
       }
     },
     UPDATE_CURRENT_FILE (currentFile) {
@@ -677,7 +677,7 @@ export const useEditorStore = defineStore('editor', {
         bus.$emit('cmd::register-command', new TrailingNewlineCommand(this))
 
         setTimeout(() => {
-          app.send('mt::request-keybindings')
+          appApi.requestKeybindings()
           bus.$emit('cmd::sort-commands')
         }, 100)
       }, 400)
@@ -986,7 +986,7 @@ export const useEditorStore = defineStore('editor', {
         const tab = this.tabs.find(entry => entry.id === id)
         if (tab && !tab.isSaved) {
           const defaultPath = getRootFolderFromProjectStore(useProjectStore(this.$pinia))
-          app.send('mt::response-file-save', {
+          appApi.respondFileSave({
             id,
             filename,
             pathname,
@@ -1010,11 +1010,11 @@ export const useEditorStore = defineStore('editor', {
       }
 
       const { windowId } = getRuntime().env
-      app.send('mt::editor-selection-changed', windowId, createApplicationMenuState(changes))
+      appApi.reportSelectionChange(windowId, createApplicationMenuState(changes))
     },
     SELECTION_FORMATS (formats) {
       const { windowId } = getRuntime().env
-      app.send('mt::update-format-menu', windowId, createSelectionFormatState(formats))
+      appApi.updateFormatMenu(windowId, createSelectionFormatState(formats))
     },
     EXPORT ({ type, content, pageOptions }) {
       if (!hasKeys(this.currentFile)) return
@@ -1037,7 +1037,7 @@ export const useEditorStore = defineStore('editor', {
       }
 
       const { filename, pathname } = this.currentFile
-      app.send('mt::response-export', {
+      appApi.respondExport({
         type,
         title,
         content,
@@ -1059,7 +1059,7 @@ export const useEditorStore = defineStore('editor', {
       })
     },
     PRINT_RESPONSE () {
-      app.send('mt::response-print')
+      appApi.respondPrint()
     },
     LINTEN_FOR_PRINT_SERVICE_CLEARUP () {
       events.on('mt::print-service-clearup', () => {
@@ -1154,7 +1154,7 @@ export const useEditorStore = defineStore('editor', {
       })
     },
     ASK_FOR_IMAGE_PATH () {
-      return app.invoke('mt::ask-for-image-path')
+      return appApi.askForImagePath()
     },
     LISTEN_WINDOW_ZOOM () {
       events.on('mt::window-zoom', (event, zoomFactor) => {

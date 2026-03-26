@@ -20,31 +20,69 @@ describe('renderer native API facade', () => {
       'fonts',
       'keyboard',
       'menu',
+      'preferences',
+      'project',
       'runtime',
       'search',
       'shell',
+      'spellchecker',
       'window'
     ])
   })
 
-  it('exposes the app and events bridge contract', () => {
+  it('exposes the typed app, preferences, project, spellchecker, and events bridge contract', () => {
     expect(typeof nativeApi.app.openSettingsWindow).toBe('function')
-    expect(typeof nativeApi.app.send).toBe('function')
+    expect(typeof nativeApi.app.openFile).toBe('function')
+    expect(typeof nativeApi.app.openFilePath).toBe('function')
+    expect(typeof nativeApi.app.openFileByWindowId).toBe('function')
+    expect(typeof nativeApi.app.dropFiles).toBe('function')
+    expect(typeof nativeApi.app.requestKeybindings).toBe('function')
+    expect(typeof nativeApi.app.getPreferenceKeybindings).toBe('function')
+    expect(typeof nativeApi.app.saveUserKeybindings).toBe('function')
+    expect(typeof nativeApi.app.respondFileSave).toBe('function')
+    expect(typeof nativeApi.app.notifyRendererReady).toBe('function')
+    expect(nativeApi.app.send).toBeUndefined()
     expect(nativeApi.app.sendSync).toBeUndefined()
-    expect(typeof nativeApi.app.invoke).toBe('function')
+    expect(nativeApi.app.invoke).toBeUndefined()
+
+    expect(typeof nativeApi.preferences.requestUserPreference).toBe('function')
+    expect(typeof nativeApi.project.openInSidebar).toBe('function')
+    expect(typeof nativeApi.spellchecker.getAvailableDictionaries).toBe('function')
+    expect(typeof nativeApi.spellchecker.getCustomDictionaryWords).toBe('function')
 
     expect(typeof nativeApi.events.on).toBe('function')
     expect(typeof nativeApi.events.once).toBe('function')
     expect(typeof nativeApi.events.off).toBe('function')
     expect(typeof nativeApi.events.emit).toBe('function')
 
+    expect(typeof nativeApi.filesystem.trashItem).toBe('function')
     expect(typeof nativeApi.fonts.listFamilies).toBe('function')
 
     expect(typeof nativeApi.keyboard.getInfo).toBe('function')
     expect(typeof nativeApi.keyboard.dumpInfo).toBe('function')
   })
 
-  it('declares fonts and keyboard on the preload bridge contract', () => {
+  it('declares typed bridge modules on the preload bridge contract', () => {
+    expect(preloadSource).toContain('app:')
+    expect(preloadSource).toContain('openFile:')
+    expect(preloadSource).toContain('openFilePath:')
+    expect(preloadSource).toContain('openFileByWindowId:')
+    expect(preloadSource).toContain('dropFiles:')
+    expect(preloadSource).toContain('requestKeybindings:')
+    expect(preloadSource).toContain('getPreferenceKeybindings:')
+    expect(preloadSource).toContain('saveUserKeybindings:')
+    expect(preloadSource).toContain('respondFileSave:')
+    expect(preloadSource).toContain('notifyRendererReady:')
+    expect(preloadSource).toContain('preferences:')
+    expect(preloadSource).toContain('requestUserPreference:')
+    expect(preloadSource).toContain('project:')
+    expect(preloadSource).toContain('openInSidebar:')
+    expect(preloadSource).toContain('spellchecker:')
+    expect(preloadSource).toContain('getAvailableDictionaries:')
+    expect(preloadSource).toContain('getCustomDictionaryWords:')
+    expect(preloadSource).not.toContain('send: (channel')
+    expect(preloadSource).not.toContain('invoke: (channel')
+
     expect(preloadSource).toContain('fonts:')
     expect(preloadSource).toContain("mt::fonts-list-families")
     expect(preloadSource).toContain('keyboard:')
@@ -52,19 +90,48 @@ describe('renderer native API facade', () => {
     expect(preloadSource).toContain("mt::keyboard-dump-info")
   })
 
-  it('routes app and event operations through the bridge contract', async () => {
+  it('routes typed app, preferences, project, spellchecker, and event operations through the bridge contract', async () => {
     const eventCalls = []
     const unsubscribe = () => {}
-    const invokeResult = Promise.resolve({ ok: true })
+    const preferenceKeybindings = Promise.resolve({ defaultKeybindings: [], userKeybindings: [] })
+    const saveResult = Promise.resolve(true)
+    const dictionariesResult = Promise.resolve(['en-US'])
+    const customWordsResult = Promise.resolve(['teh'])
     const handler = () => {}
 
     window.mtNative = {
       app: {
         openSettingsWindow: () => eventCalls.push(['openSettingsWindow']),
-        send: (channel, ...args) => eventCalls.push(['send', channel, ...args]),
-        invoke: (channel, ...args) => {
-          eventCalls.push(['invoke', channel, ...args])
-          return invokeResult
+        openFile: () => eventCalls.push(['openFile']),
+        openFilePath: (pathname, options) => eventCalls.push(['openFilePath', pathname, options]),
+        openFileByWindowId: (windowId, pathname) => eventCalls.push(['openFileByWindowId', windowId, pathname]),
+        dropFiles: files => eventCalls.push(['dropFiles', files]),
+        requestKeybindings: () => eventCalls.push(['requestKeybindings']),
+        getPreferenceKeybindings: () => {
+          eventCalls.push(['getPreferenceKeybindings'])
+          return preferenceKeybindings
+        },
+        saveUserKeybindings: keybindings => {
+          eventCalls.push(['saveUserKeybindings', keybindings])
+          return saveResult
+        },
+        respondFileSave: payload => eventCalls.push(['respondFileSave', payload]),
+        notifyRendererReady: () => eventCalls.push(['notifyRendererReady'])
+      },
+      preferences: {
+        requestUserPreference: () => eventCalls.push(['requestUserPreference'])
+      },
+      project: {
+        openInSidebar: () => eventCalls.push(['openInSidebar'])
+      },
+      spellchecker: {
+        getAvailableDictionaries: () => {
+          eventCalls.push(['getAvailableDictionaries'])
+          return dictionariesResult
+        },
+        getCustomDictionaryWords: () => {
+          eventCalls.push(['getCustomDictionaryWords'])
+          return customWordsResult
         }
       },
       events: {
@@ -79,20 +146,48 @@ describe('renderer native API facade', () => {
     }
 
     nativeApi.app.openSettingsWindow()
-    nativeApi.app.send('mt::channel', 1, 2)
-    const result = nativeApi.app.invoke('mt::invoke-channel', 3)
+    nativeApi.app.openFile()
+    nativeApi.app.openFilePath('/tmp/demo.md', { autoFocus: true })
+    nativeApi.app.openFileByWindowId(7, '/tmp/by-window.md')
+    nativeApi.app.dropFiles(['/tmp/a.md', '/tmp/b.md'])
+    nativeApi.app.requestKeybindings()
+    const keybindings = nativeApi.app.getPreferenceKeybindings()
+    const save = nativeApi.app.saveUserKeybindings(new Map([['file.save', 'Ctrl+S']]))
+    nativeApi.app.respondFileSave({ id: 'tab-1' })
+    nativeApi.app.notifyRendererReady()
+    nativeApi.preferences.requestUserPreference()
+    nativeApi.project.openInSidebar()
+    const dictionaries = nativeApi.spellchecker.getAvailableDictionaries()
+    const customWords = nativeApi.spellchecker.getCustomDictionaryWords()
     const stopListening = nativeApi.events.on('mt::event-channel', handler)
     nativeApi.events.once('mt::event-once', handler)
     nativeApi.events.off('mt::event-off', handler)
     nativeApi.events.emit('mt::event-emit', 'payload')
 
-    expect(result).toBe(invokeResult)
-    expect(await result).toEqual({ ok: true })
+    expect(keybindings).toBe(preferenceKeybindings)
+    expect(await keybindings).toEqual({ defaultKeybindings: [], userKeybindings: [] })
+    expect(save).toBe(saveResult)
+    expect(await save).toBe(true)
+    expect(dictionaries).toBe(dictionariesResult)
+    expect(await dictionaries).toEqual(['en-US'])
+    expect(customWords).toBe(customWordsResult)
+    expect(await customWords).toEqual(['teh'])
     expect(stopListening).toBe(unsubscribe)
     expect(eventCalls).toEqual([
       ['openSettingsWindow'],
-      ['send', 'mt::channel', 1, 2],
-      ['invoke', 'mt::invoke-channel', 3],
+      ['openFile'],
+      ['openFilePath', '/tmp/demo.md', { autoFocus: true }],
+      ['openFileByWindowId', 7, '/tmp/by-window.md'],
+      ['dropFiles', ['/tmp/a.md', '/tmp/b.md']],
+      ['requestKeybindings'],
+      ['getPreferenceKeybindings'],
+      ['saveUserKeybindings', new Map([['file.save', 'Ctrl+S']])],
+      ['respondFileSave', { id: 'tab-1' }],
+      ['notifyRendererReady'],
+      ['requestUserPreference'],
+      ['openInSidebar'],
+      ['getAvailableDictionaries'],
+      ['getCustomDictionaryWords'],
       ['on', 'mt::event-channel', handler],
       ['once', 'mt::event-once', handler],
       ['off', 'mt::event-off', handler],
@@ -236,6 +331,10 @@ describe('renderer native API facade', () => {
       calls.push(['create', pathname, type])
       return Promise.resolve()
     }
+    const trashItem = pathname => {
+      calls.push(['trashItem', pathname])
+      return Promise.resolve(true)
+    }
     const searchText = (directories, pattern, options) => {
       calls.push(['searchText', directories, pattern, options])
       return Promise.resolve([{ filePath: '/tmp/demo.md', matches: [] }])
@@ -247,7 +346,8 @@ describe('renderer native API facade', () => {
 
     window.mtNative = {
       filesystem: {
-        create
+        create,
+        trashItem
       },
       search: {
         cancel,
@@ -256,13 +356,16 @@ describe('renderer native API facade', () => {
     }
 
     await nativeApi.filesystem.create('/tmp/demo', 'directory')
+    const trashed = await nativeApi.filesystem.trashItem('/tmp/demo.md')
     const result = await nativeApi.search.searchText(['/tmp'], 'demo', { isRegexp: false })
     const canceled = await nativeApi.search.cancel('search:1')
 
     expect(result).toHaveLength(1)
+    expect(trashed).toBe(true)
     expect(canceled).toBe(true)
     expect(calls).toEqual([
       ['create', '/tmp/demo', 'directory'],
+      ['trashItem', '/tmp/demo.md'],
       ['searchText', ['/tmp'], 'demo', { isRegexp: false }],
       ['cancel', 'search:1']
     ])

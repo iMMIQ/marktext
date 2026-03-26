@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import bus from '@/bus'
-import app from '@/services/nativeApi/app'
 import events from '@/services/nativeApi/events'
+import preferencesApi from '@/services/nativeApi/preferences'
 import { getRuntime } from '@/services/runtime'
 
 let isUserPreferenceListenerBound = false
@@ -131,34 +131,34 @@ export const usePreferencesStore = defineStore('preferences', {
         isUserPreferenceListenerBound = true
       }
 
-      app.send('mt::ask-for-user-preference')
-      app.send('mt::ask-for-user-data')
+      preferencesApi.requestUserPreference()
+      preferencesApi.requestUserData()
     },
     setSinglePreference ({ type, value }) {
       if (Object.prototype.hasOwnProperty.call(this.$state, type)) {
         this[type] = value
       }
-      app.send('mt::set-user-preference', { [type]: value })
+      preferencesApi.setUserPreference({ [type]: value })
     },
     setUserData ({ type, value }) {
       if (Object.prototype.hasOwnProperty.call(this.$state, type)) {
         this[type] = value
       }
-      app.send('mt::set-user-data', { [type]: value })
+      preferencesApi.setUserData({ [type]: value })
     },
     setImageFolderPath (value) {
       if (typeof value === 'string' && Object.prototype.hasOwnProperty.call(this.$state, 'imageFolderPath')) {
         this.imageFolderPath = value
       }
-      app.send('mt::ask-for-modify-image-folder-path', value)
+      preferencesApi.setImageFolderPath(value)
     },
     selectDefaultDirectoryToOpen () {
-      app.send('mt::select-default-directory-to-open')
+      preferencesApi.selectDefaultDirectoryToOpen()
     },
     dispatchEditorViewState (viewState) {
       const windowId = getWindowId()
       if (windowId !== null) {
-        app.send('mt::view-layout-changed', windowId, viewState)
+        preferencesApi.notifyViewLayoutChanged(windowId, viewState)
       }
     },
     bindViewEvents () {

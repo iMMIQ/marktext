@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import notice from '@/services/notification'
-import app from '@/services/nativeApi/app'
+import appApi from '@/services/nativeApi/app'
 import events from '@/services/nativeApi/events'
 
 let isUpdateListenerBound = false
@@ -46,10 +46,10 @@ export const useAutoUpdatesStore = defineStore('autoUpdates', {
           showConfirm: true
         })
           .then(() => {
-            app.send('mt::NEED_UPDATE', { needUpdate: true })
+            appApi.notifyNeedUpdate({ needUpdate: true })
           })
           .catch(() => {
-            app.send('mt::NEED_UPDATE', { needUpdate: false })
+            appApi.notifyNeedUpdate({ needUpdate: false })
           })
       })
 

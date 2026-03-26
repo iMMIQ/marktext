@@ -64,7 +64,7 @@ export const fileMixins = {
           eventBus.$emit('file-changed', { id, markdown, cursor, renderCursor: true, history })
         }
       } else {
-        this.$nativeApi.app.send('mt::open-file', filePath, {
+        this.$nativeApi.app.openFilePath(filePath, {
           cursor
         })
       }
@@ -80,7 +80,7 @@ export const fileMixins = {
         }
         editorStore.updateCurrentFile(openedTab)
       } else {
-        this.$nativeApi.app.send('mt::open-file', pathname, {})
+        this.$nativeApi.app.openFilePath(pathname, {})
       }
     }
   }

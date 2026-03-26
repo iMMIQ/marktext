@@ -76,7 +76,7 @@ export default {
         for (const file of e.dataTransfer.files) {
           fileList.push(file.path)
         }
-        this.$nativeApi.app.send('mt::window::drop', fileList)
+        this.$nativeApi.app.dropFiles(fileList)
       }
     }
   }
