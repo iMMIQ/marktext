@@ -615,7 +615,7 @@ const commands = [
   {
     id: 'file.preferences',
     execute: async () => {
-      app.openSettingsWindow()
+      appApi.openSettingsWindow()
     }
   }, {
     id: 'file.quit',
