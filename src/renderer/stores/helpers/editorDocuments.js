@@ -41,7 +41,12 @@ export const defaultFileState = {
 
 export const getOptionsFromState = file => {
   const { encoding, lineEnding, adjustLineEndingOnSave, trimTrailingNewline } = file
-  return { encoding, lineEnding, adjustLineEndingOnSave, trimTrailingNewline }
+  return {
+    encoding: encoding ? cloneObj(encoding, true) : encoding,
+    lineEnding,
+    adjustLineEndingOnSave,
+    trimTrailingNewline
+  }
 }
 
 export const getFileStateFromData = data => {
