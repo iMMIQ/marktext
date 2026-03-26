@@ -10,6 +10,10 @@ const buildDoc = fs.readFileSync(path.join(root, 'docs/dev/BUILD.md'), 'utf8')
 const releaseDoc = fs.readFileSync(path.join(root, 'docs/dev/RELEASE.md'), 'utf8')
 const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8')
 const nvmrc = fs.readFileSync(path.join(root, '.nvmrc'), 'utf8').trim()
+const i18nDocs = fs.readdirSync(path.join(root, 'docs/i18n'))
+  .filter(file => file.endsWith('.md'))
+  .map(file => fs.readFileSync(path.join(root, 'docs/i18n', file), 'utf8'))
+  .join('\n')
 
 const getSetupNodeSteps = workflow => {
   const steps = []
@@ -55,5 +59,6 @@ describe('phase 5 docs and CI contract', () => {
     expect(buildDoc).not.toMatch(/>=v16|<v17|unit:vite/)
     expect(releaseDoc).not.toMatch(/AppVeyor|Travis CI/)
     expect(readme).not.toMatch(/travis-ci\.org|ci\.appveyor\.com/)
+    expect(i18nDocs).not.toMatch(/travis-ci\.org|ci\.appveyor\.com|AppVeyor|Travis CI/)
   })
 })

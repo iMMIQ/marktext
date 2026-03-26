@@ -66,13 +66,11 @@ const fileUsesGenericRendererBridge = ({ content }) => {
   }
 
   const nativeApiImport = content.match(/import\s+([A-Za-z_$][\w$]*)\s+from\s+['"][^'"]*nativeApi\/app['"]/)
-  if (!nativeApiImport) {
-    return false
-  }
-
-  const importedIdentifier = nativeApiImport[1]
-  if (new RegExp(`\\b${importedIdentifier}\\.(send|invoke)\\(`).test(content)) {
-    return true
+  if (nativeApiImport) {
+    const importedIdentifier = nativeApiImport[1]
+    if (new RegExp(`\\b${importedIdentifier}\\.(send|invoke)\\(`).test(content)) {
+      return true
+    }
   }
 
   const aggregateNativeApiImport = content.match(/import\s+([A-Za-z_$][\w$]*)\s+from\s+['"][^'"]*nativeApi(?:\/index)?['"]/)
@@ -81,7 +79,11 @@ const fileUsesGenericRendererBridge = ({ content }) => {
   }
 
   const aggregateIdentifier = aggregateNativeApiImport[1]
-  return new RegExp(`\\b${aggregateIdentifier}\\.app\\.(send|invoke)\\(`).test(content)
+  if (new RegExp(`\\b${aggregateIdentifier}\\.app\\.(send|invoke)\\(`).test(content)) {
+    return true
+  }
+
+  return false
 }
 
 describe('phase 5 store and bridge boundary', () => {
