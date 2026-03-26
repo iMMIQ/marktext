@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import events from '@/services/nativeApi/events'
 import { getRuntime } from '@/services/runtime'
-import { createLegacyState } from './index'
+
+let isWindowStatusListenerBound = false
 
 const createAppState = () => {
   let runtime = { platform: '', appVersion: '' }
@@ -9,7 +10,7 @@ const createAppState = () => {
   try {
     runtime = getRuntime()
   } catch (_) {
-    // Allow Pinia bridge tests to initialize stores without bootstrapping the renderer runtime.
+    // Allow tests to initialize stores without bootstrapping the renderer runtime.
   }
 
   return {
@@ -21,38 +22,19 @@ const createAppState = () => {
 }
 
 export const useAppStore = defineStore('app', {
-  state: createLegacyState(createAppState()),
+  state: createAppState,
   actions: {
-    dispatch (type, payload) {
-      if (typeof this[type] !== 'function') {
-        throw new Error(`Unknown app action: ${type}`)
+    bindWindowStatusListener () {
+      if (isWindowStatusListenerBound) {
+        return
       }
-      return this[type](payload)
-    },
-    commit (type, payload) {
-      if (typeof this[type] !== 'function') {
-        throw new Error(`Unknown app mutation: ${type}`)
-      }
-      return this[type](payload)
-    },
-    LINTEN_WIN_STATUS () {
-      events.on('mt::window-active-status', (e, { status }) => {
-        this.SET_WIN_STATUS(status)
+
+      events.on('mt::window-active-status', (event, { status }) => {
+        this.windowActive = status
       })
+      isWindowStatusListenerBound = true
     },
-    SEND_INITIALIZED () {
-      this.SET_INITIALIZED()
-    },
-    SET_WIN_STATUS (status) {
-      this.setWinStatus(status)
-    },
-    SET_INITIALIZED () {
-      this.setInitialized()
-    },
-    setWinStatus (status) {
-      this.windowActive = status
-    },
-    setInitialized () {
+    markInitialized () {
       this.init = true
     }
   }

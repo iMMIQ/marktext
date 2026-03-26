@@ -1,9 +1,59 @@
 import { defineStore } from 'pinia'
-import moduleAutoUpdates from './modules/autoUpdates'
-import { createLegacyState } from './index'
-import { createModuleStoreActions } from './moduleDispatcher'
+import notice from '@/services/notification'
+import app from '@/services/nativeApi/app'
+import events from '@/services/nativeApi/events'
+
+let isUpdateListenerBound = false
 
 export const useAutoUpdatesStore = defineStore('autoUpdates', {
-  state: createLegacyState(moduleAutoUpdates.state),
-  actions: createModuleStoreActions()
+  state: () => ({}),
+  actions: {
+    bindUpdateEvents () {
+      if (isUpdateListenerBound) {
+        return
+      }
+
+      events.on('mt::UPDATE_ERROR', (event, message) => {
+        notice.notify({
+          title: 'Update',
+          type: 'error',
+          time: 10000,
+          message
+        })
+      })
+
+      events.on('mt::UPDATE_NOT_AVAILABLE', (event, message) => {
+        notice.notify({
+          title: 'Update not Available',
+          type: 'primary',
+          message
+        })
+      })
+
+      events.on('mt::UPDATE_DOWNLOADED', (event, message) => {
+        notice.notify({
+          title: 'Update Downloaded',
+          type: 'info',
+          message
+        })
+      })
+
+      events.on('mt::UPDATE_AVAILABLE', (event, message) => {
+        notice.notify({
+          title: 'Update Available',
+          type: 'primary',
+          message,
+          showConfirm: true
+        })
+          .then(() => {
+            app.send('mt::NEED_UPDATE', { needUpdate: true })
+          })
+          .catch(() => {
+            app.send('mt::NEED_UPDATE', { needUpdate: false })
+          })
+      })
+
+      isUpdateListenerBound = true
+    }
+  }
 })

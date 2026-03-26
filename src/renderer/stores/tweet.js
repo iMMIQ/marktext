@@ -1,9 +1,24 @@
 import { defineStore } from 'pinia'
-import moduleTweet from './modules/tweet'
-import { createLegacyState } from './index'
-import { createModuleStoreActions } from './moduleDispatcher'
+import bus from '@/bus'
+import events from '@/services/nativeApi/events'
+
+let isTweetListenerBound = false
 
 export const useTweetStore = defineStore('tweet', {
-  state: createLegacyState(moduleTweet.state),
-  actions: createModuleStoreActions()
+  state: () => ({}),
+  actions: {
+    bindTweetEvents () {
+      if (isTweetListenerBound) {
+        return
+      }
+
+      events.on('mt::tweet', (event, type) => {
+        if (type === 'twitter') {
+          bus.$emit('tweetDialog')
+        }
+      })
+
+      isTweetListenerBound = true
+    }
+  }
 })

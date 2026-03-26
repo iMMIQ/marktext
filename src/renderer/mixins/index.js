@@ -8,16 +8,16 @@ export const tabsMixins = {
     selectFile (file) {
       const editorStore = useEditorStore()
       if (file.id !== this.currentFile.id) {
-        editorStore.dispatch('UPDATE_CURRENT_FILE', file)
+        editorStore.updateCurrentFile(file)
       }
     },
     removeFileInTab (file) {
       const editorStore = useEditorStore()
       const { isSaved } = file
       if (isSaved) {
-        editorStore.dispatch('FORCE_CLOSE_TAB', file)
+        editorStore.forceCloseTab(file)
       } else {
-        editorStore.dispatch('CLOSE_UNSAVED_TAB', file)
+        editorStore.closeUnsavedTab(file)
       }
     }
   }
@@ -58,7 +58,7 @@ export const fileMixins = {
       if (openedTab) {
         openedTab.cursor = cursor
         if (this.currentFile !== openedTab) {
-          editorStore.dispatch('UPDATE_CURRENT_FILE', openedTab)
+          editorStore.updateCurrentFile(openedTab)
         } else {
           const { id, markdown, cursor, history } = this.currentFile
           eventBus.$emit('file-changed', { id, markdown, cursor, renderCursor: true, history })
@@ -78,7 +78,7 @@ export const fileMixins = {
         if (this.currentFile === openedTab) {
           return
         }
-        editorStore.dispatch('UPDATE_CURRENT_FILE', openedTab)
+        editorStore.updateCurrentFile(openedTab)
       } else {
         this.$nativeApi.app.send('mt::open-file', pathname, {})
       }
@@ -102,7 +102,7 @@ export const createFileOrDirectoryMixins = {
     handleInputEnter () {
       const projectStore = useProjectStore()
       const { createName } = this
-      projectStore.dispatch('CREATE_FILE_DIRECTORY', createName)
+      projectStore.createFileDirectory(createName)
     }
   }
 }
