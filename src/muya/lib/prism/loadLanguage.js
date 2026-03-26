@@ -1,6 +1,8 @@
 import components from 'prismjs/components.js'
 import getLoader from 'prismjs/dependencies'
 import { getDefer } from '../utils'
+
+const prismComponentLoaders = import.meta.glob('../../../../node_modules/prismjs/components/prism-*.js')
 /**
  * The set of all languages which have been loaded using the below function.
  *
@@ -72,7 +74,15 @@ function initLoadLanguage (Prism) {
         })
       } else {
         delete Prism.languages[lang]
-        await import('prismjs/components/prism-' + lang)
+        const loader = prismComponentLoaders[`../../../../node_modules/prismjs/components/prism-${lang}.js`]
+        if (!loader) {
+          defer.resolve({
+            lang,
+            status: 'noexist'
+          })
+          return
+        }
+        await loader()
         defer.resolve({
           lang,
           status: 'loaded'
