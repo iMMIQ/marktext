@@ -9,6 +9,7 @@ import {
   h as sh,
   toVNode as sToVNode
 } from 'snabbdom'
+import toHTML from 'snabbdom-to-html'
 
 export const patch = init([
   classModule,
@@ -21,8 +22,8 @@ export const patch = init([
 
 export const h = sh
 export const toVNode = sToVNode
+export { toHTML }
 
-export const toHTML = require('snabbdom-to-html') // helper function for convert vnode to HTML string
 export const htmlToVNode = html => { // helper function for convert html to vnode
   const wrapper = document.createElement('div')
   wrapper.innerHTML = html

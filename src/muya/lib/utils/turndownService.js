@@ -1,11 +1,9 @@
 import TurndownService from 'turndown'
+import { gfm } from 'joplin-turndown-plugin-gfm'
 import { identity } from './index'
-
-const turndownPluginGfm = require('joplin-turndown-plugin-gfm')
 
 export const usePluginAddRules = (turndownService, keeps) => {
   // Use the gfm plugin
-  const { gfm } = turndownPluginGfm
   turndownService.use(gfm)
 
   // We need a extra strikethrough rule because the strikethrough rule in gfm is single `~`.

@@ -1,3 +1,4 @@
+import path from 'path'
 import runSanitize from './dompurify'
 import { URL_REG, DATA_URL_REG, IMAGE_EXT_REG } from '../config'
 export { getUniqueId, getLongUniqueId } from './random'
@@ -276,7 +277,7 @@ export const getImageInfo = (src, baseUrl = window.DIRNAME) => {
       // NOTE: We don't need to convert Windows styled path to UNIX style because Chromium handels this internal.
       return {
         isUnknownType: false,
-        src: 'file://' + require('path').resolve(baseUrl, src)
+        src: 'file://' + path.resolve(baseUrl, src)
       }
     }
   } else if (isUrl && !imageExtension) {

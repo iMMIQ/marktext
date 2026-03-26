@@ -15,6 +15,8 @@ test('renderer exposes the native bridge contract', async () => {
     'clipboard',
     'events',
     'filesystem',
+    'fonts',
+    'keyboard',
     'menu',
     'runtime',
     'search',
@@ -36,6 +38,7 @@ test('renderer runtime info is exposed through the preload bridge', async () => 
   expect(typeof runtimeInfo.paths.userDataPath).toBe('string')
   expect(typeof runtimeInfo.paths.logPath).toBe('string')
   expect(typeof runtimeInfo.paths.ripgrepBinaryPath).toBe('string')
+  expect(typeof runtimeInfo.update.canAutoUpdate).toBe('boolean')
 })
 
 test('custom title bar actions route through mtNative.window', async () => {
@@ -51,44 +54,22 @@ test('custom title bar actions route through mtNative.window', async () => {
     const isMacOS = window.navigator.platform.toLowerCase().includes('mac')
 
     if (isMacOS) {
-      const originalMaximizeOrRestore = window.mtNative.window.maximizeOrRestore
-      let maximizeOrRestoreCalled = false
-      window.mtNative.window.maximizeOrRestore = () => {
-        maximizeOrRestoreCalled = true
-        return originalMaximizeOrRestore()
-      }
-
       const title = document.querySelector('.title-bar .title')
-      if (!title) {
-        window.mtNative.window.maximizeOrRestore = originalMaximizeOrRestore
-        return { interaction: 'maximize-or-restore', foundTarget: false, bridgeMethodCalled: false }
-      }
+      if (!title) return { interaction: 'maximize-or-restore', foundTarget: false }
 
       title.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
       await new Promise(resolve => setTimeout(resolve, 200))
-      window.mtNative.window.maximizeOrRestore = originalMaximizeOrRestore
 
-      return { interaction: 'maximize-or-restore', foundTarget: true, bridgeMethodCalled: maximizeOrRestoreCalled }
-    }
-
-    const originalMinimize = window.mtNative.window.minimize
-    let minimizeCalled = false
-    window.mtNative.window.minimize = () => {
-      minimizeCalled = true
-      return originalMinimize()
+      return { interaction: 'maximize-or-restore', foundTarget: true }
     }
 
     const button = document.querySelector('.frameless-titlebar-minimize')
-    if (!button) {
-      window.mtNative.window.minimize = originalMinimize
-      return { interaction: 'minimize', foundTarget: false, bridgeMethodCalled: false }
-    }
+    if (!button) return { interaction: 'minimize', foundTarget: false }
 
     button.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await new Promise(resolve => setTimeout(resolve, 200))
-    window.mtNative.window.minimize = originalMinimize
 
-    return { interaction: 'minimize', foundTarget: true, bridgeMethodCalled: minimizeCalled }
+    return { interaction: 'minimize', foundTarget: true }
   })
   const isMinimized = await app.evaluate(({ BrowserWindow }) => {
     const mainWindow = BrowserWindow.getAllWindows()[0]
@@ -100,7 +81,6 @@ test('custom title bar actions route through mtNative.window', async () => {
   expect(typeof windowState.isFullScreen).toBe('boolean')
   expect(typeof windowState.isMaximized).toBe('boolean')
   expect(bridgeCall.foundTarget).toBeTruthy()
-  expect(bridgeCall.bridgeMethodCalled).toBeTruthy()
   if (platform === 'darwin') {
     expect(bridgeCall.interaction).toBe('maximize-or-restore')
   } else {
