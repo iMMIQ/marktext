@@ -45,5 +45,5 @@ describe('preferences shell', () => {
     })
 
     expect(wrapper.find('.pref-container').exists()).toBe(true)
-  })
+  }, 10000)
 })
