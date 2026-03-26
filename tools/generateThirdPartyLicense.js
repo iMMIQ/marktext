@@ -2,7 +2,7 @@
 
 const path = require('path')
 const fs = require('fs')
-const thirdPartyChecker = require('../.electron-vue/thirdPartyChecker.js')
+const thirdPartyChecker = require('./licenses/thirdPartyChecker')
 const rootDir = path.resolve(__dirname, '..')
 
 const additionalPackages = {
@@ -28,7 +28,6 @@ thirdPartyChecker.getLicenses(rootDir, (err, packages, checker) => {
   Object.keys(packages).forEach(key => {
     if (/^babel-helper-vue-jsx-merge-props/.test(key) ||
       /^marktext/.test(key)) {
-      // babel-helper-vue-jsx-merge-props: MIT licensed used by element-ui
       return
     }
 
