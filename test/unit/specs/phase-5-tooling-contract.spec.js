@@ -18,6 +18,7 @@ const allScriptCommands = Object.values(pkg.scripts).join('\n')
 const legacyAliasPattern = /\b(?:dev:vite|pack:vite|unit:vite)\b/
 const thirdPartyCheckerPattern = /\.electron-vue[\\/]thirdPartyChecker\.js/
 const movedThirdPartyCheckerPattern = /\.\/licenses\/thirdPartyChecker/
+const eslintSurface = 'src test tools *.config.js'
 const legacyElectronVueFiles = [
   '.electron-vue/preinstall.js',
   '.electron-vue/postinstall.js',
@@ -51,6 +52,10 @@ describe('phase 5 tooling contract', () => {
     expect(fs.existsSync(preflightPath)).toBe(true)
     expect(fs.existsSync(thirdPartyCheckerPath)).toBe(true)
     expect(pkg.scripts.preinstall).toBe('node tools/install/preflight.js')
+    expect(pkg.engines.node).toBe('24.x')
+    expect(pkg.scripts.lint).toContain(eslintSurface)
+    expect(pkg.scripts.format).toContain(`--fix ${eslintSurface}`)
+    expect(pkg.scripts['format:check']).toBe('yarn run lint')
     expect(validateLicenses).toMatch(movedThirdPartyCheckerPattern)
     expect(generateThirdPartyLicense).toMatch(movedThirdPartyCheckerPattern)
     expect(thirdPartyChecker).toContain('EPL-2.0')

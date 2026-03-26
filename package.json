@@ -6,7 +6,7 @@
   "license": "MIT",
   "main": "./dist/electron/main.js",
   "engines": {
-    "node": ">=24"
+    "node": "24.x"
   },
   "scripts": {
     "release": "echo 'Please run \"build\" or \"release:{linux,mac,win}\"' && exit 1",
@@ -21,7 +21,7 @@
     "e2e": "yarn run pack && cross-env MARKTEXT_EXIT_ON_ERROR=1 playwright test -c test/e2e/playwright.config.js test/e2e",
     "format": "eslint --ext .js,.vue -f ./node_modules/eslint-friendly-formatter --fix src test tools *.config.js",
     "format:check": "yarn run lint",
-    "lint": "eslint --ext .js,.vue -f ./node_modules/eslint-friendly-formatter src test",
+    "lint": "eslint --ext .js,.vue -f ./node_modules/eslint-friendly-formatter src test tools *.config.js",
     "lint:fix": "eslint --ext .js,.vue -f ./node_modules/eslint-friendly-formatter --fix src test",
     "pack": "yarn run pack:main && yarn run pack:renderer",
     "pack:main": "cross-env NODE_ENV=production vite build --config vite.main.config.js && cross-env NODE_ENV=production vite build --config vite.preload.config.js",
