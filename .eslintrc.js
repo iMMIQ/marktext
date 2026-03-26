@@ -1,11 +1,12 @@
 module.exports = {
   root: true,
+  parser: '@babel/eslint-parser',
   parserOptions: {
-    parser: '@babel/eslint-parser',
-    ecmaVersion: 11,
+    ecmaVersion: 'latest',
     ecmaFeatures: {
       impliedStrict: true
     },
+    requireConfigFile: false,
     sourceType: 'module'
   },
   env: {
@@ -60,6 +61,16 @@ module.exports = {
     }
   },
   overrides: [
+    {
+      files: ['**/*.vue'],
+      parser: 'vue-eslint-parser',
+      parserOptions: {
+        parser: '@babel/eslint-parser',
+        ecmaVersion: 'latest',
+        requireConfigFile: false,
+        sourceType: 'module'
+      }
+    },
     {
       files: ['src/renderer/**/*.{js,vue}'],
       rules: {

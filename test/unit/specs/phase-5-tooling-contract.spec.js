@@ -21,6 +21,7 @@ const legacyAliasPattern = /\b(?:dev:vite|pack:vite|unit:vite)\b/
 const thirdPartyCheckerPattern = /\.electron-vue[\\/]thirdPartyChecker\.js/
 const movedThirdPartyCheckerPattern = /\.\/licenses\/thirdPartyChecker/
 const eslintSurface = 'src test tools *.config.js'
+const legacyEslintPrefix = 'cross-env ESLINT_USE_FLAT_CONFIG=false eslint'
 const legacyElectronVueFiles = [
   '.electron-vue/preinstall.js',
   '.electron-vue/postinstall.js',
@@ -86,7 +87,10 @@ describe('phase 5 tooling contract', () => {
     expect(fs.existsSync(thirdPartyCheckerPath)).toBe(true)
     expect(pkg.scripts.preinstall).toBe('node tools/install/preflight.js')
     expect(pkg.engines.node).toBe('24.x')
+    expect(pkg.scripts.lint).toContain(legacyEslintPrefix)
     expect(pkg.scripts.lint).toContain(eslintSurface)
+    expect(pkg.scripts['lint:fix']).toContain(legacyEslintPrefix)
+    expect(pkg.scripts.format).toContain(legacyEslintPrefix)
     expect(pkg.scripts.format).toContain(`--fix ${eslintSurface}`)
     expect(pkg.scripts['format:check']).toBe('yarn run lint')
     expect(validateLicenses).toMatch(movedThirdPartyCheckerPattern)

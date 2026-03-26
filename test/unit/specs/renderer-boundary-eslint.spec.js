@@ -6,6 +6,17 @@ import { execFileSync } from 'child_process'
 
 const eslintBin = path.resolve(process.cwd(), 'node_modules/.bin/eslint')
 
+const parseEslintMessages = error => {
+  const stdout = error.stdout?.toString().trim()
+
+  if (stdout) {
+    return JSON.parse(stdout)[0].messages
+  }
+
+  const stderr = error.stderr?.toString().trim()
+  throw new Error(stderr || error.message)
+}
+
 const lintRendererSource = source => {
   const tempDir = fs.mkdtempSync(path.join(process.cwd(), 'src/renderer/__tmp-eslint-spec-'))
   const filePath = path.join(tempDir, 'Example.js')
@@ -24,12 +35,16 @@ const lintRendererSource = source => {
       filePath
     ], {
       cwd: process.cwd(),
+      env: {
+        ...process.env,
+        ESLINT_USE_FLAT_CONFIG: 'false'
+      },
       stdio: ['ignore', 'pipe', 'pipe']
     })
 
     return []
   } catch (error) {
-    return JSON.parse(error.stdout.toString())[0].messages
+    return parseEslintMessages(error)
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true })
   }
