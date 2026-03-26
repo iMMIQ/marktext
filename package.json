@@ -163,8 +163,8 @@
     "webpack-cli": "^7.0.2"
   },
   "resolutions": {
-    "node-abi": "^3.89.0",
-    "node-addon-api": "^4.3.0"
+    "node-abi": "^4.28.0",
+    "node-addon-api": "^8.7.0"
   },
   "repository": {
     "type": "git",
