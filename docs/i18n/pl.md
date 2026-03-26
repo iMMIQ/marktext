@@ -27,10 +27,6 @@
   <a href="https://marktext.github.io/website">
     <img src="https://img.shields.io/github/license/marktext/marktext.svg" alt="LICENSE">
   </a>
-  <!-- Build Status -->
-  <a href="https://marktext.github.io/website">
-    <img src="https://travis-ci.org/marktext/marktext.svg?branch=master" alt="build">
-  </a>
   <!-- Downloads total -->
   <a href="https://marktext.github.io/website">
     <img src="https://img.shields.io/github/downloads/marktext/marktext/total.svg" alt="total download">

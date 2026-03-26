@@ -56,7 +56,7 @@ Copy the build app to applications folder, or if on Windows run the executable i
 ### Additional Scripts
 
 ```
-$ yarn run <script> # or npm run <script>
+$ yarn run <script>
 ```
 
 | Script          | Description                                      |
