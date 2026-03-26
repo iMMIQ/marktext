@@ -30,14 +30,21 @@ const rendererFiles = walk(rendererRoot)
     content: fs.readFileSync(file, 'utf8')
   }))
 
-const preloadHasGenericBridgePassthrough = /\b(send|invoke)\s*:\s*\([^)]*\)\s*=>\s*ipcRenderer\.\1\s*\(/
+const preloadAppBridgeBlock = /app:\s*\{([\s\S]*?)\n\s*\},\n\s*events:/.exec(preload)?.[1] || ''
+const preloadHasGenericBridgePassthrough = /^\s*(?:send|invoke)\s*(?::|\()/m
 
 const fileUsesGenericRendererBridge = ({ content }) => {
   if (/\$nativeApi\.app\.(send|invoke)\(|\bnativeApi\.app\.(send|invoke)\(/.test(content)) {
     return true
   }
 
-  return /import\s+app\s+from\s+['"][^'"]*nativeApi\/app['"]/.test(content) && /\bapp\.(send|invoke)\(/.test(content)
+  const nativeApiImport = content.match(/import\s+([A-Za-z_$][\w$]*)\s+from\s+['"][^'"]*nativeApi\/app['"]/)
+  if (!nativeApiImport) {
+    return false
+  }
+
+  const importedIdentifier = nativeApiImport[1]
+  return new RegExp(`\\b${importedIdentifier}\\.(send|invoke)\\(`).test(content)
 }
 
 describe('phase 5 store and bridge boundary', () => {
@@ -46,7 +53,7 @@ describe('phase 5 store and bridge boundary', () => {
     expect(fs.existsSync(legacyModulesDir)).toBe(false)
     expect(storeFiles).not.toMatch(/\bmoduleDispatcher\b|['"]\.\/modules\//)
     expect(mainEntry).not.toMatch(/\.(dispatch|commit)\(\s*['"`]/)
-    expect(preload).not.toMatch(preloadHasGenericBridgePassthrough)
+    expect(preloadAppBridgeBlock).not.toMatch(preloadHasGenericBridgePassthrough)
     expect(rendererFiles.some(fileUsesGenericRendererBridge)).toBe(false)
   })
 })

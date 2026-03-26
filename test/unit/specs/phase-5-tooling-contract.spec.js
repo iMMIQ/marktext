@@ -6,11 +6,14 @@ import { describe, expect, it } from 'vitest'
 const root = path.resolve(__dirname, '../../..')
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 const babelConfig = fs.readFileSync(path.join(root, 'babel.config.js'), 'utf8')
+const validateLicenses = fs.readFileSync(path.join(root, 'tools/validateLicenses.js'), 'utf8')
+const generateThirdPartyLicense = fs.readFileSync(path.join(root, 'tools/generateThirdPartyLicense.js'), 'utf8')
 const legacyLifecycleScripts = [pkg.scripts.preinstall, pkg.scripts.postinstall]
   .filter(Boolean)
   .join('\n')
 const allScriptCommands = Object.values(pkg.scripts).join('\n')
 const legacyAliasPattern = /\b(?:dev:vite|pack:vite|unit:vite)\b/
+const thirdPartyCheckerPattern = /\.electron-vue[\\/]thirdPartyChecker\.js/
 
 describe('phase 5 tooling contract', () => {
   it('keeps one official script surface and no electron-vue leftovers', () => {
@@ -25,6 +28,9 @@ describe('phase 5 tooling contract', () => {
     expect(pkg.scripts['dev:vite']).toBeUndefined()
     expect(pkg.scripts['pack:vite']).toBeUndefined()
     expect(pkg.scripts['unit:vite']).toBeUndefined()
+    expect(fs.existsSync(path.join(root, '.electron-vue/thirdPartyChecker.js'))).toBe(false)
+    expect(validateLicenses).not.toMatch(thirdPartyCheckerPattern)
+    expect(generateThirdPartyLicense).not.toMatch(thirdPartyCheckerPattern)
     expect(fs.existsSync(path.join(root, 'src/index.ejs'))).toBe(false)
     expect(babelConfig).not.toMatch(/\bnode\s*:\s*16\b|\b['"]node['"]\s*:\s*16\b/)
     expect(babelConfig).not.toContain('element-ui')

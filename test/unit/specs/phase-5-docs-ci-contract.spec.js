@@ -9,6 +9,7 @@ const releaseWorkflow = fs.readFileSync(path.join(root, '.github/workflows/relea
 const buildDoc = fs.readFileSync(path.join(root, 'docs/dev/BUILD.md'), 'utf8')
 const releaseDoc = fs.readFileSync(path.join(root, 'docs/dev/RELEASE.md'), 'utf8')
 const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8')
+const nvmrc = fs.readFileSync(path.join(root, '.nvmrc'), 'utf8').trim()
 
 const getSetupNodeSteps = workflow => {
   const steps = []
@@ -48,6 +49,7 @@ const expectNode24Baseline = workflow => {
 
 describe('phase 5 docs and CI contract', () => {
   it('documents and tests the Node 24 baseline consistently', () => {
+    expect(nvmrc).toBe('24')
     expectNode24Baseline(buildWorkflow)
     expectNode24Baseline(releaseWorkflow)
     expect(buildDoc).not.toMatch(/>=v16|<v17|unit:vite/)
