@@ -1,8 +1,8 @@
-import Renderer from './renderer'
-import InlineLexer from './inlineLexer'
-import Slugger from './slugger'
-import TextRenderer from './textRenderer'
-import defaultOptions from './options'
+import Renderer from './renderer.js'
+import InlineLexer from './inlineLexer.js'
+import Slugger from './slugger.js'
+import TextRenderer from './textRenderer.js'
+import defaultOptions from './options.js'
 
 /**
  * Parsing & Compiling

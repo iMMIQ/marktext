@@ -1,6 +1,6 @@
-import { normal, gfm, pedantic } from './blockRules'
-import options from './options'
-import { splitCells, rtrim, getUniqueId } from './utils'
+import { normal, gfm, pedantic } from './blockRules.js'
+import options from './options.js'
+import { splitCells, rtrim, getUniqueId } from './utils.js'
 
 /**
  * Block Lexer

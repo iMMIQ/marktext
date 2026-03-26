@@ -1,10 +1,13 @@
-import { padding } from './help'
-import { MT_MARKED_OPTIONS } from './config'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import { marked as markedJs } from 'marked'
+import { padding } from './help.mjs'
+import { MT_MARKED_OPTIONS } from './config.mjs'
+import marked from '../../src/muya/lib/parser/marked/index.js'
 
-const markedJs = require('marked')
-const marked = require('../../src/muya/lib/parser/marked/index.js').default
-const fs = require('fs')
-const path = require('path')
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 export const writeResult = (version, specs, markedSpecs, type = 'commonmark', shouldWriteArtifacts = false) => {
   let result = '## Test Result\n\n'

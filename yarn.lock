@@ -1872,15 +1872,15 @@
     lodash "^4.17.15"
     tmp-promise "^3.0.2"
 
-"@markedjs/html-differ@^3.0.4":
-  version "3.0.4"
-  resolved "https://registry.npmmirror.com/@markedjs/html-differ/-/html-differ-3.0.4.tgz#e5cbe2711176fbfc25683accd4cdfb63706e029e"
-  integrity sha512-lmcvZSe2LNHMrNSbbo7X4z7Ndhi4lJabmzXb4MhF/OFYQNbJBt07TvXpjS9n4Wn0gDBnyylwhkaeSDhslH723Q==
+"@markedjs/html-differ@^5.0.4":
+  version "5.0.4"
+  resolved "https://registry.npmmirror.com/@markedjs/html-differ/-/html-differ-5.0.4.tgz#4246df55e2dcc5b2c4be9309878fe286a935c8d9"
+  integrity sha512-K0fzilP5W/2tikOBKC0x1s2tS7dc87nJUS0mhmE5V+OYXRMLe8hDPrAVPZjBxUQZhSPbRi5lnVJCbaQ5gQUCJw==
   dependencies:
-    chalk "^4.1.0"
+    chalk "^5.3.0"
     coa "^2.0.2"
-    diff "^5.0.0"
-    parse5-sax-parser "^6.0.1"
+    diff "^8.0.0"
+    parse5-sax-parser "^8.0.0"
 
 "@marktext/file-icons@^1.0.6":
   version "1.0.6"
@@ -3920,7 +3920,7 @@ chalk@^4.0.0, chalk@^4.1.0, chalk@^4.1.1, chalk@^4.1.2:
     ansi-styles "^4.1.0"
     supports-color "^7.1.0"
 
-chalk@^5.6.2:
+chalk@^5.3.0, chalk@^5.6.2:
   version "5.6.2"
   resolved "https://registry.npmmirror.com/chalk/-/chalk-5.6.2.tgz#b1238b6e23ea337af71c7f8a295db5af0c158aea"
   integrity sha512-7NzBL0rN6fMUW+f7A6Io4h40qQlG+xGmtMxfbnH/K7TAtt8JQWVQK+6g0UXKMeVJoyV5EkkNsErQ8pVD3bLHbA==
@@ -5136,15 +5136,15 @@ dezalgo@^1.0.0:
     asap "^2.0.0"
     wrappy "1"
 
-diff@^5.0.0:
-  version "5.0.0"
-  resolved "https://registry.yarnpkg.com/diff/-/diff-5.0.0.tgz#7ed6ad76d859d030787ec35855f5b1daf31d852b"
-  integrity sha512-/VTCrvm5Z0JGty/BWHljh+BAiw3IK+2j87NGMu8Nwc/f48WoDAC395uomO9ZD117ZOBaHmkX1oyLvkVM/aIT3w==
-
 diff@^7.0.0:
   version "7.0.0"
   resolved "https://registry.npmmirror.com/diff/-/diff-7.0.0.tgz#3fb34d387cd76d803f6eebea67b921dab0182a9a"
   integrity sha512-PJWHUb1RFevKCwaFA9RlG5tCd+FO5iRh9A8HEtkmBH2Li03iJriB6m6JIN4rGz3K3JLawI7/veA1xzRKP6ISBw==
+
+diff@^8.0.0:
+  version "8.0.4"
+  resolved "https://registry.npmmirror.com/diff/-/diff-8.0.4.tgz#4f5baf3188b9b2431117b962eb20ba330fadf696"
+  integrity sha512-DPi0FmjiSU5EvQV0++GFDOJ9ASQUVFh5kD+OzOnYdi7n3Wpm9hWWGfB/O2blfHcMVTL5WkQXSnRiK9makhrcnw==
 
 dir-compare@^4.2.0:
   version "4.2.0"
@@ -8158,15 +8158,15 @@ mapped-disposable@^1.0.3:
   resolved "https://registry.npmjs.org/mapped-disposable/-/mapped-disposable-1.0.3.tgz#3eaad0b20b174142ee80bd37f675bab200abd569"
   integrity sha512-DpYYRSZjNB6tOg8E4BZ+rNsKe4WxoptwM8+JqHi8R0buJgHLmrmAfJtv4lcqqO1esTtxaPx4FXOR54bPoS9qwg==
 
-marked@^1.2.9:
-  version "1.2.9"
-  resolved "https://registry.yarnpkg.com/marked/-/marked-1.2.9.tgz#53786f8b05d4c01a2a5a76b7d1ec9943d29d72dc"
-  integrity sha512-H8lIX2SvyitGX+TRdtS06m1jHMijKN/XjfH6Ooii9fvxMlh8QdqBfBDkGUpMWH2kQNrtixjzYUa3SH8ROTgRRw==
-
 marked@^16.3.0:
   version "16.4.2"
   resolved "https://registry.npmmirror.com/marked/-/marked-16.4.2.tgz#4959a64be6c486f0db7467ead7ce288de54290a3"
   integrity sha512-TI3V8YYWvkVf3KJe1dRkpnjs68JUPyEa5vjKrp1XEEJUAOaQc+Qj+L1qWbPd0SJuAdQkFU0h73sXXqwDYxsiDA==
+
+marked@^17.0.5:
+  version "17.0.5"
+  resolved "https://registry.npmmirror.com/marked/-/marked-17.0.5.tgz#8fc6878a439463a007b05d346d2ad50a87ec3f0e"
+  integrity sha512-6hLvc0/JEbRjRgzI6wnT2P1XuM1/RrrDEX0kPt0N7jGm1133g6X7DlxFasUIx+72aKAr904GTxhSLDrd5DIlZg==
 
 matcher@^3.0.0:
   version "3.0.0"
@@ -8915,17 +8915,12 @@ parse5-parser-stream@^7.1.2:
   dependencies:
     parse5 "^7.0.0"
 
-parse5-sax-parser@^6.0.1:
-  version "6.0.1"
-  resolved "https://registry.npmmirror.com/parse5-sax-parser/-/parse5-sax-parser-6.0.1.tgz#98b4d366b5b266a7cd90b4b58906667af882daba"
-  integrity sha512-kXX+5S81lgESA0LsDuGjAlBybImAChYRMT+/uKCEXFBFOeEhS52qUCydGhU3qLRD8D9DVjaUo821WK7DM4iCeg==
+parse5-sax-parser@^8.0.0:
+  version "8.0.0"
+  resolved "https://registry.npmmirror.com/parse5-sax-parser/-/parse5-sax-parser-8.0.0.tgz#49755efbd2b63846c7b908a297a874af00760715"
+  integrity sha512-/dQ8UzHZwnrzs3EvDj6IkKrD/jIZyTlB+8XrHJvcjNgRdmWruNdN9i9RK/JtxakmlUdPwKubKPTCqvbTgzGhrw==
   dependencies:
-    parse5 "^6.0.1"
-
-parse5@^6.0.1:
-  version "6.0.1"
-  resolved "https://registry.npmmirror.com/parse5/-/parse5-6.0.1.tgz#e1a1c085c569b3dc08321184f19a39cc27f7c30b"
-  integrity sha512-Ofn/CTFzRGTTxwpNEs9PP93gXShHcTq255nzRYSKe8AkVpZY7e1fpmTfOyoIvjP5HG7Z2ZM7VS9PPhQGW2pOpw==
+    parse5 "^8.0.0"
 
 parse5@^7.0.0, parse5@^7.3.0:
   version "7.3.0"

@@ -1,4 +1,4 @@
-import { downcode } from './urlify'
+import { downcode } from './urlify.js'
 
 /**
  * Slugger generates header id

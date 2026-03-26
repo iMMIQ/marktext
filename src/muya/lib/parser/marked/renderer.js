@@ -1,5 +1,5 @@
-import defaultOptions from './options'
-import { cleanUrl, escape } from './utils'
+import defaultOptions from './options.js'
+import { cleanUrl, escape } from './utils.js'
 
 /**
  * Renderer

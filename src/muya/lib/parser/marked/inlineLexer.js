@@ -1,8 +1,8 @@
-import Renderer from './renderer'
-import { normal, breaks, gfm, pedantic } from './inlineRules'
-import defaultOptions from './options'
-import { escape, findClosingBracket, getUniqueId, rtrim } from './utils'
-import { validateEmphasize, lowerPriority } from '../utils'
+import Renderer from './renderer.js'
+import { normal, breaks, gfm, pedantic } from './inlineRules.js'
+import defaultOptions from './options.js'
+import { escape, findClosingBracket, getUniqueId, rtrim } from './utils.js'
+import { validateEmphasize, lowerPriority } from '../utils.js'
 
 /**
  * Inline Lexer & Compiler

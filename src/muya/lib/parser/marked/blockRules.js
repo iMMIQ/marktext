@@ -1,4 +1,4 @@
-import { edit, noop } from './utils'
+import { edit, noop } from './utils.js'
 
 /* eslint-disable no-useless-escape */
 

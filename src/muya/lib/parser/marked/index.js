@@ -1,7 +1,7 @@
-import Renderer from './renderer'
-import Lexer from './lexer'
-import Parser from './parser'
-import options from './options'
+import Renderer from './renderer.js'
+import Lexer from './lexer.js'
+import Parser from './parser.js'
+import options from './options.js'
 
 /**
  * Marked

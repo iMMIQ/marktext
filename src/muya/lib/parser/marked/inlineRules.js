@@ -1,5 +1,5 @@
-import { block } from './blockRules'
-import { edit, noop } from './utils'
+import { block } from './blockRules.js'
+import { edit, noop } from './utils.js'
 
 /* eslint-disable no-useless-escape */
 
