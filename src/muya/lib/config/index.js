@@ -1,7 +1,25 @@
 import htmlTags from 'html-tags'
-import voidHtmlTags from 'html-tags/void'
 import { generateKeyHash, genUpper2LowerKeyHash } from '../utils/hash'
 import { getLongUniqueId } from '../utils/random'
+
+const VOID_HTML_TAG_NAMES = new Set([
+  'area',
+  'base',
+  'br',
+  'col',
+  'embed',
+  'hr',
+  'img',
+  'input',
+  'link',
+  'meta',
+  'param',
+  'source',
+  'track',
+  'wbr'
+])
+
+const voidHtmlTags = htmlTags.filter(tag => VOID_HTML_TAG_NAMES.has(tag))
 
 // [0.25, 0.5, 1, 2, 4, 8] <—?—> [256M, 500M/768M, 1G/1000M, 2G, 4G, 8G]
 // Electron 2.0.2 not support yet! So give a default value 4

@@ -1,5 +1,6 @@
 import path from 'path'
 import { defineConfig } from 'vite'
+// eslint-disable-next-line import/default
 import vue from '@vitejs/plugin-vue'
 import postcssPresetEnv from 'postcss-preset-env'
 import marktextCodemirrorAssets from './tools/vite/codemirrorAssets'
