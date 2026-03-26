@@ -1,12 +1,10 @@
 module.exports = {
   root: true,
-  parser: '@babel/eslint-parser',
   parserOptions: {
     ecmaVersion: 'latest',
     ecmaFeatures: {
       impliedStrict: true
     },
-    requireConfigFile: false,
     sourceType: 'module'
   },
   env: {
@@ -24,7 +22,7 @@ module.exports = {
   globals: {
     __static: true
   },
-  plugins: ['html', 'vue'],
+  plugins: ['vue'],
   rules: {
     // Two spaces but disallow semicolons
     indent: ['error', 2, { 'SwitchCase': 1, 'ignoreComments': true }],
@@ -38,6 +36,8 @@ module.exports = {
     'no-console': 'off',
     // allow debugger during development
     'no-debugger': process.env.NODE_ENV === 'production' ? 'error' : 'off',
+    'no-useless-assignment': 'off',
+    'preserve-caught-error': 'off',
     'require-atomic-updates': 'off',
     // TODO: fix these errors someday
     'prefer-const': 'off',
@@ -65,9 +65,7 @@ module.exports = {
       files: ['**/*.vue'],
       parser: 'vue-eslint-parser',
       parserOptions: {
-        parser: '@babel/eslint-parser',
         ecmaVersion: 'latest',
-        requireConfigFile: false,
         sourceType: 'module'
       }
     },

@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest'
 const root = path.resolve(__dirname, '../../..')
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 const babelConfig = fs.readFileSync(path.join(root, 'babel.config.js'), 'utf8')
+const eslintConfigPath = path.join(root, 'eslint.config.js')
+const eslintIgnorePath = path.join(root, '.eslintignore')
 const preflightPath = path.join(root, 'tools/install/preflight.js')
 const thirdPartyCheckerPath = path.join(root, 'tools/licenses/thirdPartyChecker.js')
 const thirdPartyChecker = fs.readFileSync(thirdPartyCheckerPath, 'utf8')
@@ -21,7 +23,6 @@ const legacyAliasPattern = /\b(?:dev:vite|pack:vite|unit:vite)\b/
 const thirdPartyCheckerPattern = /\.electron-vue[\\/]thirdPartyChecker\.js/
 const movedThirdPartyCheckerPattern = /\.\/licenses\/thirdPartyChecker/
 const eslintSurface = 'src test tools *.config.js'
-const legacyEslintPrefix = 'cross-env ESLINT_USE_FLAT_CONFIG=false eslint'
 const legacyElectronVueFiles = [
   '.electron-vue/preinstall.js',
   '.electron-vue/postinstall.js',
@@ -87,10 +88,12 @@ describe('phase 5 tooling contract', () => {
     expect(fs.existsSync(thirdPartyCheckerPath)).toBe(true)
     expect(pkg.scripts.preinstall).toBe('node tools/install/preflight.js')
     expect(pkg.engines.node).toBe('24.x')
-    expect(pkg.scripts.lint).toContain(legacyEslintPrefix)
+    expect(fs.existsSync(eslintConfigPath)).toBe(true)
+    expect(fs.existsSync(eslintIgnorePath)).toBe(false)
+    expect(pkg.scripts.lint).not.toContain('ESLINT_USE_FLAT_CONFIG=false')
     expect(pkg.scripts.lint).toContain(eslintSurface)
-    expect(pkg.scripts['lint:fix']).toContain(legacyEslintPrefix)
-    expect(pkg.scripts.format).toContain(legacyEslintPrefix)
+    expect(pkg.scripts['lint:fix']).not.toContain('ESLINT_USE_FLAT_CONFIG=false')
+    expect(pkg.scripts.format).not.toContain('ESLINT_USE_FLAT_CONFIG=false')
     expect(pkg.scripts.format).toContain(`--fix ${eslintSurface}`)
     expect(pkg.scripts['format:check']).toBe('yarn run lint')
     expect(validateLicenses).toMatch(movedThirdPartyCheckerPattern)

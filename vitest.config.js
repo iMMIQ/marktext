@@ -1,6 +1,5 @@
 import path from 'path'
 import { defineConfig } from 'vitest/config'
-// eslint-disable-next-line import/default
 import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({

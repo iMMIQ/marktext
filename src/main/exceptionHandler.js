@@ -43,8 +43,7 @@ const handleError = async (title, error, type) => {
   if (EXIT_ON_ERROR) {
     console.log('MarkText was terminated due to an unexpected error (MARKTEXT_EXIT_ON_ERROR variable was set)!')
     process.exit(1)
-    // eslint, don't lie to me, the return statement is important!
-    return // eslint-disable-line no-unreachable
+    return
   } else if (!SHOW_ERROR_DIALOG || (global.MARKTEXT_IS_STABLE && type === 'renderer')) {
     return
   }

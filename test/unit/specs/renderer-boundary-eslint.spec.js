@@ -5,6 +5,7 @@ import path from 'path'
 import { execFileSync } from 'child_process'
 
 const eslintBin = path.resolve(process.cwd(), 'node_modules/.bin/eslint')
+const eslintConfigPath = path.resolve(process.cwd(), 'eslint.config.js')
 
 const parseEslintMessages = error => {
   const stdout = error.stdout?.toString().trim()
@@ -27,18 +28,14 @@ const lintRendererSource = source => {
   try {
     execFileSync(eslintBin, [
       '--no-ignore',
-      '--no-eslintrc',
+      '--no-config-lookup',
       '--config',
-      path.resolve(process.cwd(), '.eslintrc.js'),
+      eslintConfigPath,
       '--format',
       'json',
       filePath
     ], {
       cwd: process.cwd(),
-      env: {
-        ...process.env,
-        ESLINT_USE_FLAT_CONFIG: 'false'
-      },
       stdio: ['ignore', 'pipe', 'pipe']
     })
 
