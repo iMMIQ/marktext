@@ -6,6 +6,9 @@ import { describe, expect, it } from 'vitest'
 const root = path.resolve(__dirname, '../../..')
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 const babelConfig = fs.readFileSync(path.join(root, 'babel.config.js'), 'utf8')
+const preflightPath = path.join(root, 'tools/install/preflight.js')
+const thirdPartyCheckerPath = path.join(root, 'tools/licenses/thirdPartyChecker.js')
+const thirdPartyChecker = fs.readFileSync(thirdPartyCheckerPath, 'utf8')
 const validateLicenses = fs.readFileSync(path.join(root, 'tools/validateLicenses.js'), 'utf8')
 const generateThirdPartyLicense = fs.readFileSync(path.join(root, 'tools/generateThirdPartyLicense.js'), 'utf8')
 const legacyLifecycleScripts = [pkg.scripts.preinstall, pkg.scripts.postinstall]
@@ -14,6 +17,7 @@ const legacyLifecycleScripts = [pkg.scripts.preinstall, pkg.scripts.postinstall]
 const allScriptCommands = Object.values(pkg.scripts).join('\n')
 const legacyAliasPattern = /\b(?:dev:vite|pack:vite|unit:vite)\b/
 const thirdPartyCheckerPattern = /\.electron-vue[\\/]thirdPartyChecker\.js/
+const movedThirdPartyCheckerPattern = /\.\/licenses\/thirdPartyChecker/
 const legacyElectronVueFiles = [
   '.electron-vue/preinstall.js',
   '.electron-vue/postinstall.js',
@@ -41,5 +45,14 @@ describe('phase 5 tooling contract', () => {
     expect(fs.existsSync(path.join(root, 'src/index.ejs'))).toBe(false)
     expect(babelConfig).not.toMatch(/\bnode\s*:\s*16\b|\b['"]node['"]\s*:\s*16\b/)
     expect(babelConfig).not.toContain('element-ui')
+  })
+
+  it('locks the moved install and license helpers into the task 2 contract', () => {
+    expect(fs.existsSync(preflightPath)).toBe(true)
+    expect(fs.existsSync(thirdPartyCheckerPath)).toBe(true)
+    expect(pkg.scripts.preinstall).toBe('node tools/install/preflight.js')
+    expect(validateLicenses).toMatch(movedThirdPartyCheckerPattern)
+    expect(generateThirdPartyLicense).toMatch(movedThirdPartyCheckerPattern)
+    expect(thirdPartyChecker).toContain('EPL-2.0')
   })
 })
