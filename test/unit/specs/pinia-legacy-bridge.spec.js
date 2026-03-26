@@ -22,4 +22,22 @@ describe('pinia store dispatch contract', () => {
 
     expect(preferences.theme).toBe('dark')
   })
+
+  it('routes root app actions through cross-store dispatch', async () => {
+    const [{ useAppStore }, { useEditorStore }] = await Promise.all([
+      import('@/stores/app'),
+      import('@/stores/editor')
+    ])
+
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const appStore = useAppStore(pinia)
+    const editorStore = useEditorStore(pinia)
+
+    expect(appStore.init).toBe(false)
+
+    await editorStore.dispatch('SEND_INITIALIZED')
+
+    expect(appStore.init).toBe(true)
+  })
 })

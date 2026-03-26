@@ -27,6 +27,7 @@ class EditorWindow extends BaseWindow {
     // used to find the best window to open new files in.
     this._openedRootDirectory = ''
     this._openedFiles = []
+    this._rendererBootstrapped = false
   }
 
   /**
@@ -102,18 +103,6 @@ class EditorWindow extends BaseWindow {
 
       const lineEnding = preferences.getPreferredEol()
       appMenu.updateLineEndingMenu(this.id, lineEnding)
-
-      win.webContents.send('mt::bootstrap-editor', {
-        addBlankTab,
-        markdownList: this._markdownToOpen,
-        lineEnding,
-        sideBarVisibility,
-        tabBarVisibility,
-        sourceCodeModeEnabled
-      })
-
-      this._doOpenFilesToOpen()
-      this._markdownToOpen.length = 0
 
       // Listen on default system mouse zoom event (e.g. Ctrl+MouseWheel on Linux/Windows).
       win.webContents.on('zoom-changed', (event, zoomDirection) => {
@@ -195,6 +184,7 @@ class EditorWindow extends BaseWindow {
     })
 
     this.lifecycle = WindowLifecycle.LOADING
+    this._rendererBootstrapped = false
     win.loadURL(this._buildUrlString(this.id, env, preferences))
     win.setSheetOffset(TITLE_BAR_HEIGHT)
 
@@ -406,20 +396,10 @@ class EditorWindow extends BaseWindow {
     this._markdownToOpen = []
     this._openedRootDirectory = ''
     this._openedFiles = []
+    this._rendererBootstrapped = false
 
     browserWindow.webContents.once('did-finish-load', () => {
       this.lifecycle = WindowLifecycle.READY
-      const { preferences } = this._accessor
-      const { sideBarVisibility, tabBarVisibility, sourceCodeModeEnabled } = preferences.getAll()
-      const lineEnding = preferences.getPreferredEol()
-      browserWindow.webContents.send('mt::bootstrap-editor', {
-        addBlankTab: true,
-        markdownList: [],
-        lineEnding,
-        sideBarVisibility,
-        tabBarVisibility,
-        sourceCodeModeEnabled
-      })
     })
 
     this.lifecycle = WindowLifecycle.LOADING
@@ -440,6 +420,32 @@ class EditorWindow extends BaseWindow {
 
   get openedRootDirectory () {
     return this._openedRootDirectory
+  }
+
+  bootstrapRenderer () {
+    if (this._rendererBootstrapped || !this.browserWindow || this.lifecycle !== WindowLifecycle.READY) {
+      return
+    }
+
+    const { menu: appMenu, preferences } = this._accessor
+    const { sideBarVisibility, tabBarVisibility, sourceCodeModeEnabled } = preferences.getAll()
+    const addBlankTab = !this._directoryToOpen && this._filesToOpen.length === 0 && this._markdownToOpen.length === 0
+    const lineEnding = preferences.getPreferredEol()
+
+    appMenu.updateLineEndingMenu(this.id, lineEnding)
+
+    this.browserWindow.webContents.send('mt::bootstrap-editor', {
+      addBlankTab,
+      markdownList: this._markdownToOpen,
+      lineEnding,
+      sideBarVisibility,
+      tabBarVisibility,
+      sourceCodeModeEnabled
+    })
+
+    this._doOpenFilesToOpen()
+    this._markdownToOpen.length = 0
+    this._rendererBootstrapped = true
   }
 
   // --- private ---------------------------------

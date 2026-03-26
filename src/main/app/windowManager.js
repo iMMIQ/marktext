@@ -368,6 +368,16 @@ class WindowManager extends EventEmitter {
       editor.openTab(filePath, options, true)
     })
 
+    ipcMain.on('mt::renderer-ready', e => {
+      const win = BrowserWindow.fromWebContents(e.sender)
+      const editor = this.get(win.id)
+      if (!editor) {
+        log.error(`Cannot find window id "${win.id}" to bootstrap renderer.`)
+        return
+      }
+      editor.bootstrapRenderer()
+    })
+
     ipcMain.on('mt::window-tab-closed', (e, pathname) => {
       const win = BrowserWindow.fromWebContents(e.sender)
       const editor = this.get(win.id)

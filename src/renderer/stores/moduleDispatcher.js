@@ -1,4 +1,5 @@
 import { getActivePinia } from 'pinia'
+import events from '@/services/nativeApi/events'
 import moduleAutoUpdates from './modules/autoUpdates'
 import moduleCommandCenter from './modules/commandCenter'
 import moduleEditor from './modules/editor'
@@ -9,7 +10,29 @@ import modulePreferences from './modules/preferences'
 import moduleProject from './modules/project'
 import moduleTweet from './modules/tweet'
 
+const rootDefinition = {
+  mutations: {
+    SET_WIN_STATUS (state, status) {
+      state.windowActive = status
+    },
+    SET_INITIALIZED (state) {
+      state.init = true
+    }
+  },
+  actions: {
+    LINTEN_WIN_STATUS ({ commit }) {
+      events.on('mt::window-active-status', (e, { status }) => {
+        commit('SET_WIN_STATUS', status)
+      })
+    },
+    SEND_INITIALIZED ({ commit }) {
+      commit('SET_INITIALIZED')
+    }
+  }
+}
+
 const storeDefinitions = {
+  app: rootDefinition,
   autoUpdates: moduleAutoUpdates,
   commandCenter: moduleCommandCenter,
   editor: moduleEditor,
