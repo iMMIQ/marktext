@@ -76,6 +76,14 @@ module.exports = {
             {
               name: 'fontmanager-redux',
               message: 'Use src/renderer/services/nativeApi instead.'
+            },
+            {
+              name: 'keytar',
+              message: 'Use src/renderer/services/nativeApi instead.'
+            },
+            {
+              name: 'native-keymap',
+              message: 'Use src/renderer/services/nativeApi instead.'
             }
           ]
         }],
@@ -90,6 +98,14 @@ module.exports = {
           },
           {
             selector: "CallExpression[callee.name='require'][arguments.length=1][arguments.0.type='Literal'][arguments.0.value='fontmanager-redux']",
+            message: 'Use src/renderer/services/nativeApi instead.'
+          },
+          {
+            selector: "CallExpression[callee.name='require'][arguments.length=1][arguments.0.type='Literal'][arguments.0.value='keytar']",
+            message: 'Use src/renderer/services/nativeApi instead.'
+          },
+          {
+            selector: "CallExpression[callee.name='require'][arguments.length=1][arguments.0.type='Literal'][arguments.0.value='native-keymap']",
             message: 'Use src/renderer/services/nativeApi instead.'
           }
         ]

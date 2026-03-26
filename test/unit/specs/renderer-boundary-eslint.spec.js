@@ -72,4 +72,17 @@ describe('renderer boundary eslint guardrail', () => {
     expect(messages[0].ruleId).toBe('no-restricted-syntax')
     expect(messages[0].message).toContain('Use src/renderer/services/nativeApi instead.')
   }, SPEC_TIMEOUT)
+
+  it('rejects direct native module requires in renderer sources', () => {
+    const keytarMessages = getBoundaryMessages(lintRendererSource("require('keytar')\n"))
+    const nativeKeymapMessages = getBoundaryMessages(lintRendererSource("require('native-keymap')\n"))
+
+    expect(keytarMessages).toHaveLength(1)
+    expect(keytarMessages[0].ruleId).toBe('no-restricted-syntax')
+    expect(keytarMessages[0].message).toContain('Use src/renderer/services/nativeApi instead.')
+
+    expect(nativeKeymapMessages).toHaveLength(1)
+    expect(nativeKeymapMessages[0].ruleId).toBe('no-restricted-syntax')
+    expect(nativeKeymapMessages[0].message).toContain('Use src/renderer/services/nativeApi instead.')
+  }, SPEC_TIMEOUT)
 })
