@@ -15,6 +15,7 @@ const lintRendererSource = source => {
 
   try {
     execFileSync(eslintBin, [
+      '--no-ignore',
       '--no-eslintrc',
       '--config',
       path.resolve(process.cwd(), '.eslintrc.js'),

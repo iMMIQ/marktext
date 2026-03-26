@@ -40,7 +40,6 @@ class EditorWindow extends BaseWindow {
    */
   createWindow (rootDirectory = null, fileList = [], markdownList = [], options = {}) {
     const { menu: appMenu, env, preferences } = this._accessor
-    const addBlankTab = !rootDirectory && fileList.length === 0 && markdownList.length === 0
 
     const mainWindowState = windowStateKeeper({
       defaultWidth: 1200,
@@ -56,8 +55,6 @@ class EditorWindow extends BaseWindow {
     const {
       titleBarStyle,
       theme,
-      sideBarVisibility,
-      tabBarVisibility,
       sourceCodeModeEnabled,
       spellcheckerEnabled,
       spellcheckerLanguage

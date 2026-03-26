@@ -1,5 +1,5 @@
-import fs from 'node:fs'
-import path from 'node:path'
+import fs from 'fs'
+import path from 'path'
 import { afterEach, describe, expect, it } from 'vitest'
 import nativeApi from '../../../src/renderer/services/nativeApi'
 
@@ -84,10 +84,10 @@ describe('renderer native API facade', () => {
     expect(preloadSource).not.toContain('invoke: (channel')
 
     expect(preloadSource).toContain('fonts:')
-    expect(preloadSource).toContain("mt::fonts-list-families")
+    expect(preloadSource).toContain('mt::fonts-list-families')
     expect(preloadSource).toContain('keyboard:')
-    expect(preloadSource).toContain("mt::keyboard-get-info")
-    expect(preloadSource).toContain("mt::keyboard-dump-info")
+    expect(preloadSource).toContain('mt::keyboard-get-info')
+    expect(preloadSource).toContain('mt::keyboard-dump-info')
   })
 
   it('routes typed app, preferences, project, spellchecker, and event operations through the bridge contract', async () => {

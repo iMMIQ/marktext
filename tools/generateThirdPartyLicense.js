@@ -53,7 +53,6 @@ ${licenseText}
 `
   })
 
-
   const output = `# Third Party Notices
 -------------------------------------------------
 

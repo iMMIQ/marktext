@@ -43,7 +43,7 @@ module.exports = {
     'no-mixed-operators': 'off',
     'no-prototype-builtins': 'off',
     'import/no-unresolved': ['error', {
-      ignore: ['\\?inline$', '\\?raw$']
+      ignore: ['\\?inline$', '\\?raw$', '^node:']
     }]
   },
   settings: {
@@ -114,6 +114,7 @@ module.exports = {
   ],
   ignorePatterns: [
     'node_modules',
+    'src/renderer/__tmp-eslint-spec-*',
     'src/muya/dist/**/*',
     'src/muya/webpack.config.js'
   ]
