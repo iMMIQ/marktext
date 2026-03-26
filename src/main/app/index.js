@@ -103,6 +103,10 @@ class App {
 
     // Prevent to load webview and opening links or new windows via HTML/JS.
     app.on('web-contents-created', (event, contents) => {
+      contents.session.setPermissionRequestHandler((_wc, _permission, callback) => {
+        callback(false)
+      })
+
       contents.on('will-attach-webview', event => {
         event.preventDefault()
       })

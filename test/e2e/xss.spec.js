@@ -19,13 +19,28 @@ test.describe('Test XSS Vulnerabilities', async () => {
   })
 
   test('Load malicious document', async () => {
-    const { isVisible, isCrashed } = await app.evaluate(async process => {
-      const mainWindow = process.BrowserWindow.getAllWindows()[0]
+    const { hasProcess, hasRequire, isVisible, isCrashed } = await page.evaluate(() => {
       return {
-        isVisible: mainWindow.isVisible(),
-        isCrashed: mainWindow.webContents.isCrashed()
+        hasProcess: typeof window.process !== 'undefined',
+        hasRequire: typeof window.require !== 'undefined'
+      }
+    }).then(async rendererState => {
+      const windowState = await app.evaluate(async process => {
+        const mainWindow = process.BrowserWindow.getAllWindows()[0]
+        return {
+          isVisible: mainWindow.isVisible(),
+          isCrashed: mainWindow.webContents.isCrashed()
+        }
+      })
+
+      return {
+        ...rendererState,
+        ...windowState
       }
     })
+
+    expect(hasProcess).toBeFalsy()
+    expect(hasRequire).toBeFalsy()
 
     expect(isVisible).toBeTruthy()
     expect(isCrashed).toBeFalsy()

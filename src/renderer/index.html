@@ -2,6 +2,10 @@
 <html>
   <head>
     <meta charset="utf-8">
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self' data: blob: file:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' http://127.0.0.1:9091 ws://127.0.0.1:9091 https:;"
+    >
     <title>MarkText</title>
     <style>
       html, body {
@@ -72,29 +76,6 @@
         <div class="double-bounce2 dot"></div>
       </div>
     </div>
-
-    <script>
-      const params = new URLSearchParams(window.location.search)
-      const THEMES_COLOR = {
-        'one-dark': 'rgba(77, 120, 204, 1)',
-        'dark': '#409eff',
-        'graphite': 'rgb(104, 134, 170)',
-        'material-dark': '#f48237',
-        'light': 'rgba(33, 181, 111, 1)',
-        'ulysses': 'rgb(12, 139, 186)'
-      }
-
-      const dots = document.querySelectorAll('.dot')
-      Array.from(dots).forEach(dot => {
-        dot.style.background = THEMES_COLOR[params.get('theme')] || 'rgba(33, 181, 111, 1)'
-      })
-    </script>
-
-    <script>
-      if (typeof require === 'function' && typeof __dirname === 'string') {
-        window.__static = require('path').join(__dirname, '/static').replace(/\\/g, '\\\\')
-      }
-    </script>
     <script type="module" src="./main.js"></script>
   </body>
 </html>
