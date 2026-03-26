@@ -33,8 +33,7 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 16
-          check-latest: true
+          node-version-file: .nvmrc
           cache: yarn
           cache-dependency-path: yarn.lock
 
@@ -100,8 +99,7 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 16
-          check-latest: true
+          node-version-file: .nvmrc
           cache: yarn
           cache-dependency-path: yarn.lock
 

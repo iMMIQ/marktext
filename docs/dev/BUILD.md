@@ -10,8 +10,7 @@ git clone https://github.com/marktext/marktext.git
 
 Before you can get started developing, you need set up your build environment:
 
-- Node.js `>=v16` but `<v17` and yarn
-- Node.js `>=24` (the repo pins `24` in `.nvmrc`) and yarn classic
+- Node.js `24.x` (the repo pins `24` in `.nvmrc`) and Yarn classic
 - Python `>=v3.6` for node-gyp
 - C++ compiler and development tools
 - Build is supported on Linux, macOS and Windows
@@ -32,7 +31,18 @@ On Red Hat-based Linux: `sudo dnf install libX11-devel libxkbfile-devel libsecre
 - Windows 10 SDK (only needed before Windows 10)
 - Visual Studio 2019 (preferred)
 
-### Let's build
+## Official Developer Commands
+
+- `yarn run dev` for local development
+- `yarn run rebuild` before native packaging
+- `yarn run pack` to build `dist/electron`
+- `yarn run unit` for the unit suite
+- `yarn run format` to auto-fix formatting and lint issues
+- `yarn run build` to package the app
+
+See [VERSION_POLICY.md](VERSION_POLICY.md) for the maintained baseline.
+
+### Build And Package
 
 1. Go to `marktext` folder
 2. Install dependencies: `yarn install` or `yarn install --frozen-lockfile`
@@ -43,7 +53,7 @@ On Red Hat-based Linux: `sudo dnf install libX11-devel libxkbfile-devel libsecre
 
 Copy the build app to applications folder, or if on Windows run the executable installer.
 
-### Important scripts
+### Additional Scripts
 
 ```
 $ yarn run <script> # or npm run <script>
@@ -83,9 +93,7 @@ Before packaging on any platform, run:
 3. `yarn run pack`
 4. `yarn run build`
 
-Unit tests now run through Vitest:
-
-- `yarn run unit` and `yarn run unit:vite` both execute `vitest run`
+Unit tests now run through Vitest with `yarn run unit`.
 
 The standalone Muya bundle still uses `src/muya/webpack.config.js`. At runtime, `src/main/config.js` points both BrowserWindow variants at the bundled preload file in `dist/electron/preload.js`, and the renderer consumes native capabilities through `src/renderer/services/nativeApi/*` rather than importing Electron directly.
 
@@ -93,9 +101,9 @@ The standalone Muya bundle still uses `src/muya/webpack.config.js`. At runtime, 
 
 The renderer now boots directly with Vue 3, Pinia, and Vue Router. There is no Vuex compatibility bridge in the renderer entrypoint, and the retired `src/renderer/store/*` tree has been replaced by `src/renderer/stores/*`.
 
-Phase 3 verification commands:
+Recommended verification commands for the current baseline:
 
-- `yarn run lint`
+- `yarn run format`
 - `./node_modules/.bin/vitest run`
 - `yarn run pack`
 - `./node_modules/.bin/playwright test -c test/e2e/playwright.config.js test/e2e/launch.spec.js test/e2e/phase-3-smoke.spec.js`

@@ -1,14 +1,14 @@
 # Steps to release MarkText
 
 - Prerequisites
-  - Use Node.js `>=24` (the repo pins `24` in `.nvmrc`)
+  - Use Node.js `24.x` (the repo pins `24` in `.nvmrc`)
   - Install platform native build dependencies required by `node-gyp`
   - Run `yarn install`
   - Run `yarn run rebuild`
   - Run `yarn run pack`
 - Create a release candidate
   - Create branch `release-v%version%`
-  - Set environment variable `MARKTEXT_IS_STABLE` to `1` (default on AppVeyor and Travis CI)
+  - Set environment variable `MARKTEXT_IS_STABLE` to `1` for release builds
   - Ensure [changelog](https://github.com/marktext/marktext/blob/master/.github/CHANGELOG.md) is up-to-date
   - Bump version in `package.json` and changelog
   - Update all `README.md` files
@@ -29,6 +29,14 @@
   - Bump version and update URLs
   - Test the package (`scripts/build-bundle.sh && scripts/test-marktext.sh`)
   - Create commit `Update to v%version%`
+
+## Official Release Commands
+
+- `yarn run rebuild`
+- `yarn run pack`
+- `yarn run build`
+
+See [VERSION_POLICY.md](VERSION_POLICY.md) for the maintained Node/Electron baseline and the official command surface.
 
 ## Work after releasing
 

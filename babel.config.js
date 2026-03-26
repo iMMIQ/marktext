@@ -6,18 +6,19 @@ const functionBind = require('@babel/plugin-proposal-function-bind')
 const exportDefault = require('@babel/plugin-proposal-export-default-from')
 const isTanbul = require('babel-plugin-istanbul')
 const presetEnv = require('@babel/preset-env')
+const NODE_TARGET = 24
 
 const presetsHash = {
   test: [
     [presetEnv,
     {
-      targets: { 'node': 24 }
+      targets: { 'node': NODE_TARGET }
     }]
   ],
   main: [
     [presetEnv,
     {
-      targets: { 'node': 24 }
+      targets: { 'node': NODE_TARGET }
     }]
   ],
   renderer: [
@@ -26,7 +27,7 @@ const presetsHash = {
       useBuiltIns: false,
       targets: {
         electron: require('electron/package.json').version,
-        node: 24
+        node: NODE_TARGET
       }
     }]
   ]

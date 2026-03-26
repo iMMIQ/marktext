@@ -24,6 +24,37 @@ const legacyElectronVueFiles = [
   '.electron-vue/postinstall.js',
   '.electron-vue/thirdPartyChecker.js'
 ]
+const removedDevDependencies = [
+  'copy-webpack-plugin',
+  'eslint-webpack-plugin',
+  'file-loader',
+  'html-webpack-plugin',
+  'karma',
+  'karma-chai',
+  'karma-coverage',
+  'karma-electron',
+  'karma-mocha',
+  'karma-sourcemap-loader',
+  'karma-spec-reporter',
+  'karma-webpack',
+  'raw-loader',
+  'svg-sprite-loader',
+  'svgo-loader',
+  'url-loader',
+  'vue-loader',
+  'vue-style-loader',
+  'webpack-bundle-analyzer',
+  'webpack-dev-server',
+  'webpack-hot-middleware',
+  'webpack-merge'
+]
+const retainedDevDependencies = [
+  'webpack',
+  'webpack-cli',
+  'mini-css-extract-plugin',
+  'imports-loader',
+  'vue-html-loader'
+]
 
 describe('phase 5 tooling contract', () => {
   it('keeps one official script surface and no electron-vue leftovers', () => {
@@ -59,5 +90,15 @@ describe('phase 5 tooling contract', () => {
     expect(validateLicenses).toMatch(movedThirdPartyCheckerPattern)
     expect(generateThirdPartyLicense).toMatch(movedThirdPartyCheckerPattern)
     expect(thirdPartyChecker).toContain('EPL-2.0')
+  })
+
+  it('removes obsolete webpack and karma era tooling dependencies', () => {
+    for (const dependency of removedDevDependencies) {
+      expect(pkg.devDependencies?.[dependency], dependency).toBeUndefined()
+    }
+
+    for (const dependency of retainedDevDependencies) {
+      expect(pkg.devDependencies?.[dependency], dependency).toBeTruthy()
+    }
   })
 })

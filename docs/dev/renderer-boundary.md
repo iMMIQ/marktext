@@ -13,6 +13,14 @@ Allowed path:
 - preload bridge
 - explicit IPC handlers in main process
 
+Typed renderer facades currently exposed through the preload bridge include:
+
+- `nativeApi.app`
+- `nativeApi.preferences`
+- `nativeApi.project`
+- `nativeApi.spellchecker`
+- supporting modules such as `filesystem`, `events`, `runtime`, `shell`, and `window`
+
 Security baseline:
 
 - BrowserWindows run with `contextIsolation: true`

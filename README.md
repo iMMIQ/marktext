@@ -20,13 +20,6 @@
   <a href="LICENSE">
     <img src="https://img.shields.io/github/license/marktext/marktext.svg" alt="LICENSE">
   </a>
-  <!-- Build Status -->
-  <a href="https://travis-ci.org/marktext/marktext/">
-    <img src="https://travis-ci.org/marktext/marktext.svg?branch=master" alt="build">
-  </a>
-  <a href="https://ci.appveyor.com/project/marktext/marktext/branch/master">
-    <img src="https://ci.appveyor.com/api/projects/status/l4gxgydj0i95hmxg/branch/master?svg=true" alt="build">
-  </a>
   <!-- Downloads total -->
   <a href="https://github.com/marktext/marktext/releases">
     <img src="https://img.shields.io/github/downloads/marktext/marktext/total.svg" alt="total download">
@@ -242,6 +235,17 @@ All binaries for Linux, macOS and Windows can be downloaded from the [release pa
 ## Development
 
 If you wish to build MarkText yourself, please check out our [build instructions](docs/dev/BUILD.md).
+
+### Official Developer Commands
+
+- `yarn run dev` for local development
+- `yarn run rebuild` before native packaging
+- `yarn run pack` to build `dist/electron`
+- `yarn run unit` for the unit suite
+- `yarn run format` to auto-fix formatting and lint issues
+- `yarn run build` to package the app
+
+The supported baseline is documented in [docs/dev/VERSION_POLICY.md](docs/dev/VERSION_POLICY.md).
 
 - [User documentation](docs/README.md)
 - [Developer documentation](docs/dev/README.md)
