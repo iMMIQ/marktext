@@ -31,18 +31,18 @@ const add = async (win, pathname, type, endOfLine, autoGuessEncoding, trimTraili
     isMarkdown
   }
   if (isMarkdown) {
-    // HACK: But this should be removed completely in #1034/#1035.
-    try {
-      const data = await loadMarkdownFile(
-        pathname,
-        endOfLine,
-        autoGuessEncoding,
-        trimTrailingNewline
-      )
-      file.data = data
-    } catch (err) {
-      // Only notify user about opened files.
-      if (type === 'file') {
+    if (type === 'file') {
+      // HACK: But this should be removed completely in #1034/#1035.
+      try {
+        const data = await loadMarkdownFile(
+          pathname,
+          endOfLine,
+          autoGuessEncoding,
+          trimTrailingNewline
+        )
+        file.data = data
+      } catch (err) {
+        // Only notify user about opened files.
         win.webContents.send('mt::show-notification', {
           title: 'Watcher I/O error',
           type: 'error',

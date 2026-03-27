@@ -10,7 +10,6 @@ import events from '@/services/nativeApi/events'
 import filesystem from '@/services/nativeApi/filesystem'
 import projectApi from '@/services/nativeApi/project'
 import shell from '@/services/nativeApi/shell'
-import { getFileStateFromData } from '@/stores/helpers/editorDocuments'
 import { hasMarkdownExtension } from 'common/filesystem/paths'
 import { useEditorStore } from '@/stores/editor'
 import { useLayoutStore } from '@/stores/layout'
@@ -22,7 +21,6 @@ let isSidebarContextMenuBound = false
 const createProjectState = () => ({
   activeItem: {},
   createCache: {},
-  newFileNameCache: '',
   renameCache: null,
   clipboard: null,
   projectTree: null
@@ -46,9 +44,6 @@ export const useProjectStore = defineStore('project', {
         folders: [],
         files: []
       }
-    },
-    setNewFilename (name) {
-      this.newFileNameCache = name
     },
     addFileChange (change) {
       addFile(this.projectTree, change)
@@ -102,12 +97,7 @@ export const useProjectStore = defineStore('project', {
 
         switch (type) {
           case 'add': {
-            const { pathname, data, isMarkdown } = change
             this.addFileChange(change)
-            if (isMarkdown && this.newFileNameCache && pathname === this.newFileNameCache) {
-              editorStore.updateCurrentFile(getFileStateFromData(data))
-              this.setNewFilename('')
-            }
             break
           }
           case 'unlink':
@@ -217,7 +207,7 @@ export const useProjectStore = defineStore('project', {
         .then(() => {
           this.setCreatePath({})
           if (type === 'file') {
-            this.setNewFilename(fullName)
+            appApi.openFilePath(fullName, {})
           }
         })
         .catch(err => {
