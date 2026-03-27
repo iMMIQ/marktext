@@ -9,6 +9,7 @@ import { TITLE_BAR_HEIGHT, editorWinOptions, isLinux, isOsx } from '../config'
 import { showEditorContextMenu } from '../contextMenu/editor'
 import { loadMarkdownFile } from '../filesystem/markdown'
 import { switchLanguage } from '../spellchecker'
+import { markStartupPhase } from '../performance/startupMetrics'
 
 class EditorWindow extends BaseWindow {
   /**
@@ -39,6 +40,12 @@ class EditorWindow extends BaseWindow {
    * @param {*} [options] The BrowserWindow options.
    */
   createWindow (rootDirectory = null, fileList = [], markdownList = [], options = {}) {
+    markStartupPhase('window:create-start', {
+      hasRootDirectory: !!rootDirectory,
+      fileCount: fileList.length,
+      markdownCount: markdownList.length
+    })
+
     const { menu: appMenu, env, preferences } = this._accessor
 
     const mainWindowState = windowStateKeeper({
@@ -75,6 +82,7 @@ class EditorWindow extends BaseWindow {
 
     let win = this.browserWindow = new BrowserWindow(winOptions)
     this.id = win.id
+    markStartupPhase('window:browser-window-created', { windowId: this.id })
 
     if (spellcheckerEnabled && !isOsx) {
       try {
@@ -92,6 +100,7 @@ class EditorWindow extends BaseWindow {
     })
 
     win.webContents.once('did-finish-load', () => {
+      markStartupPhase('window:did-finish-load', { windowId: this.id })
       this.lifecycle = WindowLifecycle.READY
       this.emit('window-ready')
 
@@ -112,6 +121,11 @@ class EditorWindow extends BaseWindow {
     })
 
     win.webContents.once('did-fail-load', (event, errorCode, errorDescription) => {
+      markStartupPhase('window:did-fail-load', {
+        windowId: this.id,
+        errorCode,
+        errorDescription
+      })
       log.error(`The window failed to load or was cancelled: ${errorCode}; ${errorDescription}`)
     })
 
@@ -439,6 +453,7 @@ class EditorWindow extends BaseWindow {
       tabBarVisibility,
       sourceCodeModeEnabled
     })
+    markStartupPhase('window:bootstrap-renderer', { windowId: this.id })
 
     this._doOpenFilesToOpen()
     this._markdownToOpen.length = 0

@@ -90,6 +90,9 @@ class BaseWindow extends EventEmitter {
     url.searchParams.set('debug', debug ? '1' : '0')
     url.searchParams.set('wid', windowId)
     url.searchParams.set('type', type)
+    if (process.env.MARKTEXT_STARTUP_BENCHMARK === '1') {
+      url.searchParams.set('benchmark', '1')
+    }
 
     // Settings
     url.searchParams.set('cff', codeFontFamily)

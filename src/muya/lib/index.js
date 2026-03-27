@@ -168,6 +168,16 @@ class Muya {
   setMarkdown (markdown, cursor, isRenderCursor = true) {
     let newMarkdown = markdown
     let isValid = false
+    const shouldUseBlankDocument = !markdown && !cursor
+
+    if (shouldUseBlankDocument) {
+      this.contentState.render(isRenderCursor)
+      setTimeout(() => {
+        this.dispatchChange()
+      }, 0)
+      return
+    }
+
     if (cursor && cursor.anchor && cursor.focus) {
       const cursorInfo = this.contentState.addCursorToMarkdown(markdown, cursor)
       newMarkdown = cursorInfo.markdown

@@ -31,3 +31,5 @@ $ marktext --inspect=5858 --remote-debugging-port=8315
 ```
 
 After the successful launch of MarkText, press `Ctrl+C` on both `node-profiler` instances. The tools created two files named `main.cpuprofile` and `renderer.cpuprofile`. You can now analyse these files via *Chrome Developer Tools* or *Visual Studio Code*.
+
+For repeatable startup timing and phase-by-phase breakdown, use the dedicated [Cold Start Benchmark](./COLD_START_BENCHMARK.md).

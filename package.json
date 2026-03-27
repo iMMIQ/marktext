@@ -17,6 +17,7 @@
     "build:bin": "yarn run rebuild && yarn run pack && electron-builder --dir",
     "build:clean": "node -e \"const fs=require('fs'); const path=require('path'); const cleanDir=(dir, keep=[])=>{ if (!fs.existsSync(dir)) return; for (const entry of fs.readdirSync(dir)) { if (keep.includes(entry)) continue; fs.rmSync(path.join(dir, entry), { recursive: true, force: true }) } }; cleanDir('build', ['icons']); cleanDir(path.join('dist', 'electron'))\"",
     "build:dev": "yarn run pack",
+    "benchmark:cold-start": "node tools/perf/cold-start-benchmark.mjs",
     "dev": "cross-env NODE_ENV=development node tools/dev/vite-dev-runner.js",
     "e2e": "yarn run pack && cross-env MARKTEXT_EXIT_ON_ERROR=1 playwright test -c test/e2e/playwright.config.js test/e2e",
     "format": "eslint --ext .js,.vue -f ./node_modules/eslint-friendly-formatter/index.js --fix src test tools *.config.js",

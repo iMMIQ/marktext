@@ -7,6 +7,7 @@ import log from 'electron-log'
 import App from './app'
 import Accessor from './app/accessor'
 import setupEnvironment from './app/env'
+import { markStartupPhase } from './performance/startupMetrics'
 import { getLogLevel } from './utils'
 
 const initializeLogger = appEnvironment => {
@@ -27,10 +28,12 @@ if (!/^(darwin|win32|linux)$/i.test(process.platform)) {
 }
 
 setupExceptionHandler()
+markStartupPhase('main:entry')
 
 const args = cli()
 const appEnvironment = setupEnvironment(args)
 initializeLogger(appEnvironment)
+markStartupPhase('main:environment-ready')
 
 if (args['--disable-gpu']) {
   app.disableHardwareAcceleration()
@@ -50,6 +53,7 @@ if (!process.mas && process.env.NODE_ENV !== 'development') {
 let accessor = null
 try {
   accessor = new Accessor(appEnvironment)
+  markStartupPhase('main:accessor-ready')
 } catch (err) {
   // Catch errors that may come from invalid configuration files like settings.
   const msgHint = err.message.includes('Config schema violation')
@@ -65,6 +69,7 @@ try {
       `${msgHint}${err.message}\n\n${err.stack}`
     )
   }
+  markStartupPhase('main:accessor-init-error', { message: err.message })
   process.exit(1)
 }
 
@@ -76,4 +81,5 @@ log.transports.file.sync = false
 // NOTE: Do not create classes or other code before this line!
 
 const marktext = new App(accessor, args)
+markStartupPhase('main:app-init')
 marktext.init()

@@ -106,6 +106,7 @@ import { SpellChecker } from '@/spellchecker'
 import { isOsx, animatedScrollTo } from '@/util'
 import { moveImageToFolder, moveToRelativeFolder, uploadImage } from '@/util/fileSystem'
 import { guessClipboardFilePath } from '@/util/clipboard'
+import { markRendererStartupPhase } from '@/performance/startupMetrics'
 import { getCssForOptions, getHtmlToc } from '@/util/pdf'
 import { addCommonStyle, setEditorWidth } from '@/util/theme'
 import { useEditorStore } from '@/stores/editor'
@@ -118,6 +119,33 @@ import 'muya/themes/prismjs/light.theme.css'
 import CloseIcon from '@/assets/icons/close.svg'
 
 const STANDAR_Y = 320
+const FALLBACK_IDLE_DELAY_MS = 150
+
+const scheduleIdleTask = callback => {
+  if (typeof window.requestIdleCallback === 'function') {
+    return {
+      type: 'idle',
+      id: window.requestIdleCallback(callback, { timeout: 1000 })
+    }
+  }
+
+  return {
+    type: 'timeout',
+    id: window.setTimeout(callback, FALLBACK_IDLE_DELAY_MS)
+  }
+}
+
+const cancelIdleTask = task => {
+  if (!task) {
+    return
+  }
+
+  if (task.type === 'idle' && typeof window.cancelIdleCallback === 'function') {
+    window.cancelIdleCallback(task.id)
+  } else {
+    window.clearTimeout(task.id)
+  }
+}
 
 export default {
   components: {
@@ -188,6 +216,7 @@ export default {
     return {
       selectionChange: null,
       editor: null,
+      deferredContentSyncTask: null,
       pathname: '',
       isShowClose: false,
       dialogTableVisible: false,
@@ -458,6 +487,7 @@ export default {
 
   created () {
     this.$nextTick(() => {
+      markRendererStartupPhase('editor:init-start')
       this.printer = new Printer()
       const ele = this.$refs.editor
       const {
@@ -510,6 +540,7 @@ export default {
       })
       Muya.use(FootnoteTool)
       Muya.use(TableBarTools)
+      markRendererStartupPhase('editor:plugins-registered')
 
       const options = {
         focusMode,
@@ -555,6 +586,7 @@ export default {
       }
 
       const { container } = this.editor = new Muya(ele, options)
+      markRendererStartupPhase('editor:muya-created')
 
       // Create spell check wrapper and enable spell checking if preferred.
       this.spellchecker = new SpellChecker(spellcheckerEnabled, spellcheckerLanguage)
@@ -600,7 +632,15 @@ export default {
 
       this.editor.on('change', changes => {
         // WORKAROUND: "id: 'muya'"
-        this.dispatchEditor('LISTEN_FOR_CONTENT_CHANGE', Object.assign(changes, { id: 'muya' }))
+        const payload = Object.assign(changes, { id: 'muya' })
+
+        if (payload.markdown === this.currentFile.markdown) {
+          this.scheduleDeferredContentSync(payload)
+          return
+        }
+
+        this.cancelDeferredContentSync()
+        this.dispatchEditor('LISTEN_FOR_CONTENT_CHANGE', payload)
       })
 
       this.editor.on('format-click', ({ event, formatType, data }) => {
@@ -666,12 +706,33 @@ export default {
       document.addEventListener('keyup', this.keyup)
 
       setEditorWidth(editorLineWidth)
+      markRendererStartupPhase('editor:init-complete')
     })
   },
   methods: {
     ...mapActions(useEditorStore, {
       dispatchEditor: 'dispatch'
     }),
+    cancelDeferredContentSync () {
+      cancelIdleTask(this.deferredContentSyncTask)
+      this.deferredContentSyncTask = null
+    },
+
+    scheduleDeferredContentSync (payload) {
+      if (this.deferredContentSyncTask) {
+        return
+      }
+
+      const expectedFileId = this.currentFile.id
+      this.deferredContentSyncTask = scheduleIdleTask(() => {
+        this.deferredContentSyncTask = null
+        if (this.currentFile.id !== expectedFileId || payload.markdown !== this.currentFile.markdown) {
+          return
+        }
+        this.dispatchEditor('LISTEN_FOR_CONTENT_CHANGE', payload)
+      })
+    },
+
     photoCreatorClick (url) {
       this.$nativeApi.shell.openExternal(url)
     },
@@ -1125,6 +1186,7 @@ export default {
     }
   },
   beforeUnmount () {
+    this.cancelDeferredContentSync()
     bus.$off('file-loaded', this.setMarkdownToEditor)
     bus.$off('invalidate-image-cache', this.handleInvalidateImageCache)
     bus.$off('undo', this.handleUndo)

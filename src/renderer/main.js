@@ -16,9 +16,12 @@ import { useNotificationStore } from '@/stores/notification'
 import { usePreferencesStore } from '@/stores/preferences'
 import { useProjectStore } from '@/stores/project'
 import { useTweetStore } from '@/stores/tweet'
+import { markRendererStartupPhase } from './performance/startupMetrics'
 
 import './assets/styles/index.css'
 import './assets/styles/printService.css'
+
+markRendererStartupPhase('renderer:module-evaluated')
 
 const RootShell = {
   name: 'RendererRootShell',
@@ -82,8 +85,11 @@ const initializeStores = pinia => {
 }
 
 const start = async () => {
+  markRendererStartupPhase('renderer:start')
   await bootstrapRenderer()
+  markRendererStartupPhase('renderer:bootstrap-complete')
   addElementStyle()
+  markRendererStartupPhase('renderer:element-style-added')
 
   const [
     { default: createRendererRouter },
@@ -94,6 +100,7 @@ const start = async () => {
     import('./plugins/elementPlus'),
     import('./plugins/services')
   ])
+  markRendererStartupPhase('renderer:imports-complete')
 
   const app = createApp(RootShell)
   const pinia = createPinia()
@@ -102,12 +109,22 @@ const start = async () => {
   installElementPlus(app)
   installServices(app)
   app.use(pinia)
+  markRendererStartupPhase('renderer:stores-init-start')
   initializeStores(pinia)
+  markRendererStartupPhase('renderer:stores-init-complete')
   appApi.notifyRendererReady()
+  markRendererStartupPhase('renderer:notify-ready')
   app.use(router)
 
+  markRendererStartupPhase('renderer:router-ready-start')
   await router.isReady()
+  markRendererStartupPhase('renderer:router-ready-complete')
+  markRendererStartupPhase('renderer:mount-start')
   app.mount('#app')
+  markRendererStartupPhase('renderer:mount-complete')
+  requestAnimationFrame(() => {
+    markRendererStartupPhase('renderer:first-frame')
+  })
 }
 
 start().catch(error => {

@@ -17,6 +17,7 @@ import { WindowType } from '../windows/base'
 import EditorWindow from '../windows/editor'
 import SettingWindow from '../windows/setting'
 import registerRendererIpc from '../ipc/renderer'
+import { markStartupPhase } from '../performance/startupMetrics'
 
 class App {
   /**
@@ -34,12 +35,15 @@ class App {
 
     registerRendererIpc(this)
     this._listenForIpcMain()
+    markStartupPhase('app:constructed')
   }
 
   /**
    * The entry point into the application.
    */
   init () {
+    markStartupPhase('app:init')
+
     // Enable these features to use `backdrop-filter` css rules!
     if (isOsx) {
       app.commandLine.appendSwitch('enable-experimental-web-platform-features', 'true')
@@ -126,6 +130,8 @@ class App {
   }
 
   ready = () => {
+    markStartupPhase('app:ready')
+
     const { _args: args, _openFilesCache } = this
     const { preferences } = this._accessor
 
@@ -201,8 +207,10 @@ class App {
     }
 
     if (_openFilesCache.length) {
+      markStartupPhase('app:opening-startup-paths', { startupPathCount: _openFilesCache.length })
       this._openFilesToOpen()
     } else {
+      markStartupPhase('app:create-initial-window')
       this._createEditorWindow()
     }
 
@@ -260,9 +268,17 @@ class App {
    * @returns {EditorWindow} The created editor window.
    */
   _createEditorWindow (rootDirectory = null, fileList = [], markdownList = [], options = {}) {
+    markStartupPhase('window:create-requested', {
+      existingWindowCount: this._windowManager.windowCount,
+      hasRootDirectory: !!rootDirectory,
+      fileCount: fileList.length,
+      markdownCount: markdownList.length
+    })
+
     const editor = new EditorWindow(this._accessor)
     editor.createWindow(rootDirectory, fileList, markdownList, options)
     this._windowManager.add(editor)
+    markStartupPhase('window:create-request-finished', { windowId: editor.id })
     if (this._windowManager.windowCount === 1) {
       this._accessor.menu.setActiveWindow(editor.id)
     }

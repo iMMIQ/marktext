@@ -3,6 +3,7 @@ import EventEmitter from 'events'
 import log from 'electron-log'
 import Watcher, { WATCHER_STABILITY_THRESHOLD, WATCHER_STABILITY_POLL_INTERVAL } from '../filesystem/watcher'
 import { WindowType } from '../windows/base'
+import { markStartupPhase } from '../performance/startupMetrics'
 
 class WindowActivityList {
   constructor () {
@@ -370,6 +371,7 @@ class WindowManager extends EventEmitter {
 
     ipcMain.on('mt::renderer-ready', e => {
       const win = BrowserWindow.fromWebContents(e.sender)
+      markStartupPhase('window:renderer-ready-ipc', { windowId: win ? win.id : null })
       const editor = this.get(win.id)
       if (!editor) {
         log.error(`Cannot find window id "${win.id}" to bootstrap renderer.`)
