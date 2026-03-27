@@ -8,8 +8,8 @@ const releaseWorkflow = fs.readFileSync(path.join(root, '.github/workflows/relea
 
 describe('release publish target contract', () => {
   it('publishes release artifacts to the current GitHub Actions repository', () => {
-    expect(releaseWorkflow).toContain('MARKTEXT_RELEASE_REPO_OWNER: ${{ github.repository_owner }}')
-    expect(releaseWorkflow).toContain('MARKTEXT_RELEASE_REPO_NAME: ${{ github.event.repository.name }}')
+    expect(releaseWorkflow).toContain('MARKTEXT_RELEASE_REPO_OWNER: $' + '{{ github.repository_owner }}')
+    expect(releaseWorkflow).toContain('MARKTEXT_RELEASE_REPO_NAME: $' + '{{ github.event.repository.name }}')
     expect(releaseWorkflow).toContain('-c.publish.provider=github')
     expect(releaseWorkflow).toContain('-c.publish.owner=$MARKTEXT_RELEASE_REPO_OWNER')
     expect(releaseWorkflow).toContain('-c.publish.repo=$MARKTEXT_RELEASE_REPO_NAME')
