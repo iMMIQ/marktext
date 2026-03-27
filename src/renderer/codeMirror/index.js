@@ -240,6 +240,9 @@ class CodeMirrorAdapter {
           this.directionCompartment.of(EditorView.contentAttributes.of({ dir: config.direction || 'ltr' })),
           this.languageCompartment.of(MARKDOWN_LANGUAGE),
           EditorView.updateListener.of(update => {
+            if (update.docChanged) {
+              this.emit('change', this)
+            }
             if (update.docChanged || update.selectionSet) {
               this.emit('cursorActivity', this)
             }

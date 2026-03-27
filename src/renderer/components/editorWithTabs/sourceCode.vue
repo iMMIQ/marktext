@@ -89,6 +89,10 @@ export default {
 
       // Init the source editor.
       const editor = this.editor = codeMirror(container, codeMirrorConfig)
+      this.contentState = {
+        markdown,
+        wordCount: getWordCount(markdown)
+      }
 
       bus.$on('file-loaded', this.handleFileChange)
       bus.$on('invalidate-image-cache', this.handleInvalidateImageCache)
@@ -187,10 +191,22 @@ export default {
     },
     listenChange () {
       const { editor } = this
+      editor.on('change', cm => {
+        const markdown = cm.getValue()
+        this.contentState = {
+          markdown,
+          wordCount: getWordCount(markdown)
+        }
+      })
+
       editor.on('cursorActivity', cm => {
-        const { cursor, markdown } = this.getMarkdownAndCursor(cm)
+        const contentState = this.contentState || {
+          markdown: cm.getValue(),
+          wordCount: getWordCount(cm.getValue())
+        }
+        const { cursor, markdown } = this.getMarkdownAndCursor(cm, contentState.markdown)
         // Attention: the cursor may be `{focus: null, anchor: null}` when press `backspace`
-        const wordCount = getWordCount(markdown)
+        const { wordCount } = contentState
         if (this.commitTimer) clearTimeout(this.commitTimer)
         this.commitTimer = setTimeout(() => {
           // See "beforeDestroy" note
@@ -212,6 +228,10 @@ export default {
       const { editor } = this
       if (typeof markdown === 'string') {
         editor.setValue(markdown)
+        this.contentState = {
+          markdown,
+          wordCount: getWordCount(markdown)
+        }
       }
       // Cursor is null when loading a file or creating a new tab in source code mode.
       if (cursor) {
@@ -223,10 +243,9 @@ export default {
       this.tabId = id
     },
     // Get markdown and cursor from the source editor.
-    getMarkdownAndCursor (cm) {
+    getMarkdownAndCursor (cm, markdown = cm.getValue()) {
       let focus = cm.getCursor('head')
       let anchor = cm.getCursor('anchor')
-      const markdown = cm.getValue()
       const convertToMuyaCursor = cursor => {
         const line = cm.getLine(cursor.line)
         const preLine = cm.getLine(cursor.line - 1)
