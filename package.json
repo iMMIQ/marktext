@@ -34,6 +34,7 @@
     "build:muya": "cd src/muya && webpack --progress --config webpack.config.js",
     "release:muya": "yarn run build:muya && cd src/muya && yarn publish",
     "rebuild": "node tools/build/rebuildNativeModules.mjs",
+    "rebuild:force": "cross-env MARKTEXT_FORCE_NATIVE_REBUILD=1 node tools/build/rebuildNativeModules.mjs",
     "gen-third-party": "node tools/generateThirdPartyLicense.js",
     "validate-licenses": "node tools/validateLicenses.js",
     "deobfuscateStackTrace": "node tools/deobfuscateStackTrace.js"

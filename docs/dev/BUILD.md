@@ -35,6 +35,7 @@ On Red Hat-based Linux: `sudo dnf install libX11-devel libxkbfile-devel libsecre
 
 - `yarn run dev` for local development
 - `yarn run rebuild` before native packaging
+- `yarn run rebuild:force` to invalidate the native rebuild cache
 - `yarn run pack` to build `dist/electron`
 - `yarn run unit` for the unit suite
 - `yarn run format` to auto-fix formatting and lint issues
@@ -92,6 +93,8 @@ Before packaging on any platform, run:
 2. `yarn run rebuild`
 3. `yarn run pack`
 4. `yarn run build`
+
+`yarn run rebuild` now skips work when the Electron ABI, platform, arch, Node version, and rebuilt native module versions have not changed. Use `yarn run rebuild:force` after toolchain changes or whenever you want to invalidate that cache manually.
 
 Unit tests now run through Vitest with `yarn run unit`.
 
