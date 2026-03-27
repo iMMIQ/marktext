@@ -6,7 +6,14 @@ const RECENT_BUILD_WINDOW_MS = 10 * 60 * 1000
 
 test('pack emits the Electron runtime contract files', async () => {
   const outDir = path.resolve('dist/electron')
-  const contractFiles = ['main.js', 'preload.js', 'index.html']
+  const contractFiles = [
+    'main.js',
+    'preload.js',
+    'index.html',
+    'static/preference.json',
+    'static/logo-96px.png',
+    'static/logo-small.png'
+  ]
   const builtAfter = Date.now() - RECENT_BUILD_WINDOW_MS
 
   for (const relativePath of contractFiles) {
