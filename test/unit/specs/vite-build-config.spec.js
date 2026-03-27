@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import mainConfig from '../../../vite.main.config'
 import preloadConfig from '../../../vite.preload.config'
+import rendererConfig from '../../../vite.renderer.config'
 
 describe('vite main and preload build config', () => {
   it('emits the main bundle to dist/electron/main.js with shared defines', () => {
@@ -20,5 +21,11 @@ describe('vite main and preload build config', () => {
     expect(preloadConfig.define['global.MARKTEXT_VERSION']).toBeTruthy()
     expect(preloadConfig.define['global.MARKTEXT_VERSION_STRING']).toBeTruthy()
     expect(preloadConfig.define['global.MARKTEXT_IS_STABLE']).toBeTruthy()
+  })
+
+  it('keeps the renderer build free of the legacy codemirror asset plugin', () => {
+    const pluginNames = (rendererConfig.plugins || []).map(plugin => plugin && plugin.name).filter(Boolean)
+
+    expect(pluginNames).not.toContain('marktext-codemirror-assets')
   })
 })

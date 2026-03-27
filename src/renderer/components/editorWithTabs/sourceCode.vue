@@ -289,18 +289,22 @@ export default {
     box-sizing: border-box;
     overflow: auto;
   }
-  .source-code .CodeMirror {
+  .source-code .CodeMirror,
+  .source-code .cm-editor {
     height: auto;
     margin: 50px auto;
     max-width: var(--editorAreaWidth);
     background: transparent;
   }
-  .source-code .CodeMirror-gutters {
+  .source-code .CodeMirror-gutters,
+  .source-code .cm-gutters {
     border-right: none;
     background-color: transparent;
   }
   .source-code .CodeMirror-activeline-background,
-  .source-code .CodeMirror-activeline-gutter {
+  .source-code .CodeMirror-activeline-gutter,
+  .source-code .cm-activeLine,
+  .source-code .cm-activeLineGutter {
     background: var(--floatHoverColor);
   }
 </style>

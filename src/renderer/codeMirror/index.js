@@ -1,91 +1,396 @@
 import { filter } from 'fuzzaldrin'
-import 'codemirror/addon/edit/closebrackets'
-import 'codemirror/addon/edit/closetag'
-import 'codemirror/addon/selection/active-line'
-import 'codemirror/mode/meta'
-import codeMirror from 'codemirror/lib/codemirror'
+import { EditorSelection, EditorState, Compartment } from '@codemirror/state'
+import {
+  EditorView,
+  drawSelection,
+  highlightActiveLine,
+  highlightActiveLineGutter,
+  keymap,
+  lineNumbers
+} from '@codemirror/view'
+import { history, historyKeymap, defaultKeymap } from '@codemirror/commands'
+import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete'
+import {
+  bracketMatching,
+  defaultHighlightStyle,
+  HighlightStyle,
+  LanguageDescription,
+  syntaxHighlighting
+} from '@codemirror/language'
+import { highlightSelectionMatches, searchKeymap } from '@codemirror/search'
+import { markdown } from '@codemirror/lang-markdown'
+import { tags } from '@lezer/highlight'
+import { languages as languageData } from '@codemirror/language-data'
 
-import loadmode from './loadmode'
-import overlayMode from './overlayMode'
-import multiplexMode from './mltiplexMode'
-import languages from './modes'
-import 'codemirror/lib/codemirror.css'
+import legacyModes from './modes'
 import './index.css'
-import 'codemirror/theme/railscasts.css'
+import './theme.css'
 
-loadmode(codeMirror)
-overlayMode(codeMirror)
-multiplexMode(codeMirror)
-window.CodeMirror = codeMirror
+const themeClasses = ['cm-s-default', 'cm-s-one-dark', 'cm-s-railscasts']
+const markdownAliases = new Set(['markdown', 'gfm'])
+const languageOverrides = new Map([
+  ['c_cpp', 'c++'],
+  ['csharp', 'c#'],
+  ['cs', 'c#'],
+  ['golang', 'go'],
+  ['jsoniq', 'json'],
+  ['less', 'less'],
+  ['makefile', 'shell'],
+  ['pgsql', 'sql'],
+  ['plsql', 'sql'],
+  ['shell', 'shell'],
+  ['sh', 'shell'],
+  ['soy_template', 'soy'],
+  ['tex', 'latex'],
+  ['typescript', 'typescript']
+])
 
-const modes = codeMirror.modeInfo
-codeMirror.modeURL = './codemirror/mode/%N/%N.js'
+const legacyHighlightStyle = HighlightStyle.define([
+  { tag: [tags.heading, tags.heading1, tags.heading2, tags.heading3, tags.heading4, tags.heading5, tags.heading6], class: 'cm-header' },
+  { tag: tags.quote, class: 'cm-quote' },
+  { tag: tags.strong, class: 'cm-strong' },
+  { tag: tags.emphasis, class: 'cm-em' },
+  { tag: [tags.link, tags.url], class: 'cm-link' },
+  { tag: [tags.keyword, tags.controlKeyword, tags.definitionKeyword, tags.moduleKeyword], class: 'cm-keyword' },
+  { tag: [tags.atom, tags.bool, tags.null], class: 'cm-atom' },
+  { tag: [tags.number, tags.integer, tags.float], class: 'cm-number' },
+  { tag: tags.attributeName, class: 'cm-attribute' },
+  { tag: tags.tagName, class: 'cm-tag' },
+  { tag: tags.className, class: 'cm-def' },
+  { tag: [tags.name, tags.variableName, tags.labelName], class: 'cm-variable' },
+  { tag: tags.propertyName, class: 'cm-property' },
+  { tag: [tags.typeName, tags.namespace, tags.macroName, tags.standard(tags.name)], class: 'cm-builtin' },
+  { tag: [tags.string, tags.special(tags.string), tags.attributeValue], class: 'cm-string' },
+  { tag: tags.operator, class: 'cm-operator' },
+  { tag: [tags.punctuation, tags.separator], class: 'cm-punctuation' },
+  { tag: tags.bracket, class: 'cm-bracket' },
+  { tag: [tags.comment, tags.lineComment, tags.blockComment, tags.docComment], class: 'cm-comment' },
+  { tag: [tags.meta, tags.documentMeta, tags.annotation, tags.processingInstruction], class: 'cm-meta' },
+  { tag: tags.invalid, class: 'cm-error' }
+])
+
+const getThemeClass = theme => {
+  if (theme === 'railscasts') {
+    return 'cm-s-railscasts'
+  }
+  if (theme === 'one-dark') {
+    return 'cm-s-one-dark'
+  }
+  return 'cm-s-default'
+}
+
+const normalizeLegacyName = name => {
+  if (!name) {
+    return ''
+  }
+  return name.toLowerCase()
+}
+
+const createLanguageDescription = entry => {
+  const normalizedName = normalizeLegacyName(entry.name)
+  const candidates = [
+    normalizedName,
+    languageOverrides.get(normalizedName),
+    normalizeLegacyName(entry.mode),
+    entry.mime
+  ].filter(Boolean)
+
+  const baseDescription = candidates
+    .map(candidate => LanguageDescription.matchLanguageName(languageData, candidate, true))
+    .find(Boolean)
+
+  if (markdownAliases.has(normalizedName)) {
+    return LanguageDescription.of({
+      name: entry.name,
+      alias: [normalizedName, 'gfm'],
+      support: markdown({ codeLanguages: languageData })
+    })
+  }
+
+  if (!baseDescription) {
+    return null
+  }
+
+  return LanguageDescription.of({
+    name: entry.name,
+    alias: Array.from(new Set([
+      normalizedName,
+      normalizeLegacyName(entry.mode),
+      ...(baseDescription.alias || []).map(normalizeLegacyName)
+    ].filter(Boolean))),
+    extensions: baseDescription.extensions,
+    filename: baseDescription.filename,
+    load: () => baseDescription.load()
+  })
+}
+
+const languageEntries = legacyModes
+  .map(entry => {
+    const description = createLanguageDescription(entry)
+    return description ? { ...entry, description } : null
+  })
+  .filter(Boolean)
 
 const getModeFromName = name => {
-  let result = null
-  const lang = languages.filter(lang => lang.name === name)[0]
-  if (lang) {
-    const { name, mode, mime } = lang
-    const matched = modes.filter(m => {
-      if (m.mime) {
-        if (Array.isArray(m.mime) && m.mime.indexOf(mime) > -1 && m.mode === mode) {
-          return true
-        } else if (typeof m.mime === 'string' && m.mime === mime && m.mode === mode) {
-          return true
-        }
-      }
-      if (Array.isArray(m.mimes) && m.mimes.indexOf(mime) > -1 && m.mode === mode) {
-        return true
-      }
-      return false
-    })
-    if (matched.length && typeof matched[0] === 'object') {
-      result = {
-        name,
-        mode: matched[0]
-      }
+  const normalizedName = normalizeLegacyName(name)
+  const entry = languageEntries.find(candidate => normalizeLegacyName(candidate.name) === normalizedName)
+
+  if (!entry) {
+    return null
+  }
+
+  return {
+    name: entry.name,
+    mode: {
+      mode: entry.mode,
+      mime: entry.mime,
+      description: entry.description
     }
   }
-  return result
+}
+
+const getLine = (doc, lineNumber) => {
+  if (lineNumber < 0 || lineNumber >= doc.lines) {
+    return undefined
+  }
+  return doc.line(lineNumber + 1)
+}
+
+const clampPosition = (doc, position = { line: 0, ch: 0 }) => {
+  const lineNumber = Math.max(0, Math.min(position.line || 0, doc.lines - 1))
+  const line = doc.line(lineNumber + 1)
+  const ch = Math.max(0, Math.min(position.ch || 0, line.length))
+
+  return { lineNumber, line, ch }
+}
+
+const toOffset = (doc, position) => {
+  const { line, ch } = clampPosition(doc, position)
+  return line.from + ch
+}
+
+const toPosition = (doc, offset) => {
+  const clamped = Math.max(0, Math.min(offset, doc.length))
+  const line = doc.lineAt(clamped)
+
+  return {
+    line: line.number - 1,
+    ch: clamped - line.from
+  }
+}
+
+class CodeMirrorAdapter {
+  constructor (container, config = {}) {
+    this.container = container
+    this.handlers = new Map()
+    this.languageCompartment = new Compartment()
+    this.directionCompartment = new Compartment()
+    this.view = new EditorView({
+      parent: container,
+      state: EditorState.create({
+        doc: config.value || '',
+        extensions: [
+          EditorView.lineWrapping,
+          history(),
+          drawSelection(),
+          bracketMatching(),
+          closeBrackets(),
+          autocompletion(),
+          highlightSelectionMatches(),
+          syntaxHighlighting(legacyHighlightStyle),
+          syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+          keymap.of([
+            ...defaultKeymap,
+            ...historyKeymap,
+            ...closeBracketsKeymap,
+            ...completionKeymap,
+            ...searchKeymap
+          ]),
+          config.lineNumbers === false
+            ? []
+            : [
+              lineNumbers({
+                formatNumber: typeof config.lineNumberFormatter === 'function'
+                  ? (lineNo, state) => config.lineNumberFormatter(lineNo, state)
+                  : undefined
+              })
+            ],
+          config.styleActiveLine === false
+            ? []
+            : [highlightActiveLine(), highlightActiveLineGutter()],
+          this.directionCompartment.of(EditorView.contentAttributes.of({ dir: config.direction || 'ltr' })),
+          this.languageCompartment.of(markdown({ codeLanguages: languageData })),
+          EditorView.updateListener.of(update => {
+            if (update.docChanged || update.selectionSet) {
+              this.emit('cursorActivity', this)
+            }
+          })
+        ]
+      })
+    })
+
+    this.view.dom.classList.add('CodeMirror')
+    this.applyThemeClass(config.theme)
+    this.view.contentDOM.addEventListener('contextmenu', event => {
+      this.emit('contextmenu', this, event)
+    })
+
+    if (config.autofocus) {
+      this.focus()
+    }
+  }
+
+  applyThemeClass (theme) {
+    const nextClass = getThemeClass(theme)
+    this.view.dom.classList.remove(...themeClasses)
+    this.view.dom.classList.add(nextClass)
+  }
+
+  emit (name, ...args) {
+    const handlers = this.handlers.get(name)
+    if (!handlers) {
+      return
+    }
+    for (const handler of handlers) {
+      handler(...args)
+    }
+  }
+
+  on (name, handler) {
+    const handlers = this.handlers.get(name) || []
+    handlers.push(handler)
+    this.handlers.set(name, handlers)
+  }
+
+  getValue () {
+    return this.view.state.doc.toString()
+  }
+
+  setValue (value) {
+    this.view.dispatch({
+      changes: { from: 0, to: this.view.state.doc.length, insert: value || '' },
+      selection: { anchor: 0 }
+    })
+  }
+
+  getCursor (which = 'head') {
+    const selection = this.view.state.selection.main
+    const offset = which === 'anchor' ? selection.anchor : selection.head
+    return toPosition(this.view.state.doc, offset)
+  }
+
+  setCursor (line, ch) {
+    const anchor = toOffset(this.view.state.doc, { line, ch })
+    this.view.dispatch({
+      selection: { anchor },
+      scrollIntoView: true
+    })
+  }
+
+  setSelection (anchor, head, options = {}) {
+    this.view.dispatch({
+      selection: EditorSelection.single(
+        toOffset(this.view.state.doc, anchor),
+        toOffset(this.view.state.doc, head)
+      ),
+      scrollIntoView: options.scroll === true
+    })
+  }
+
+  focus () {
+    this.view.focus()
+  }
+
+  hasFocus () {
+    return this.view.hasFocus
+  }
+
+  execCommand (command) {
+    if (command === 'selectAll') {
+      this.view.dispatch({
+        selection: EditorSelection.single(0, this.view.state.doc.length),
+        scrollIntoView: true
+      })
+    }
+  }
+
+  getLine (lineNumber) {
+    const line = getLine(this.view.state.doc, lineNumber)
+    return line ? line.text : undefined
+  }
+
+  getLineHandle (lineNumber) {
+    const line = getLine(this.view.state.doc, lineNumber)
+    return line ? { text: line.text } : undefined
+  }
+
+  lineCount () {
+    return this.view.state.doc.lines
+  }
+
+  lastLine () {
+    return this.view.state.doc.lines - 1
+  }
+
+  async setLanguageByName (name) {
+    const mode = getModeFromName(name)
+    if (!mode) {
+      const errMsg = !name
+        ? 'You\'d better provided a language mode when you create code block'
+        : `${name} is not a valid language mode!`
+      return Promise.reject(errMsg)
+    }
+
+    const support = mode.mode.description.support || await mode.mode.description.load()
+    this.view.dispatch({
+      effects: this.languageCompartment.reconfigure(support)
+    })
+    return mode
+  }
+
+  setDirection (textDirection) {
+    this.view.dispatch({
+      effects: this.directionCompartment.reconfigure(EditorView.contentAttributes.of({ dir: textDirection }))
+    })
+  }
+
+  invalidateImageCache () {}
+}
+
+const codeMirror = (container, config = {}) => {
+  return new CodeMirrorAdapter(container, config)
 }
 
 export const search = text => {
-  const matchedLangs = filter(languages, text, { key: 'name' })
+  const matchedLangs = filter(languageEntries, text, { key: 'name' })
   return matchedLangs
     .map(({ name }) => getModeFromName(name))
-    .filter(lang => !!lang)
+    .filter(Boolean)
 }
 
-/**
- * set cursor at the end of last line.
- */
 export const setCursorAtLastLine = cm => {
   const lastLine = cm.lastLine()
   const lineHandle = cm.getLineHandle(lastLine)
 
   cm.focus()
-  cm.setCursor(lastLine, lineHandle.text.length)
+  cm.setCursor(lastLine, lineHandle ? lineHandle.text.length : 0)
 }
 
-// if cursor at firstLine return true
 export const isCursorAtFirstLine = cm => {
   const cursor = cm.getCursor()
-  const { line, ch, outside } = cursor
-
-  return line === 0 && ch === 0 && outside
+  return cursor.line === 0 && cursor.ch === 0
 }
 
 export const isCursorAtLastLine = cm => {
   const lastLine = cm.lastLine()
   const cursor = cm.getCursor()
-  const { line, outside, sticky } = cursor
-  return line === lastLine && (outside || !sticky)
+  const lineHandle = cm.getLineHandle(lastLine)
+  return cursor.line === lastLine && cursor.ch === (lineHandle ? lineHandle.text.length : 0)
 }
 
 export const isCursorAtBegin = cm => {
   const cursor = cm.getCursor()
-  const { line, ch, hitSide } = cursor
-  return line === 0 && ch === 0 && !!hitSide
+  return cursor.line === 0 && cursor.ch === 0
 }
 
 export const onlyHaveOneLine = cm => {
@@ -96,9 +401,8 @@ export const isCursorAtEnd = cm => {
   const lastLine = cm.lastLine()
   const lastLineHandle = cm.getLineHandle(lastLine)
   const cursor = cm.getCursor()
-  const { line, ch, hitSide } = cursor
 
-  return line === lastLine && ch === lastLineHandle.text.length && !!hitSide
+  return cursor.line === lastLine && cursor.ch === (lastLineHandle ? lastLineHandle.text.length : 0)
 }
 
 export const getBeginPosition = () => {
@@ -112,7 +416,7 @@ export const getEndPosition = cm => {
   const lastLine = cm.lastLine()
   const lastLineHandle = cm.getLineHandle(lastLine)
   const line = lastLine
-  const ch = lastLineHandle.text.length
+  const ch = lastLineHandle ? lastLineHandle.text.length : 0
   return { anchor: { line, ch }, head: { line, ch } }
 }
 
@@ -122,27 +426,11 @@ export const setCursorAtFirstLine = cm => {
 }
 
 export const setMode = (doc, text) => {
-  const m = getModeFromName(text)
-
-  if (!m) {
-    const errMsg = !text
-      ? 'You\'d better provided a language mode when you create code block'
-      : `${text} is not a valid language mode!`
-    return Promise.reject(errMsg)
-  }
-
-  const { mode, mime } = m.mode
-  return new Promise(resolve => {
-    codeMirror.requireMode(mode, () => {
-      doc.setOption('mode', mime || mode)
-      codeMirror.autoLoadMode(doc, mode)
-      resolve(m)
-    })
-  })
+  return doc.setLanguageByName(text)
 }
 
 export const setTextDirection = (cm, textDirection) => {
-  cm.setOption('direction', textDirection)
+  cm.setDirection(textDirection)
 }
 
 export default codeMirror

@@ -1,0 +1,266 @@
+.CodeMirror.cm-editor {
+  background: transparent;
+  height: auto;
+}
+
+.CodeMirror .cm-scroller {
+  overflow: visible;
+  font-family: inherit;
+}
+
+.CodeMirror .cm-content {
+  min-height: 1.2em;
+  caret-color: auto;
+}
+
+.CodeMirror .cm-line {
+  padding: 0 4px;
+}
+
+.CodeMirror .cm-selectionBackground,
+.CodeMirror.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
+  background: rgb(178, 215, 254);
+}
+
+.CodeMirror .cm-cursor {
+  border-left: 1px solid black;
+}
+
+.CodeMirror .cm-gutters {
+  border-right: 1px solid #ddd;
+  background-color: transparent;
+}
+
+.CodeMirror .cm-lineNumbers .cm-gutterElement {
+  padding: 0 3px 0 5px;
+  min-width: 20px;
+  text-align: right;
+  color: #999;
+  white-space: nowrap;
+}
+
+.cm-s-default .cm-header {
+  color: blue;
+}
+
+.cm-s-default .cm-quote {
+  color: #090;
+}
+
+.cm-s-default .cm-keyword {
+  color: #708;
+}
+
+.cm-s-default .cm-atom {
+  color: #219;
+}
+
+.cm-s-default .cm-number {
+  color: #164;
+}
+
+.cm-s-default .cm-def {
+  color: #00f;
+}
+
+.cm-s-default .cm-comment {
+  color: #a50;
+}
+
+.cm-s-default .cm-string {
+  color: #a11;
+}
+
+.cm-s-default .cm-meta {
+  color: #555;
+}
+
+.cm-s-default .cm-builtin {
+  color: #30a;
+}
+
+.cm-s-default .cm-bracket {
+  color: #997;
+}
+
+.cm-s-default .cm-tag {
+  color: #170;
+}
+
+.cm-s-default .cm-attribute,
+.cm-s-default .cm-link {
+  color: #00c;
+}
+
+.cm-s-default .cm-error {
+  color: #f00;
+}
+
+.cm-s-default .cm-matchingBracket {
+  color: #0b0;
+}
+
+.cm-s-default .cm-nonmatchingBracket {
+  color: #a22;
+}
+
+.cm-s-one-dark.cm-editor {
+  color: #abb2bf;
+  background-color: #282c34;
+}
+
+.cm-s-one-dark .cm-selectionBackground,
+.cm-s-one-dark.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
+  background-color: #3e4451;
+}
+
+.cm-s-one-dark .cm-gutters {
+  border: none;
+  background-color: #282c34;
+}
+
+.cm-s-one-dark .cm-lineNumbers .cm-gutterElement {
+  color: #5c6370;
+  background-color: transparent;
+}
+
+.cm-s-one-dark .cm-content {
+  color: #abb2bf;
+  background-color: transparent;
+}
+
+.cm-s-one-dark .cm-cursor {
+  border-left: 2px solid #56b6c2;
+}
+
+.cm-s-one-dark .cm-matchingBracket {
+  border-bottom: 2px solid #56b6c2;
+  color: #abb2bf;
+  background-color: transparent;
+}
+
+.cm-s-one-dark .cm-nonmatchingBracket {
+  border-bottom: 2px solid #e06c75;
+  color: #abb2bf;
+  background-color: transparent;
+}
+
+.cm-s-one-dark .cm-activeLine {
+  background-color: rgba(153, 187, 255, 0.04);
+}
+
+.cm-s-one-dark .cm-header,
+.cm-s-one-dark .cm-variable,
+.cm-s-one-dark .cm-tag,
+.cm-s-one-dark .cm-builtin,
+.cm-s-one-dark .cm-error {
+  color: #e06c75;
+}
+
+.cm-s-one-dark .cm-quote,
+.cm-s-one-dark .cm-comment {
+  color: #5c6370;
+  font-style: italic;
+}
+
+.cm-s-one-dark .cm-strong,
+.cm-s-one-dark .cm-attribute,
+.cm-s-one-dark .cm-atom,
+.cm-s-one-dark .cm-number {
+  color: #d19a66;
+}
+
+.cm-s-one-dark .cm-def {
+  color: #e5c07b;
+}
+
+.cm-s-one-dark .cm-em,
+.cm-s-one-dark .cm-keyword {
+  color: #c678dd;
+}
+
+.cm-s-one-dark .cm-link,
+.cm-s-one-dark .cm-string {
+  color: #98c379;
+}
+
+.cm-s-one-dark .cm-property,
+.cm-s-one-dark .cm-operator {
+  color: #56b6c2;
+}
+
+.cm-s-one-dark .cm-punctuation,
+.cm-s-one-dark .cm-meta,
+.cm-s-one-dark .cm-bracket {
+  color: #abb2bf;
+}
+
+.cm-s-railscasts.cm-editor {
+  background: #2b2b2b;
+  color: #f4f1ed;
+}
+
+.cm-s-railscasts .cm-selectionBackground,
+.cm-s-railscasts.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
+  background: #272935;
+}
+
+.cm-s-railscasts .cm-gutters {
+  background: #2b2b2b;
+  border-right: 0;
+}
+
+.cm-s-railscasts .cm-lineNumbers .cm-gutterElement {
+  color: #5a647e;
+}
+
+.cm-s-railscasts .cm-cursor {
+  border-left: 1px solid #d4cfc9;
+}
+
+.cm-s-railscasts .cm-comment {
+  color: #bc9458;
+}
+
+.cm-s-railscasts .cm-atom,
+.cm-s-railscasts .cm-number,
+.cm-s-railscasts .cm-link {
+  color: #b6b3eb;
+}
+
+.cm-s-railscasts .cm-property,
+.cm-s-railscasts .cm-attribute,
+.cm-s-railscasts .cm-variable {
+  color: #a5c261;
+}
+
+.cm-s-railscasts .cm-keyword,
+.cm-s-railscasts .cm-tag {
+  color: #da4939;
+}
+
+.cm-s-railscasts .cm-string {
+  color: #ffc66d;
+}
+
+.cm-s-railscasts .cm-def {
+  color: #cc7833;
+}
+
+.cm-s-railscasts .cm-error {
+  background: #da4939;
+  color: #d4cfc9;
+}
+
+.cm-s-railscasts .cm-bracket {
+  color: #f4f1ed;
+}
+
+.cm-s-railscasts .cm-matchingBracket {
+  text-decoration: underline;
+  color: white;
+}
+
+.cm-s-railscasts .cm-activeLine {
+  background: #303040;
+}

@@ -2,7 +2,6 @@ import path from 'path'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import postcssPresetEnv from 'postcss-preset-env'
-import marktextCodemirrorAssets from './tools/vite/codemirrorAssets'
 import { getMarkTextDefines } from './tools/vite/marktextEnvironment'
 
 const rendererRoot = path.resolve(__dirname, 'src/renderer')
@@ -11,8 +10,7 @@ export default defineConfig({
   root: rendererRoot,
   base: './',
   plugins: [
-    vue(),
-    marktextCodemirrorAssets()
+    vue()
   ],
   define: {
     ...getMarkTextDefines(),

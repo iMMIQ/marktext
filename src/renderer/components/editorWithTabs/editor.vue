@@ -114,7 +114,6 @@ import { useProjectStore } from '@/stores/project'
 
 import 'muya/themes/default.css'
 import 'muya/themes/prismjs/light.theme.css'
-import '@/assets/themes/codemirror/one-dark.css'
 // import 'view-image/lib/imgViewer.css'
 import CloseIcon from '@/assets/icons/close.svg'
 
