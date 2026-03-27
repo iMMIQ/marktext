@@ -6,6 +6,10 @@ on:
     branches:
       - 'release-v*'
 
+env:
+  MARKTEXT_RELEASE_REPO_OWNER: ${{ github.repository_owner }}
+  MARKTEXT_RELEASE_REPO_NAME: ${{ github.event.repository.name }}
+
 jobs:
   unix:
     runs-on: ${{ matrix.os }}
@@ -85,9 +89,9 @@ jobs:
       - name: Build and release
         run: |
               if [ "$RUNNER_OS" == "Linux" ]; then
-                yarn run release:linux --publish always
+                yarn run release:linux --publish always -c.publish.provider=github -c.publish.owner=$MARKTEXT_RELEASE_REPO_OWNER -c.publish.repo=$MARKTEXT_RELEASE_REPO_NAME
               elif [ "$RUNNER_OS" == "macOS" ]; then
-                yarn run release:mac --publish always
+                yarn run release:mac --publish always -c.publish.provider=github -c.publish.owner=$MARKTEXT_RELEASE_REPO_OWNER -c.publish.repo=$MARKTEXT_RELEASE_REPO_NAME
               else
                 echo "$RUNNER_OS not supported"
                 exit 1
@@ -172,7 +176,7 @@ jobs:
         run: yarn run test
 
       - name: Build and release
-        run: yarn run release:win --publish always
+        run: yarn run release:win --publish always -c.publish.provider=github -c.publish.owner=$env:MARKTEXT_RELEASE_REPO_OWNER -c.publish.repo=$env:MARKTEXT_RELEASE_REPO_NAME
 
       - name: Calculate checksums
         run: |
