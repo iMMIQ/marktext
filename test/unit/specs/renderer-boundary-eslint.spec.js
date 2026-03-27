@@ -4,7 +4,10 @@ import fs from 'fs'
 import path from 'path'
 import { execFileSync } from 'child_process'
 
-const eslintBin = path.resolve(process.cwd(), 'node_modules/.bin/eslint')
+// On Windows, the bin script needs .cmd extension
+const eslintBin = process.platform === 'win32'
+  ? path.resolve(process.cwd(), 'node_modules/.bin/eslint.cmd')
+  : path.resolve(process.cwd(), 'node_modules/.bin/eslint')
 const eslintConfigPath = path.resolve(process.cwd(), 'eslint.config.js')
 
 const parseEslintMessages = error => {
