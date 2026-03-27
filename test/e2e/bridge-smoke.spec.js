@@ -18,9 +18,12 @@ test('renderer exposes the native bridge contract', async () => {
     'fonts',
     'keyboard',
     'menu',
+    'preferences',
+    'project',
     'runtime',
     'search',
     'shell',
+    'spellchecker',
     'window'
   ])
 })
