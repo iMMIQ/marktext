@@ -72,7 +72,12 @@ jobs:
           yarn run lint
           yarn run validate-licenses
 
+      - name: Run unit tests
+        if: runner.os == 'Linux'
+        run: yarn run unit
+
       - name: Run unit and E2E tests
+        if: runner.os == 'macOS'
         uses: GabrielBB/xvfb-action@v1
         with:
           run: yarn run test
