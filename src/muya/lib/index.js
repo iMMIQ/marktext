@@ -162,7 +162,7 @@ class Muya {
   }
 
   getCursor () {
-    return this.contentState.getCodeMirrorCursor()
+    return this.contentState.getSourceEditorCursor()
   }
 
   setMarkdown (markdown, cursor, isRenderCursor = true) {

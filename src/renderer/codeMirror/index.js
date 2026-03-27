@@ -14,7 +14,6 @@ import {
   bracketMatching,
   defaultHighlightStyle,
   HighlightStyle,
-  LanguageDescription,
   syntaxHighlighting
 } from '@codemirror/language'
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search'
@@ -22,13 +21,10 @@ import { markdown } from '@codemirror/lang-markdown'
 import { tags } from '@lezer/highlight'
 import { languages as languageData } from '@codemirror/language-data'
 
-import legacyModes from './modes'
-import './index.css'
 import './theme.css'
 
-const themeClasses = ['cm-s-default', 'cm-s-one-dark', 'cm-s-railscasts']
 const markdownAliases = new Set(['markdown', 'gfm'])
-const languageOverrides = new Map([
+const legacyLanguageAliases = new Map([
   ['c_cpp', 'c++'],
   ['csharp', 'c#'],
   ['cs', 'c#'],
@@ -44,6 +40,8 @@ const languageOverrides = new Map([
   ['tex', 'latex'],
   ['typescript', 'typescript']
 ])
+const MARKTEXT_SOURCE_EDITOR_CLASS = 'marktext-source-editor'
+const MARKDOWN_LANGUAGE = markdown({ codeLanguages: languageData })
 
 const legacyHighlightStyle = HighlightStyle.define([
   { tag: [tags.heading, tags.heading1, tags.heading2, tags.heading3, tags.heading4, tags.heading5, tags.heading6], class: 'cm-header' },
@@ -69,14 +67,14 @@ const legacyHighlightStyle = HighlightStyle.define([
   { tag: tags.invalid, class: 'cm-error' }
 ])
 
-const getThemeClass = theme => {
+const getThemeName = theme => {
   if (theme === 'railscasts') {
-    return 'cm-s-railscasts'
+    return 'railscasts'
   }
   if (theme === 'one-dark') {
-    return 'cm-s-one-dark'
+    return 'one-dark'
   }
-  return 'cm-s-default'
+  return 'default'
 }
 
 const normalizeLegacyName = name => {
@@ -86,65 +84,86 @@ const normalizeLegacyName = name => {
   return name.toLowerCase()
 }
 
-const createLanguageDescription = entry => {
-  const normalizedName = normalizeLegacyName(entry.name)
-  const candidates = [
-    normalizedName,
-    languageOverrides.get(normalizedName),
-    normalizeLegacyName(entry.mode),
-    entry.mime
-  ].filter(Boolean)
-
-  const baseDescription = candidates
-    .map(candidate => LanguageDescription.matchLanguageName(languageData, candidate, true))
-    .find(Boolean)
+const resolveLanguageDescription = name => {
+  const normalizedName = normalizeLegacyName(name)
 
   if (markdownAliases.has(normalizedName)) {
-    return LanguageDescription.of({
-      name: entry.name,
-      alias: [normalizedName, 'gfm'],
-      support: markdown({ codeLanguages: languageData })
-    })
+    return {
+      name: 'markdown',
+      description: {
+        name: 'Markdown',
+        alias: ['markdown', 'gfm'],
+        extensions: ['md', 'markdown', 'mkd'],
+        support: MARKDOWN_LANGUAGE
+      }
+    }
   }
 
-  if (!baseDescription) {
-    return null
-  }
-
-  return LanguageDescription.of({
-    name: entry.name,
-    alias: Array.from(new Set([
-      normalizedName,
-      normalizeLegacyName(entry.mode),
-      ...(baseDescription.alias || []).map(normalizeLegacyName)
-    ].filter(Boolean))),
-    extensions: baseDescription.extensions,
-    filename: baseDescription.filename,
-    load: () => baseDescription.load()
+  const candidate = legacyLanguageAliases.get(normalizedName) || normalizedName
+  const description = languageData.find(item => {
+    const aliases = (item.alias || []).map(normalizeLegacyName)
+    return normalizeLegacyName(item.name) === candidate || aliases.includes(candidate)
   })
-}
 
-const languageEntries = legacyModes
-  .map(entry => {
-    const description = createLanguageDescription(entry)
-    return description ? { ...entry, description } : null
-  })
-  .filter(Boolean)
-
-const getModeFromName = name => {
-  const normalizedName = normalizeLegacyName(name)
-  const entry = languageEntries.find(candidate => normalizeLegacyName(candidate.name) === normalizedName)
-
-  if (!entry) {
+  if (!description) {
     return null
   }
 
   return {
-    name: entry.name,
+    name: normalizedName,
+    description
+  }
+}
+
+const createLanguageEntries = () => {
+  const entries = new Map()
+  const addEntry = (name, description) => {
+    const normalizedName = normalizeLegacyName(name)
+    if (!normalizedName || entries.has(normalizedName)) {
+      return
+    }
+    entries.set(normalizedName, {
+      name: normalizedName,
+      mode: {
+        mode: normalizedName,
+        description
+      }
+    })
+  }
+
+  for (const description of languageData) {
+    addEntry(description.name, description)
+    for (const alias of description.alias || []) {
+      addEntry(alias, description)
+    }
+  }
+
+  addEntry('markdown', MARKDOWN_LANGUAGE)
+  addEntry('gfm', MARKDOWN_LANGUAGE)
+
+  for (const [alias, target] of legacyLanguageAliases) {
+    const resolved = resolveLanguageDescription(target)
+    if (resolved) {
+      addEntry(alias, resolved.description)
+    }
+  }
+
+  return Array.from(entries.values())
+}
+
+const languageEntries = createLanguageEntries()
+
+const getModeFromName = name => {
+  const resolved = resolveLanguageDescription(name)
+  if (!resolved) {
+    return null
+  }
+
+  return {
+    name: resolved.name,
     mode: {
-      mode: entry.mode,
-      mime: entry.mime,
-      description: entry.description
+      mode: resolved.name,
+      description: resolved.description
     }
   }
 }
@@ -219,7 +238,7 @@ class CodeMirrorAdapter {
             ? []
             : [highlightActiveLine(), highlightActiveLineGutter()],
           this.directionCompartment.of(EditorView.contentAttributes.of({ dir: config.direction || 'ltr' })),
-          this.languageCompartment.of(markdown({ codeLanguages: languageData })),
+          this.languageCompartment.of(MARKDOWN_LANGUAGE),
           EditorView.updateListener.of(update => {
             if (update.docChanged || update.selectionSet) {
               this.emit('cursorActivity', this)
@@ -229,8 +248,8 @@ class CodeMirrorAdapter {
       })
     })
 
-    this.view.dom.classList.add('CodeMirror')
-    this.applyThemeClass(config.theme)
+    this.view.dom.classList.add(MARKTEXT_SOURCE_EDITOR_CLASS)
+    this.applyThemeName(config.theme)
     this.view.contentDOM.addEventListener('contextmenu', event => {
       this.emit('contextmenu', this, event)
     })
@@ -240,10 +259,8 @@ class CodeMirrorAdapter {
     }
   }
 
-  applyThemeClass (theme) {
-    const nextClass = getThemeClass(theme)
-    this.view.dom.classList.remove(...themeClasses)
-    this.view.dom.classList.add(nextClass)
+  applyThemeName (theme) {
+    this.view.dom.dataset.theme = getThemeName(theme)
   }
 
   emit (name, ...args) {
@@ -363,9 +380,7 @@ const codeMirror = (container, config = {}) => {
 
 export const search = text => {
   const matchedLangs = filter(languageEntries, text, { key: 'name' })
-  return matchedLangs
-    .map(({ name }) => getModeFromName(name))
-    .filter(Boolean)
+  return matchedLangs.filter(Boolean)
 }
 
 export const setCursorAtLastLine = cm => {

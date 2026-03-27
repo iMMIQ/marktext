@@ -87,18 +87,15 @@ export const addThemeStyle = theme => {
     document.body.classList.add('dark')
   }
 
-  // change CodeMirror theme
-  const cm = document.querySelector('.CodeMirror')
-  if (cm) {
-    cm.classList.remove('cm-s-default')
-    cm.classList.remove('cm-s-one-dark')
-    cm.classList.remove('cm-s-railscasts')
+  // Keep any mounted source editors in sync with the global theme switch.
+  const sourceEditors = document.querySelectorAll('.marktext-source-editor')
+  for (const sourceEditor of sourceEditors) {
     if (isCmOneDark) {
-      cm.classList.add('cm-s-one-dark')
+      sourceEditor.dataset.theme = 'one-dark'
     } else if (isCmRailscasts) {
-      cm.classList.add('cm-s-railscasts')
+      sourceEditor.dataset.theme = 'railscasts'
     } else {
-      cm.classList.add('cm-s-default')
+      sourceEditor.dataset.theme = 'default'
     }
   }
 }
@@ -140,7 +137,7 @@ td code,
 th code,
 code,
 code[class*="language-"],
-.CodeMirror,
+.cm-editor.marktext-source-editor,
 pre.ag-paragraph {
 font-family: ${codeFontFamily}, ${DEFAULT_CODE_FONT_FAMILY};
 font-size: ${codeFontSize}px;

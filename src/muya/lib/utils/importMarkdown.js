@@ -446,7 +446,7 @@ const importRegister = ContentState => {
     return this.markdownToState(markdown)
   }
 
-  ContentState.prototype.getCodeMirrorCursor = function () {
+  ContentState.prototype.getSourceEditorCursor = function () {
     const blocks = this.getBlocks()
     const { anchor, focus } = this.cursor
     const anchorBlock = this.getBlock(anchor.key)

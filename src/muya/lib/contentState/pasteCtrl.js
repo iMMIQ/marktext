@@ -236,7 +236,7 @@ const pasteCtrl = ContentState => {
 
   // Handle global events.
   ContentState.prototype.docPasteHandler = async function (event) {
-    // TODO: Pasting into CodeMirror will not work for special data like images
+    // TODO: Pasting into the source editor will not work for special data like images
     // or tables (HTML) because it's not handled.
 
     const file = await this.pasteImage(event)

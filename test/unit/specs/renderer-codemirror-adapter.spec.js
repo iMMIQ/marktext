@@ -8,7 +8,7 @@ import codeMirror, {
 } from '../../../src/renderer/codeMirror'
 
 describe('renderer codeMirror adapter', () => {
-  it('creates a source editor with the legacy surface area used by sourceCode mode', async () => {
+  it('creates a source editor with the source-mode surface area used by sourceCode mode', async () => {
     const container = document.createElement('div')
     document.body.appendChild(container)
 
@@ -22,7 +22,10 @@ describe('renderer codeMirror adapter', () => {
       lineNumberFormatter: line => (line % 10 === 0 || line === 1 ? `${line}` : '')
     })
 
-    expect(container.querySelector('.cm-editor')).toBeTruthy()
+    const sourceEditor = container.querySelector('.marktext-source-editor.cm-editor')
+
+    expect(sourceEditor).toBeTruthy()
+    expect(sourceEditor?.getAttribute('data-theme')).toBe('default')
     expect(editor.getValue()).toBe('alpha\nbeta')
     expect(editor.lineCount()).toBe(2)
     expect(editor.lastLine()).toBe(1)
@@ -40,6 +43,8 @@ describe('renderer codeMirror adapter', () => {
 
     await setMode(editor, 'markdown')
     expect(search('markdown')[0]).toMatchObject({ name: 'markdown' })
+    await expect(setMode(editor, 'c_cpp')).resolves.toBeTruthy()
+    expect(search('gfm')[0]).toMatchObject({ name: 'gfm' })
 
     setTextDirection(editor, 'rtl')
     expect(container.querySelector('.cm-content')?.getAttribute('dir')).toBe('rtl')

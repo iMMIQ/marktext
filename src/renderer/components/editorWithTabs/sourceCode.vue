@@ -69,7 +69,7 @@ export default {
         // >height: auto< result in bad performance because the whole document is always rendered.
         // Since we are using >height: auto< setting this to >Infinity< to fix #171. The best
         // solution would be to set a fixed height like in #791 but then the scrollbar is not on
-        // the right side. Please also see CodeMirror#1104.
+        // the right side.
         viewportMargin: Infinity,
         lineNumberFormatter (line) {
           if (line % 10 === 0 || line === 1) {
@@ -87,7 +87,7 @@ export default {
         codeMirrorConfig.theme = 'one-dark'
       }
 
-      // Init CodeMirror
+      // Init the source editor.
       const editor = this.editor = codeMirror(container, codeMirrorConfig)
 
       bus.$on('file-loaded', this.handleFileChange)
@@ -222,7 +222,7 @@ export default {
       }
       this.tabId = id
     },
-    // Get markdown and cursor from CodeMirror.
+    // Get markdown and cursor from the source editor.
     getMarkdownAndCursor (cm) {
       let focus = cm.getCursor('head')
       let anchor = cm.getCursor('anchor')
@@ -289,22 +289,18 @@ export default {
     box-sizing: border-box;
     overflow: auto;
   }
-  .source-code .CodeMirror,
-  .source-code .cm-editor {
+  .source-code .marktext-source-editor {
     height: auto;
     margin: 50px auto;
     max-width: var(--editorAreaWidth);
     background: transparent;
   }
-  .source-code .CodeMirror-gutters,
-  .source-code .cm-gutters {
+  .source-code .marktext-source-editor .cm-gutters {
     border-right: none;
     background-color: transparent;
   }
-  .source-code .CodeMirror-activeline-background,
-  .source-code .CodeMirror-activeline-gutter,
-  .source-code .cm-activeLine,
-  .source-code .cm-activeLineGutter {
+  .source-code .marktext-source-editor .cm-activeLine,
+  .source-code .marktext-source-editor .cm-activeLineGutter {
     background: var(--floatHoverColor);
   }
 </style>
