@@ -6,7 +6,7 @@
         <input
           type="text" v-model="keyword"
           placeholder="Search in folder..."
-          @keyup="search"
+          @keyup="queueSearch()"
         >
         <div class="controls">
           <span
@@ -103,8 +103,6 @@ import { useProjectStore } from '@/stores/project'
 
 export default {
   data () {
-    this.lastKeyword = ''
-    this.lastSearchTime = new Date()
     this.keyUpTimer = null
     this.searcherCancelCallback = null
     this.searchGeneration = 0
@@ -140,7 +138,7 @@ export default {
       bus.$on('findInFolder', this.handleFindInFolder)
       if (this.keyword.length > 0 && this.searcherRunning === false) {
         this.searcherRunning = true
-        this.search()
+        this.queueSearch({ immediate: true })
       }
     })
   },
@@ -176,6 +174,22 @@ export default {
     ...mapActions(useProjectStore, {
       dispatchProject: 'dispatch'
     }),
+    queueSearch ({ immediate = false } = {}) {
+      if (this.keyUpTimer) {
+        window.clearTimeout(this.keyUpTimer)
+        this.keyUpTimer = null
+      }
+
+      if (immediate) {
+        this.search()
+        return
+      }
+
+      this.keyUpTimer = window.setTimeout(() => {
+        this.keyUpTimer = null
+        this.search()
+      }, 250)
+    },
     search () {
       // No root directory is opened.
       if (this.showNoFolderOpenedMessage) {
@@ -289,24 +303,29 @@ export default {
     },
     caseSensitiveClicked () {
       this.isCaseSensitive = !this.isCaseSensitive
-      this.search()
+      this.queueSearch({ immediate: true })
     },
     wholeWordClicked () {
       this.isWholeWord = !this.isWholeWord
-      this.search()
+      this.queueSearch({ immediate: true })
     },
     regexpClicked () {
       this.isRegexp = !this.isRegexp
-      this.search()
+      this.queueSearch({ immediate: true })
     },
     openFolder () {
       this.dispatchProject('ASK_FOR_OPEN_PROJECT')
     },
     handleFindInFolder () {
       this.keyword = this.searchMatches.value
+      this.queueSearch({ immediate: true })
     }
   },
   beforeUnmount () {
+    if (this.keyUpTimer) {
+      window.clearTimeout(this.keyUpTimer)
+      this.keyUpTimer = null
+    }
     bus.$off('findInFolder', this.handleFindInFolder)
   }
 }
