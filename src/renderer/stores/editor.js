@@ -25,6 +25,13 @@ import { usePreferencesStore } from '@/stores/preferences'
 import { useProjectStore } from '@/stores/project'
 
 const autoSaveTimers = new Map()
+const MENU_UPDATE_THROTTLE_MS = 50
+let pendingSelectionMenuState = null
+let pendingSelectionFormatState = null
+let selectionMenuReportTimer = null
+let selectionFormatReportTimer = null
+let lastSelectionMenuState = null
+let lastSelectionFormatState = null
 
 const createEditorState = () => ({
   currentFile: {},
@@ -146,6 +153,48 @@ const createSelectionFormatState = formats => {
     state[item.type] = true
   }
   return state
+}
+
+const scheduleSelectionMenuReport = payload => {
+  pendingSelectionMenuState = payload
+  if (selectionMenuReportTimer) {
+    return
+  }
+
+  selectionMenuReportTimer = setTimeout(() => {
+    selectionMenuReportTimer = null
+    const nextPayload = pendingSelectionMenuState
+    pendingSelectionMenuState = null
+
+    if (!nextPayload || equal(nextPayload, lastSelectionMenuState)) {
+      return
+    }
+
+    lastSelectionMenuState = nextPayload
+    const { windowId } = getRuntime().env
+    appApi.reportSelectionChange(windowId, nextPayload)
+  }, MENU_UPDATE_THROTTLE_MS)
+}
+
+const scheduleSelectionFormatReport = payload => {
+  pendingSelectionFormatState = payload
+  if (selectionFormatReportTimer) {
+    return
+  }
+
+  selectionFormatReportTimer = setTimeout(() => {
+    selectionFormatReportTimer = null
+    const nextPayload = pendingSelectionFormatState
+    pendingSelectionFormatState = null
+
+    if (!nextPayload || equal(nextPayload, lastSelectionFormatState)) {
+      return
+    }
+
+    lastSelectionFormatState = nextPayload
+    const { windowId } = getRuntime().env
+    appApi.updateFormatMenu(windowId, nextPayload)
+  }, MENU_UPDATE_THROTTLE_MS)
 }
 
 export const useEditorStore = defineStore('editor', {
@@ -1009,12 +1058,10 @@ export const useEditorStore = defineStore('editor', {
         })
       }
 
-      const { windowId } = getRuntime().env
-      appApi.reportSelectionChange(windowId, createApplicationMenuState(changes))
+      scheduleSelectionMenuReport(createApplicationMenuState(changes))
     },
     SELECTION_FORMATS (formats) {
-      const { windowId } = getRuntime().env
-      appApi.updateFormatMenu(windowId, createSelectionFormatState(formats))
+      scheduleSelectionFormatReport(createSelectionFormatState(formats))
     },
     EXPORT ({ type, content, pageOptions }) {
       if (!hasKeys(this.currentFile)) return
