@@ -37,18 +37,13 @@
 </template>
 
 <script>
+import { defineAsyncComponent } from 'vue'
 import { mapState } from 'pinia'
 import { addStyles, addThemeStyle } from '@/util/theme'
 import Recent from '@/components/recent'
 import EditorWithTabs from '@/components/editorWithTabs'
 import TitleBar from '@/components/titleBar'
 import SideBar from '@/components/sideBar'
-import AboutDialog from '@/components/about'
-import CommandPalette from '@/components/commandPalette'
-import ExportSettingDialog from '@/components/exportSettings'
-import Rename from '@/components/rename'
-import Tweet from '@/components/tweet'
-import ImportModal from '@/components/import'
 import { loadingPageMixins } from '@/mixins'
 import { useAppStore } from '@/stores/app'
 import { useEditorStore } from '@/stores/editor'
@@ -58,6 +53,13 @@ import { useProjectStore } from '@/stores/project'
 import { useEventBus } from '@/composables/useEventBus'
 import { DEFAULT_STYLE } from '@/config'
 import { getInitialState } from '@/services/runtime'
+
+const AboutDialog = defineAsyncComponent(() => import('@/components/about'))
+const CommandPalette = defineAsyncComponent(() => import('@/components/commandPalette'))
+const ExportSettingDialog = defineAsyncComponent(() => import('@/components/exportSettings'))
+const Rename = defineAsyncComponent(() => import('@/components/rename'))
+const Tweet = defineAsyncComponent(() => import('@/components/tweet'))
+const ImportModal = defineAsyncComponent(() => import('@/components/import'))
 
 export default {
   name: 'marktext',
