@@ -29,7 +29,7 @@ const enterCtrl = ContentState => {
       newBlock.children[0].preSibling = null
     }
     if (offset === 0) {
-      this.removeBlock(activeLine, children)
+      this.removeBlock(activeLine)
       this.prependChild(newBlock, activeLine)
     } else if (offset < text.length) {
       activeLine.text = text.substring(0, offset)

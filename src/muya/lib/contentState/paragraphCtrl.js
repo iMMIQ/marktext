@@ -198,10 +198,10 @@ const paragraphCtrl = ContentState => {
 
         children.slice(startIndex, endIndex + 1).forEach(child => {
           if (child !== referBlock) {
-            this.removeBlock(child, children)
+            this.removeBlock(child)
           } else {
             this.insertAfter(listWrapper, child)
-            this.removeBlock(child, children)
+            this.removeBlock(child)
           }
           const listItem = this.createBlock('li')
           listItem.listItemType = listType
@@ -386,10 +386,10 @@ const paragraphCtrl = ContentState => {
 
         children.slice(startIndex, endIndex + 1).forEach(child => {
           if (child !== referBlock) {
-            this.removeBlock(child, children)
+            this.removeBlock(child)
           } else {
             this.insertAfter(quoteBlock, child)
-            this.removeBlock(child, children)
+            this.removeBlock(child)
           }
           this.appendChild(quoteBlock, child)
         })

@@ -140,11 +140,11 @@ const tabCtrl = ContentState => {
           this.appendChild(newList, target)
           const temp = target
           target = this.getNextSibling(target)
-          this.removeBlock(temp, list)
+          this.removeBlock(temp)
         }
 
         if (newList.children.length) this.appendChild(listItem, newList)
-        this.removeBlock(listItem, list)
+        this.removeBlock(listItem)
         if (!list.children.length) {
           this.removeBlock(list)
         }
@@ -153,7 +153,7 @@ const tabCtrl = ContentState => {
       let target = this.getNextSibling(list)
       while (target) {
         this.appendChild(listItem, target)
-        this.removeBlock(target, listParent)
+        this.removeBlock(target)
         target = this.getNextSibling(target)
       }
     }

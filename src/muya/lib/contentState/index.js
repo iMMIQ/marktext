@@ -555,34 +555,27 @@ class ContentState {
     }
   }
 
-  removeBlock (block, fromBlocks = this.blocks) {
-    const remove = (blocks, block) => {
-      const len = blocks.length
-      let i
-      for (i = 0; i < len; i++) {
-        if (blocks[i].key === block.key) {
-          const preSibling = this.getBlock(block.preSibling)
-          const nextSibling = this.getBlock(block.nextSibling)
+  removeBlock (block) {
+    // Use blockMap to find the parent, then search only its children array
+    const parent = block.parent ? this.blockMap.get(block.parent) : null
+    const siblings = parent ? parent.children : this.blocks
+    const idx = siblings.findIndex(b => b.key === block.key)
+    if (idx === -1) return
 
-          if (preSibling) {
-            preSibling.nextSibling = nextSibling ? nextSibling.key : null
-          }
-          if (nextSibling) {
-            nextSibling.preSibling = preSibling ? preSibling.key : null
-          }
+    const preSibling = this.getBlock(block.preSibling)
+    const nextSibling = this.getBlock(block.nextSibling)
 
-          // Remove block and its descendants from blockMap
-          this._removeFromBlockMap(block)
-
-          return blocks.splice(i, 1)
-        } else {
-          if (blocks[i].children.length) {
-            remove(blocks[i].children, block)
-          }
-        }
-      }
+    if (preSibling) {
+      preSibling.nextSibling = nextSibling ? nextSibling.key : null
     }
-    remove(Array.isArray(fromBlocks) ? fromBlocks : fromBlocks.children, block)
+    if (nextSibling) {
+      nextSibling.preSibling = preSibling ? preSibling.key : null
+    }
+
+    // Remove block and its descendants from blockMap
+    this._removeFromBlockMap(block)
+
+    siblings.splice(idx, 1)
   }
 
   getActiveBlocks () {
