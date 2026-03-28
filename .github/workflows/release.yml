@@ -18,7 +18,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [macos-11, ubuntu-22.04]
+        os: [ubuntu-22.04]
 
     env:
       DISPLAY: ":99.0"
@@ -77,42 +77,18 @@ jobs:
           yarn run validate-licenses
 
       - name: Run unit tests
-        if: runner.os == 'Linux'
         run: yarn run unit
-
-      - name: Run unit and E2E tests
-        if: runner.os == 'macOS'
-        uses: GabrielBB/xvfb-action@v1
-        with:
-          run: yarn run test
 
       - name: Build and release
         run: |
-              if [ "$RUNNER_OS" == "Linux" ]; then
-                yarn run release:linux --publish always -c.publish.provider=github -c.publish.owner=$MARKTEXT_RELEASE_REPO_OWNER -c.publish.repo=$MARKTEXT_RELEASE_REPO_NAME
-              elif [ "$RUNNER_OS" == "macOS" ]; then
-                yarn run release:mac --publish always -c.publish.provider=github -c.publish.owner=$MARKTEXT_RELEASE_REPO_OWNER -c.publish.repo=$MARKTEXT_RELEASE_REPO_NAME
-              else
-                echo "$RUNNER_OS not supported"
-                exit 1
-              fi
+              yarn run release:linux --publish always -c.publish.provider=github -c.publish.owner=$MARKTEXT_RELEASE_REPO_OWNER -c.publish.repo=$MARKTEXT_RELEASE_REPO_NAME
 
       - name: Calculate checksums
-        if: runner.os == 'Linux'
         run: |
           sha256sum build/marktext-x64.tar.gz
           sha256sum build/marktext-x86_64.AppImage
           sha256sum build/marktext-*.deb
           sha256sum build/marktext-*.rpm
-        shell: bash
-
-      - name: Calculate checksums
-        if: runner.os == 'macOS'
-        run: |
-          shasum -a 256 build/marktext-arm64-mac.zip
-          shasum -a 256 build/marktext-x64-mac.zip
-          shasum -a 256 build/marktext-arm64.dmg
-          shasum -a 256 build/marktext-x64.dmg
         shell: bash
 
   windows:
