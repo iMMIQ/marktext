@@ -3,6 +3,7 @@ appId: "com.github.marktext.marktext"
 
 asar: true
 npmRebuild: false
+compression: "maximum"
 asarUnpack:
 - "**/*.node"
 directories:
@@ -104,6 +105,8 @@ nsis:
 linux:
   artifactName: "marktext-${arch}.${ext}"
   executableName: "marktext"
+  # Keep only core locales to reduce packaged Electron runtime size.
+  electronLanguages: ["en-US", "zh-CN"]
   description: "A simple and elegant open-source markdown editor that focused on speed and usability."
   maintainer: "MarkText Contributors"
   category: "Office;TextEditor;Utility"
