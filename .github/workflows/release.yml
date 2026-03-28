@@ -155,7 +155,7 @@ jobs:
         run: yarn run test
 
       - name: Build and release
-        run: yarn run release:win --publish always -c.publish.provider=github -c.publish.owner=$env:MARKTEXT_RELEASE_REPO_OWNER -c.publish.repo=$env:MARKTEXT_RELEASE_REPO_NAME
+        run: yarn run release:win --publish always "-c.publish.provider=github" "-c.publish.owner=$env:MARKTEXT_RELEASE_REPO_OWNER" "-c.publish.repo=$env:MARKTEXT_RELEASE_REPO_NAME"
 
       - name: Calculate checksums
         run: |
