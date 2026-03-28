@@ -594,6 +594,7 @@ const importRegister = ContentState => {
 
   ContentState.prototype.importMarkdown = function (markdown) {
     this.blocks = this.markdownToState(markdown)
+    this._rebuildBlockMap()
   }
 
   ContentState.prototype.extractImages = function (markdown) {

@@ -74,6 +74,7 @@ class ContentState {
 
     // Use to cache the keys which you don't want to remove.
     this.exemption = new Set()
+    this.blockMap = new Map()
     this.blocks = [this.createBlockP()]
     this.stateRender = new StateRender(muya)
     this.renderRange = [null, null]
@@ -323,6 +324,7 @@ class ContentState {
     }
 
     Object.assign(blockData, extras)
+    this.blockMap.set(key, blockData)
     return blockData
   }
 
@@ -343,27 +345,54 @@ class ContentState {
     return this.blocks
   }
 
+  /**
+   * Rebuild blockMap from scratch by walking the entire block tree.
+   * Used after operations that replace the entire tree (import, undo/redo).
+   */
+  _rebuildBlockMap () {
+    this.blockMap.clear()
+    const walk = blocks => {
+      for (const block of blocks) {
+        this.blockMap.set(block.key, block)
+        if (block.children.length) {
+          walk(block.children)
+        }
+      }
+    }
+    walk(this.blocks)
+  }
+
+  /**
+   * Remove a block and all its descendants from blockMap.
+   */
+  _removeFromBlockMap (block) {
+    this.blockMap.delete(block.key)
+    if (block.children.length) {
+      for (const child of block.children) {
+        this._removeFromBlockMap(child)
+      }
+    }
+  }
+
+  /**
+   * Add a block and all its descendants to blockMap.
+   */
+  _addToBlockMap (block) {
+    this.blockMap.set(block.key, block)
+    if (block.children.length) {
+      for (const child of block.children) {
+        this._addToBlockMap(child)
+      }
+    }
+  }
+
   getCursor () {
     return this.cursor
   }
 
   getBlock (key) {
     if (!key) return null
-    let result = null
-    const travel = blocks => {
-      for (const block of blocks) {
-        if (block.key === key) {
-          result = block
-          return
-        }
-        const { children } = block
-        if (children.length) {
-          travel(children)
-        }
-      }
-    }
-    travel(this.blocks)
-    return result
+    return this.blockMap.get(key) || null
   }
 
   copyBlock (origin) {
@@ -374,6 +403,7 @@ class ContentState {
       block.parent = parent ? parent.key : null
       block.preSibling = preBlock ? preBlock.key : null
       block.nextSibling = nextBlock ? nextBlock.key : null
+      this.blockMap.set(key, block)
       const { children } = block
       const len = children.length
       if (children && len) {
@@ -541,6 +571,9 @@ class ContentState {
             nextSibling.preSibling = preSibling ? preSibling.key : null
           }
 
+          // Remove block and its descendants from blockMap
+          this._removeFromBlockMap(block)
+
           return blocks.splice(i, 1)
         } else {
           if (blocks[i].children.length) {
@@ -635,6 +668,9 @@ class ContentState {
     newBlock.parent = oldBlock.parent
     newBlock.preSibling = oldBlock.preSibling
     newBlock.nextSibling = oldBlock.nextSibling
+
+    this._removeFromBlockMap(oldBlock)
+    this._addToBlockMap(newBlock)
   }
 
   canInserFrontMatter (block) {

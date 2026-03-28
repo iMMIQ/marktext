@@ -18,6 +18,7 @@ class History {
       const { blocks, cursor, renderRange } = state
       cursor.noHistory = true
       this.contentState.blocks = blocks
+      this.contentState._rebuildBlockMap()
       this.contentState.renderRange = renderRange
       this.contentState.cursor = cursor
       this.contentState.render()
@@ -34,6 +35,7 @@ class History {
       const { blocks, cursor, renderRange } = state
       cursor.noHistory = true
       this.contentState.blocks = blocks
+      this.contentState._rebuildBlockMap()
       this.contentState.renderRange = renderRange
       this.contentState.cursor = cursor
       this.contentState.render()
