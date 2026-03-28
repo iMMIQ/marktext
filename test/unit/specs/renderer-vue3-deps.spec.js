@@ -13,19 +13,23 @@ const vuePluginImportPattern = /import\s+(\w+)\s+from\s+['"]@vitejs\/plugin-vue[
 
 describe('renderer Vue 3 dependency contract', () => {
   it('pins vue to v3', () => {
-    expect(dependencies.vue).toMatch(/^\^3\./)
+    expect(devDependencies.vue).toMatch(/^\^3\./)
+    expect(dependencies.vue).toBeFalsy()
   })
 
   it('pins vue-router to v5', () => {
-    expect(dependencies['vue-router']).toMatch(/^\^5\./)
+    expect(devDependencies['vue-router']).toMatch(/^\^5\./)
+    expect(dependencies['vue-router']).toBeFalsy()
   })
 
   it('adds pinia to the renderer dependency stack', () => {
-    expect(dependencies.pinia).toBeTruthy()
+    expect(devDependencies.pinia).toBeTruthy()
+    expect(dependencies.pinia).toBeFalsy()
   })
 
   it('uses element-plus instead of element-ui', () => {
-    expect(dependencies['element-plus']).toBeTruthy()
+    expect(devDependencies['element-plus']).toBeTruthy()
+    expect(dependencies['element-plus']).toBeFalsy()
     expect(dependencies['element-ui']).toBeFalsy()
   })
 

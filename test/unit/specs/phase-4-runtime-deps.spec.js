@@ -10,6 +10,47 @@ const nvmrc = fs.existsSync(path.join(root, '.nvmrc'))
   : ''
 const fontManagerSource = fs.readFileSync(path.join(root, 'src/main/native/fontManager.js'), 'utf8')
 const nativeKeymapSource = fs.readFileSync(path.join(root, 'src/main/native/nativeKeymap.js'), 'utf8')
+const rendererOnlyDependencies = [
+  '@codemirror/autocomplete',
+  '@codemirror/commands',
+  '@codemirror/lang-markdown',
+  '@codemirror/language',
+  '@codemirror/language-data',
+  '@codemirror/search',
+  '@codemirror/state',
+  '@codemirror/view',
+  '@marktext/file-icons',
+  'axios',
+  'dom-autoscroller',
+  'dompurify',
+  'dragula',
+  'element-plus',
+  'element-resize-detector',
+  'execall',
+  'fast-deep-equal',
+  'flowchart.js',
+  'github-markdown-css',
+  'html-tags',
+  'iso-639-1',
+  'joplin-turndown-plugin-gfm',
+  'katex',
+  'mermaid',
+  'mitt',
+  'pinia',
+  'popper.js',
+  'prismjs',
+  'snabbdom',
+  'snabbdom-to-html',
+  'turndown',
+  'underscore',
+  'unsplash-js',
+  'vega',
+  'vega-embed',
+  'vega-lite',
+  'vue',
+  'vue-router',
+  'webfontloader'
+]
 
 describe('phase 4 runtime dependency contract', () => {
   it('targets the modern Electron runtime baseline', () => {
@@ -25,5 +66,12 @@ describe('phase 4 runtime dependency contract', () => {
   it('keeps native module loaders compatible with bundled cjs output', () => {
     expect(fontManagerSource).toContain("createRequire(typeof __filename === 'string' ? __filename : import.meta.url)")
     expect(nativeKeymapSource).toContain("createRequire(typeof __filename === 'string' ? __filename : import.meta.url)")
+  })
+
+  it('keeps renderer-only libraries out of packaged runtime dependencies', () => {
+    rendererOnlyDependencies.forEach(dependency => {
+      expect(pkg.dependencies[dependency], dependency).toBeUndefined()
+      expect(pkg.devDependencies[dependency], dependency).toBeTruthy()
+    })
   })
 })
