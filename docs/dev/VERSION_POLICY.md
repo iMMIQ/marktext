@@ -2,16 +2,16 @@
 
 - Node.js: use the exact major pinned in `.nvmrc` (`24.x` for this phase)
 - Electron: stay on the Phase 4 runtime baseline (`41.x`) until a new modernization plan changes it
-- Package manager: Yarn classic
+- Package manager: Bun `1.3.x`
 
 ## Official Scripts
 
-- `yarn run dev`
-- `yarn run rebuild`
-- `yarn run pack`
-- `yarn run unit`
-- `yarn run format`
-- `yarn run build`
+- `bun run dev`
+- `bun run rebuild`
+- `bun run pack`
+- `bun run unit`
+- `bun run format`
+- `bun run build`
 
 ## Explicit Exception
 

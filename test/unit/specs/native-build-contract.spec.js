@@ -12,7 +12,7 @@ describe('phase 4 native build contract', () => {
   it('rebuilds native modules explicitly before packaging', () => {
     expect(pkg.scripts.rebuild).toContain('rebuildNativeModules.mjs')
     expect(pkg.scripts['rebuild:force']).toContain('MARKTEXT_FORCE_NATIVE_REBUILD=1')
-    expect(pkg.scripts.build).toContain('yarn run rebuild')
+    expect(pkg.scripts.build).toContain('bun run rebuild')
     expect(builder).toContain('npmRebuild: false')
     // Normalize line endings for cross-platform compatibility
     expect(builder.replace(/\r\n/g, '\n')).toContain('asarUnpack:\n- "**/*.node"')

@@ -3,9 +3,9 @@
 - Prerequisites
   - Use Node.js `24.x` (the repo pins `24` in `.nvmrc`)
   - Install platform native build dependencies required by `node-gyp`
-  - Run `yarn install`
-  - Run `yarn run rebuild`
-  - Run `yarn run pack`
+  - Run `bun install`
+  - Run `bun run rebuild`
+  - Run `bun run pack`
 - Create a release candidate
   - Create branch `release-v%version%`
   - Set environment variable `MARKTEXT_IS_STABLE` to `1` for release builds
@@ -15,8 +15,8 @@
   - Bump Flathub version ([marktext.appdata.xml](https://github.com/marktext/marktext/blob/master/resources/linux/marktext.appdata.xml))
   - Create commit `release version %version%`
   - Ensure all tests pass
-  - Run `yarn run rebuild` on each target platform before packaging
-  - Run `yarn run pack`
+  - Run `bun run rebuild` on each target platform before packaging
+  - Run `bun run pack`
   - A new draft release should be available or create one
 - Publish GitHub release
   - Add git tag `v%version%`
@@ -32,9 +32,9 @@
 
 ## Official Release Commands
 
-- `yarn run rebuild`
-- `yarn run pack`
-- `yarn run build`
+- `bun run rebuild`
+- `bun run pack`
+- `bun run build`
 
 See [VERSION_POLICY.md](VERSION_POLICY.md) for the maintained Node/Electron baseline and the official command surface.
 

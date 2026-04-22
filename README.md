@@ -238,12 +238,12 @@ If you wish to build MarkText yourself, please check out our [build instructions
 
 ### Official Developer Commands
 
-- `yarn run dev` for local development
-- `yarn run rebuild` before native packaging
-- `yarn run pack` to build `dist/electron`
-- `yarn run unit` for the unit suite
-- `yarn run format` to auto-fix formatting and lint issues
-- `yarn run build` to package the app
+- `bun run dev` for local development
+- `bun run rebuild` before native packaging
+- `bun run pack` to build `dist/electron`
+- `bun run unit` for the unit suite
+- `bun run format` to auto-fix formatting and lint issues
+- `bun run build` to package the app
 
 The supported baseline is documented in [docs/dev/VERSION_POLICY.md](docs/dev/VERSION_POLICY.md).
 

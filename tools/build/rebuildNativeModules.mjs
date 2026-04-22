@@ -98,7 +98,7 @@ const manifest = getManifest()
 const cachedManifest = readCachedManifest()
 
 if (!forceRebuild && cachedManifest?.fingerprint === manifest.fingerprint) {
-  console.log('Native modules are up to date; skipping rebuild. Use `yarn run rebuild:force` to rebuild anyway.')
+  console.log('Native modules are up to date; skipping rebuild. Use `bun run rebuild:force` to rebuild anyway.')
   process.exit(0)
 }
 

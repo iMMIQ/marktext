@@ -9,7 +9,7 @@ Cold start completion is defined as: **after launch, the benchmark can type one 
 Build the app entrypoint first:
 
 ```sh
-yarn run pack
+bun run pack
 ```
 
 ## Run
@@ -17,25 +17,25 @@ yarn run pack
 Default (20 measured runs + 3 warmup runs):
 
 ```sh
-yarn run benchmark:cold-start
+bun run benchmark:cold-start
 ```
 
 Customize run count and timeout:
 
 ```sh
-yarn run benchmark:cold-start --runs 30 --warmup 5 --timeout 45000
+bun run benchmark:cold-start --runs 30 --warmup 5 --timeout 45000
 ```
 
 Disable JSON report output:
 
 ```sh
-yarn run benchmark:cold-start --no-out
+bun run benchmark:cold-start --no-out
 ```
 
 Write report to a custom file:
 
 ```sh
-yarn run benchmark:cold-start --out test-results/cold-start-linux.json
+bun run benchmark:cold-start --out test-results/cold-start-linux.json
 ```
 
 ## Output Metrics

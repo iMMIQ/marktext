@@ -13,7 +13,7 @@ const mapPath = args['--map']
 
 if (!mapPath) {
   console.log('ERROR: -m is a required argument.\n')
-  console.log('USAGE:\n  yarn deobfuscateStackTrace -m <path_to_source_map>')
+  console.log('USAGE:\n  bun run deobfuscateStackTrace -m <path_to_source_map>')
   process.exit(1)
 } else if (!fs.existsSync(mapPath)) {
   console.log(`ERROR: Invalid source map path: "${mapPath}".`)

@@ -14,6 +14,7 @@ const releaseDoc = fs.readFileSync(path.join(root, 'docs/dev/RELEASE.md'), 'utf8
 const rendererBoundaryDoc = fs.readFileSync(path.join(root, 'docs/dev/renderer-boundary.md'), 'utf8')
 const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8')
 const nvmrc = fs.readFileSync(path.join(root, '.nvmrc'), 'utf8').trim()
+const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 const i18nDocs = fs.readdirSync(path.join(root, 'docs/i18n'))
   .filter(file => file.endsWith('.md'))
   .map(file => fs.readFileSync(path.join(root, 'docs/i18n', file), 'utf8'))
@@ -61,16 +62,24 @@ const expectNode24Baseline = workflow => {
   for (const step of setupNodeSteps) {
     expect(step).toMatch(/node-version-file:\s*['"]?\.nvmrc['"]?/)
     expect(step).not.toMatch(/node-version:\s*16\b/)
-    expect(step).toMatch(/cache:\s*yarn/)
-    expect(step).toMatch(/cache-dependency-path:\s*yarn\.lock/)
   }
+}
+
+const expectSetupBun = workflow => {
+  expect(workflow).toMatch(/uses:\s*oven-sh\/setup-bun@v2/)
+  expect(workflow).toMatch(/bun-version-file:\s*package\.json/)
+  expect(workflow).toMatch(/bun install --frozen-lockfile/)
+  expect(workflow).toMatch(/bun\.lock/)
 }
 
 describe('phase 5 docs and CI contract', () => {
   it('documents and tests the Node 24 baseline consistently', () => {
     expect(nvmrc).toBe('24')
+    expect(pkg.packageManager).toMatch(/^bun@1\.3\./)
     expectNode24Baseline(buildWorkflow)
     expectNode24Baseline(releaseWorkflow)
+    expectSetupBun(buildWorkflow)
+    expectSetupBun(releaseWorkflow)
     expect(versionPolicy).toMatch(/\.nvmrc/)
     expect(versionPolicy).toMatch(/\bNode 24\b|24\.x/)
     expect(devReadme).toContain('VERSION_POLICY.md')
@@ -78,7 +87,7 @@ describe('phase 5 docs and CI contract', () => {
     expect(releaseDoc).not.toMatch(/AppVeyor|Travis CI/)
     expect(readme).not.toMatch(/travis-ci\.org|ci\.appveyor\.com/)
     for (const command of ['dev', 'rebuild', 'pack', 'unit', 'format', 'build']) {
-      expect(developerDocs).toContain(`yarn run ${command}`)
+      expect(developerDocs).toContain(`bun run ${command}`)
     }
     expect(i18nDocs).not.toMatch(/travis-ci\.org|ci\.appveyor\.com|AppVeyor|Travis CI/)
   })

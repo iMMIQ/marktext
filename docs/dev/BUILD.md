@@ -10,7 +10,7 @@ git clone https://github.com/marktext/marktext.git
 
 Before you can get started developing, you need set up your build environment:
 
-- Node.js `24.x` (the repo pins `24` in `.nvmrc`) and Yarn classic
+- Node.js `24.x` (the repo pins `24` in `.nvmrc`) and Bun `1.3.x`
 - Python `>=v3.6` for node-gyp
 - C++ compiler and development tools
 - Build is supported on Linux, macOS and Windows
@@ -33,23 +33,23 @@ On Red Hat-based Linux: `sudo dnf install libX11-devel libxkbfile-devel libsecre
 
 ## Official Developer Commands
 
-- `yarn run dev` for local development
-- `yarn run rebuild` before native packaging
-- `yarn run rebuild:force` to invalidate the native rebuild cache
-- `yarn run pack` to build `dist/electron`
-- `yarn run unit` for the unit suite
-- `yarn run format` to auto-fix formatting and lint issues
-- `yarn run build` to package the app
+- `bun run dev` for local development
+- `bun run rebuild` before native packaging
+- `bun run rebuild:force` to invalidate the native rebuild cache
+- `bun run pack` to build `dist/electron`
+- `bun run unit` for the unit suite
+- `bun run format` to auto-fix formatting and lint issues
+- `bun run build` to package the app
 
 See [VERSION_POLICY.md](VERSION_POLICY.md) for the maintained baseline.
 
 ### Build And Package
 
 1. Go to `marktext` folder
-2. Install dependencies: `yarn install` or `yarn install --frozen-lockfile`
-3. Rebuild native modules for the current Electron target: `yarn run rebuild`
-4. Build the runtime bundle: `yarn run pack`
-5. Build MarkText binaries and packages: `yarn run build`
+2. Install dependencies: `bun install` or `bun install --frozen-lockfile`
+3. Rebuild native modules for the current Electron target: `bun run rebuild`
+4. Build the runtime bundle: `bun run pack`
+5. Build MarkText binaries and packages: `bun run build`
 6. MarkText binary is located under `build` folder
 
 Copy the build app to applications folder, or if on Windows run the executable installer.
@@ -57,7 +57,7 @@ Copy the build app to applications folder, or if on Windows run the executable i
 ### Additional Scripts
 
 ```
-$ yarn run <script>
+$ bun run <script>
 ```
 
 | Script          | Description                                      |
@@ -80,23 +80,23 @@ The desktop app now uses a Vite-based runtime pipeline with three entry points:
 - `src/main/preload/index.js` is bundled by `vite.preload.config.js` to `dist/electron/preload.js`.
 - `src/renderer/main.js` is bundled by `vite.renderer.config.js`, with `src/renderer/index.html` emitted to `dist/electron/index.html` alongside the renderer assets.
 
-`yarn run dev` starts `tools/dev/vite-dev-runner.js`, which watches the main/preload bundles, serves the renderer with Vite, and restarts Electron when the app bundles change.
+`bun run dev` starts `tools/dev/vite-dev-runner.js`, which watches the main/preload bundles, serves the renderer with Vite, and restarts Electron when the app bundles change.
 
-`yarn run pack` is the easiest way to rebuild the full runtime boundary:
+`bun run pack` is the easiest way to rebuild the full runtime boundary:
 
-- `yarn run pack:main` emits both `dist/electron/main.js` and `dist/electron/preload.js`
-- `yarn run pack:renderer` emits `dist/electron/index.html` and the renderer assets
+- `bun run pack:main` emits both `dist/electron/main.js` and `dist/electron/preload.js`
+- `bun run pack:renderer` emits `dist/electron/index.html` and the renderer assets
 
 Before packaging on any platform, run:
 
-1. `yarn install`
-2. `yarn run rebuild`
-3. `yarn run pack`
-4. `yarn run build`
+1. `bun install`
+2. `bun run rebuild`
+3. `bun run pack`
+4. `bun run build`
 
-`yarn run rebuild` now skips work when the Electron ABI, platform, arch, Node version, and rebuilt native module versions have not changed. Use `yarn run rebuild:force` after toolchain changes or whenever you want to invalidate that cache manually.
+`bun run rebuild` now skips work when the Electron ABI, platform, arch, Node version, and rebuilt native module versions have not changed. Use `bun run rebuild:force` after toolchain changes or whenever you want to invalidate that cache manually.
 
-Unit tests now run through Vitest with `yarn run unit`.
+Unit tests now run through Vitest with `bun run unit`.
 
 The standalone Muya bundle still uses `src/muya/webpack.config.js`. At runtime, `src/main/config.js` points both BrowserWindow variants at the bundled preload file in `dist/electron/preload.js`, and the renderer consumes native capabilities through `src/renderer/services/nativeApi/*` rather than importing Electron directly.
 
@@ -106,7 +106,7 @@ The renderer now boots directly with Vue 3, Pinia, and Vue Router. There is no V
 
 Recommended verification commands for the current baseline:
 
-- `yarn run format`
+- `bun run format`
 - `./node_modules/.bin/vitest run`
-- `yarn run pack`
+- `bun run pack`
 - `./node_modules/.bin/playwright test -c test/e2e/playwright.config.js test/e2e/launch.spec.js test/e2e/phase-3-smoke.spec.js`

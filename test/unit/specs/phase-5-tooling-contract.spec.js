@@ -95,7 +95,7 @@ describe('phase 5 tooling contract', () => {
     expect(pkg.scripts['lint:fix']).not.toContain('ESLINT_USE_FLAT_CONFIG=false')
     expect(pkg.scripts.format).not.toContain('ESLINT_USE_FLAT_CONFIG=false')
     expect(pkg.scripts.format).toContain(`--fix ${eslintSurface}`)
-    expect(pkg.scripts['format:check']).toBe('yarn run lint')
+    expect(pkg.scripts['format:check']).toBe('bun run lint')
     expect(validateLicenses).toMatch(movedThirdPartyCheckerPattern)
     expect(generateThirdPartyLicense).toMatch(movedThirdPartyCheckerPattern)
     expect(thirdPartyChecker).toContain('EPL-2.0')
