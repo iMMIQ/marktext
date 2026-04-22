@@ -50,8 +50,12 @@ function appendChild (parent, block) {
   const last = parent.children[parent.children.length - 1]
   parent.children.push(block)
   block.parent = parent.key
-  if (last) { last.nextSibling = block.key; block.preSibling = last.key }
-  else { block.preSibling = null }
+  if (last) {
+    last.nextSibling = block.key
+    block.preSibling = last.key
+  } else {
+    block.preSibling = null
+  }
   block.nextSibling = null
 }
 
@@ -120,17 +124,6 @@ function insertAfter (blocks, newBlock, oldBlock) {
   if (oldNext) { newBlock.nextSibling = oldNext.key; oldNext.preSibling = newBlock.key }
 }
 
-function insertBefore (blocks, newBlock, oldBlock) {
-  const siblings = oldBlock.parent ? getBlock(blocks, oldBlock.parent).children : blocks
-  const oldPre = oldBlock.preSibling ? getBlock(blocks, oldBlock.preSibling) : null
-  const index = siblings.indexOf(oldBlock)
-  siblings.splice(index, 0, newBlock)
-  oldBlock.preSibling = newBlock.key
-  newBlock.parent = oldBlock.parent
-  newBlock.nextSibling = oldBlock.key
-  if (oldPre) { oldPre.nextSibling = newBlock.key; newBlock.preSibling = oldPre.key }
-}
-
 // ─── Precise timing ─────────────────────────────────────────────
 
 function bench (label, fn, targetMs = 200) {
@@ -187,14 +180,15 @@ function testA () {
   }
 
   // Verify scaling
-  const d1 = data[0], dLast = data[data.length - 1]
+  const d1 = data[0]
+  const dLast = data[data.length - 1]
   const nodeRatio = dLast.nodes / d1.nodes
   const timeRatio = dLast.scanMs / d1.scanMs
   console.log(`\n  Scaling: ${nodeRatio}x nodes → ${timeRatio.toFixed(1)}x time`)
   console.log(`  O(n) predicts ~${nodeRatio}x. Result: ${timeRatio.toFixed(1)}x → ${timeRatio >= nodeRatio * 0.3 ? 'LINEAR (O(n) confirmed)' : 'sub-linear'}`)
 
   // Concrete impact
-  console.log(`\n  Concrete impact at 10000 nodes:`)
+  console.log('\n  Concrete impact at 10000 nodes:')
   console.log(`    getBlock() worst case: ${fmt(dLast.scanMs)}`)
   console.log(`    HashMap.get:           ${fmt(dLast.mapMs)}`)
   console.log(`    Difference:            ${(dLast.scanMs / dLast.mapMs).toFixed(0)}x slower`)
@@ -233,15 +227,13 @@ function testB () {
     // Replicate the EXACT call chain of enterHandler for "cursor in middle of paragraph"
     const t = bench(`enter-${size}`, () => {
       const cursorKey = blocks[midIdx].children[0].key
-      const cursorOffset = 10
-
       // enterHandler: lines 187-189
-      getBlock(blocks, cursorKey)  // line 187
-      getBlock(blocks, cursorKey)  // line 189
+      getBlock(blocks, cursorKey) // line 187
+      getBlock(blocks, cursorKey) // line 189
       getParents(blocks, blocks[midIdx].children[0]) // line 190: getParent
 
       // chopBlockByCursor: line 406
-      getBlock(blocks, cursorKey)  // line 23
+      getBlock(blocks, cursorKey) // line 23
 
       // createBlockP (no getBlock calls)
 

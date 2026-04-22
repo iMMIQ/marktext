@@ -30,8 +30,12 @@ function appendChild (parent, block) {
   const last = parent.children[parent.children.length - 1]
   parent.children.push(block)
   block.parent = parent.key
-  if (last) { last.nextSibling = block.key; block.preSibling = last.key }
-  else { block.preSibling = null }
+  if (last) {
+    last.nextSibling = block.key
+    block.preSibling = last.key
+  } else {
+    block.preSibling = null
+  }
   block.nextSibling = null
 }
 

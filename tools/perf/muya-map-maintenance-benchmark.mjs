@@ -53,8 +53,12 @@ function appendChild (parent, block) {
   const last = parent.children[parent.children.length - 1]
   parent.children.push(block)
   block.parent = parent.key
-  if (last) { last.nextSibling = block.key; block.preSibling = last.key }
-  else { block.preSibling = null }
+  if (last) {
+    last.nextSibling = block.key
+    block.preSibling = last.key
+  } else {
+    block.preSibling = null
+  }
   block.nextSibling = null
 }
 
@@ -411,7 +415,7 @@ console.log('║  9. Memory overhead of blockMap                              �
 console.log('╚═══════════════════════════════════════════════════════════════╝\n')
 
 for (const size of [1000, 5000, 10000, 20000]) {
-  const { blocks, map } = buildBlockTreeWithMap(size)
+  const { map } = buildBlockTreeWithMap(size)
   const totalNodes = size * 2
 
   // Each Map entry: key string (~50 bytes) + value reference (~8 bytes) + Map internal (~32 bytes)

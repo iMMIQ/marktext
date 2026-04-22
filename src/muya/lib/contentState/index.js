@@ -152,6 +152,12 @@ class ContentState {
     }
 
     if (!cursor.noHistory) {
+      // Mark cursor's root blocks as dirty (text/structure likely changed)
+      this._markRootDirty(cursor.start.key)
+      if (cursor.end.key !== cursor.start.key) {
+        this._markRootDirty(cursor.end.key)
+      }
+
       if (
         this.prevCursor &&
         (
@@ -159,6 +165,11 @@ class ContentState {
           this.prevCursor.end.key !== cursor.end.key
         )
       ) {
+        // Cross-block change: also mark previous cursor's roots dirty
+        this._markRootDirty(this.prevCursor.start.key)
+        if (this.prevCursor.end.key !== this.prevCursor.start.key) {
+          this._markRootDirty(this.prevCursor.end.key)
+        }
         // Push history immediately
         this.history.push(getHistoryState())
       } else {
@@ -555,6 +566,20 @@ class ContentState {
     }
   }
 
+  /**
+   * Mark the root-level ancestor of `blockKey` as dirty in the history so
+   * the next push deep-copies it instead of sharing from the previous snapshot.
+   * Safe to call before `this.history` is initialised (no-ops).
+   */
+  _markRootDirty (blockKey) {
+    if (!this.history) return
+    const block = this.getBlock(blockKey)
+    if (block) {
+      const root = this.findOutMostBlock(block)
+      this.history.markRootDirty(root.key)
+    }
+  }
+
   removeBlock (block) {
     // Use blockMap to find the parent, then search only its children array
     const parent = block.parent ? this.blockMap.get(block.parent) : null
@@ -564,6 +589,18 @@ class ContentState {
 
     const preSibling = this.getBlock(block.preSibling)
     const nextSibling = this.getBlock(block.nextSibling)
+
+    // Mark affected roots dirty (sibling pointers change on adjacent blocks)
+    const root = this.findOutMostBlock(block)
+    if (this.history) this.history.markRootDirty(root.key)
+    if (preSibling) {
+      const preRoot = this.findOutMostBlock(preSibling)
+      if (preRoot.key !== root.key && this.history) this.history.markRootDirty(preRoot.key)
+    }
+    if (nextSibling) {
+      const nextRoot = this.findOutMostBlock(nextSibling)
+      if (nextRoot.key !== root.key && this.history) this.history.markRootDirty(nextRoot.key)
+    }
 
     if (preSibling) {
       preSibling.nextSibling = nextSibling ? nextSibling.key : null
@@ -603,6 +640,14 @@ class ContentState {
       newBlock.nextSibling = oldNextSibling.key
       oldNextSibling.preSibling = newBlock.key
     }
+
+    // Mark affected roots dirty
+    const root = this.findOutMostBlock(oldBlock)
+    if (this.history) this.history.markRootDirty(root.key)
+    if (oldNextSibling) {
+      const nextRoot = this.findOutMostBlock(oldNextSibling)
+      if (nextRoot.key !== root.key && this.history) this.history.markRootDirty(nextRoot.key)
+    }
   }
 
   insertBefore (newBlock, oldBlock) {
@@ -618,6 +663,14 @@ class ContentState {
     if (oldPreSibling) {
       oldPreSibling.nextSibling = newBlock.key
       newBlock.preSibling = oldPreSibling.key
+    }
+
+    // Mark affected roots dirty
+    const root = this.findOutMostBlock(oldBlock)
+    if (this.history) this.history.markRootDirty(root.key)
+    if (oldPreSibling) {
+      const preRoot = this.findOutMostBlock(oldPreSibling)
+      if (preRoot.key !== root.key && this.history) this.history.markRootDirty(preRoot.key)
     }
   }
 
@@ -637,6 +690,9 @@ class ContentState {
       block.nextSibling = parent.children[0].key
     }
     parent.children.unshift(block)
+
+    const root = this.findOutMostBlock(parent)
+    if (this.history) this.history.markRootDirty(root.key)
   }
 
   appendChild (parent, block) {
@@ -651,6 +707,9 @@ class ContentState {
       block.preSibling = null
     }
     block.nextSibling = null
+
+    const root = this.findOutMostBlock(parent)
+    if (this.history) this.history.markRootDirty(root.key)
   }
 
   replaceBlock (newBlock, oldBlock) {
@@ -664,6 +723,9 @@ class ContentState {
 
     this._removeFromBlockMap(oldBlock)
     this._addToBlockMap(newBlock)
+
+    const root = this.findOutMostBlock(newBlock)
+    if (this.history) this.history.markRootDirty(root.key)
   }
 
   canInserFrontMatter (block) {

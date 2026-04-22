@@ -32,8 +32,12 @@ function appendChild (parent, block) {
   const last = parent.children[parent.children.length - 1]
   parent.children.push(block)
   block.parent = parent.key
-  if (last) { last.nextSibling = block.key; block.preSibling = last.key }
-  else { block.preSibling = null }
+  if (last) {
+    last.nextSibling = block.key
+    block.preSibling = last.key
+  } else {
+    block.preSibling = null
+  }
   block.nextSibling = null
 }
 
@@ -130,7 +134,7 @@ for (const size of [200, 1000, 5000, 10000, 20000]) {
   // New: map pre-built inside loop (like production where it always exists)
   const tNew = bench(`new-${size}`, () => {
     const bs = buildBlockTree(size)
-    const map = buildBlockMap(bs)  // In production, this already exists
+    const map = buildBlockMap(bs) // In production, this already exists
     removeBlockNew(bs, map, bs[midIdx])
   })
 

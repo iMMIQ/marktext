@@ -134,7 +134,7 @@ describe('Block tree: importMarkdown round-trip', () => {
     { name: 'code block', md: '```js\nconst x = 1\n```' },
     { name: 'blockquote', md: '> quoted text\n> more quote' },
     { name: 'thematic break', md: 'above\n\n---\n\nbelow' },
-    { name: 'mixed', md: '# Title\n\nParagraph with **bold**.\n\n- item 1\n- item 2\n\n```\ncode\n```\n\n> quote' },
+    { name: 'mixed', md: '# Title\n\nParagraph with **bold**.\n\n- item 1\n- item 2\n\n```\ncode\n```\n\n> quote' }
   ]
 
   for (const { name, md } of cases) {

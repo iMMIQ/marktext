@@ -8,7 +8,6 @@
  */
 
 import { performance } from 'node:perf_hooks'
-import { readFileSync } from 'node:fs'
 
 // ─── Inline deepCopy (from src/muya/lib/utils/index.js) ───────
 
@@ -40,47 +39,26 @@ function deepCopy (object) {
   return obj
 }
 
-// ─── Inline tokenizer (from src/muya/lib/parser/index.js) ─────
-// We use dynamic import with a wrapper to load the real tokenizer.
-
-let tokenizer = null
-
-async function loadTokenizer () {
-  // Build a temporary loader that uses createRequire to bypass ESM issues
-  const { createRequire } = await import('node:module')
-  const require = createRequire(import.meta.url)
-
-  // Patch: add .js extensions to Muya's imports so Node can resolve them
-  // We'll load the parser as CJS-compatible by reading and eval'ing
-  // Actually, simpler: just use the test infrastructure's Vitest to run.
-  // But for standalone, let's use a different approach.
-
-  // The tokenizer has deep dependencies. For benchmark accuracy,
-  // we measure a simplified version that exercises the same regex engine.
-  // The inline rules are the hot path — beginRules are only tried once.
-  return false
-}
-
 // ─── Inline parser rules (regex only, from rules.js) ──────────
 
 const beginRules = {
-  hr: /^(\*{3,}$|^\-{3,}$|^\_{3,}$)/,
+  hr: /^(\*{3,}$|^-{3,}$|^_{3,}$)/,
   code_fense: /^(`{3,})([^`]*)$/,
   header: /(^ {0,3}#{1,6}(\s{1,}|$))/,
-  reference_definition: /^( {0,3}\[)([^\]]+?)(\\*)(\]: *)(<?)([^\s>]+)(>?)(?:( +)(["'(]?)([^\n"'\(\)]+)\9)?( *)$/,
+  reference_definition: /^( {0,3}\[)([^\]]+?)(\\*)(\]: *)(<?)([^\s>]+)(>?)(?:( +)(["'(]?)([^\n"'()]+)\9)?( *)$/,
   multiple_math: /^(\$\$)$/
 }
 
 const inlineRules = {
   strong: /^(\*\*|__)(?=\S)([\s\S]*?[^\s\\])(\\*)\1(?!(\*|_))/,
-  em: /^(\*|_)(?=\S)([\s\S]*?[^\s\*\\])(\\*)\1(?!\1)/,
+  em: /^(\*|_)(?=\S)([\s\S]*?[^\s*\\])(\\*)\1(?!\1)/,
   inline_code: /^(`{1,3})([^`]+?|.{2,})\1/,
-  image: /^(\!\[)(.*?)(\\*)\]\((.*)(\\*)\)/,
-  link: /^(\[)((?:\[[^\]]*\]|[^\[\]]|\](?=[^\[]*\]))*?)(\\*)\]\((.*)(\\*)\)/,
+  image: /^(!\[)(.*?)(\\*)\]\((.*)(\\*)\)/,
+  link: /^(\[)((?:\[[^\]]*\]|[^[\]]|\](?=[^[]*\]))*?)(\\*)\]\((.*)(\\*)\)/,
   emoji: /^(:)([a-z_\d+-]+?)\1/,
   del: /^(~~)(?=\S)([\s\S]*?[^\s\\])(\\*)\1/,
   auto_link: /^<[a-zA-Z][^>]+>/,
-  inline_math: /^(\$)([^\$]+?)\$/,
+  inline_math: /^(\$)([^$]+?)\$/,
   super_sub_script: /^(\^|~)([^\s^~]+?)\1/,
   soft_line_break: /^(\n)/,
   hard_line_break: /^(\s{2,})\n/,
@@ -160,8 +138,12 @@ function appendChild (parent, block) {
   const last = parent.children[parent.children.length - 1]
   parent.children.push(block)
   block.parent = parent.key
-  if (last) { last.nextSibling = block.key; block.preSibling = last.key }
-  else { block.preSibling = null }
+  if (last) {
+    last.nextSibling = block.key
+    block.preSibling = last.key
+  } else {
+    block.preSibling = null
+  }
   block.nextSibling = null
 }
 
@@ -209,7 +191,7 @@ const textSamples = {
   'heading + markers': '## This is a heading with **bold** and `code`',
   'complex inline (150ch)': 'Text with **bold** and *italic* and `code` and [link](url) and ![img](src) and $math$ all mixed together.',
   'table cell': '| Header 1 | Header 2 |',
-  'reference def': '[label]: https://example.com "Title"',
+  'reference def': '[label]: https://example.com "Title"'
 }
 
 console.log(row(['Input'.padEnd(28), 'Time/call'.padEnd(14), 'Calls/s'.padEnd(14)]))
@@ -273,8 +255,8 @@ console.log(row(['checkNeedRender(start block) x1'.padEnd(35), fmt(tCheckNeedRen
 console.log(row(['checkNeedRender(end block) x1'.padEnd(35), fmt(tCheckNeedRenderEnd.ms).padEnd(14)]))
 const totalTokMs = tCheckNotSame.ms + tCheckCursor.ms + tCheckNeedRenderStart.ms + tCheckNeedRenderEnd.ms
 console.log(row(['TOTAL tokenizer cost per keystroke'.padEnd(35), fmt(totalTokMs).padEnd(14)]))
-console.log(`\n  Note: checkNotSameToken calls tokenizer 2x internally (old + new text).`)
-console.log(`  Total tokenizer invocations per keystroke: 5 (2+1+1+1)`)
+console.log('\n  Note: checkNotSameToken calls tokenizer 2x internally (old + new text).')
+console.log('  Total tokenizer invocations per keystroke: 5 (2+1+1+1)')
 
 // ═══════════════════════════════════════════════════════════════
 // BENCHMARK 3: collectLabels tree walk
@@ -451,8 +433,6 @@ for (const size of [200, 1000, 5000, 10000]) {
   const midIdx = Math.floor(size / 2)
   const text = blocks[midIdx].children[0].text
   const oldText2 = text.slice(0, -1)
-  const offset = Math.floor(text.length / 2)
-
   console.log(`  ── ${totalNodes} nodes (${size} paragraphs) ──\n`)
 
   // Tokenizer x5
