@@ -235,11 +235,43 @@ describe('History: undo/redo with incremental copy', () => {
     cs.history.undo()
     expect(cs.blocks.length).toBe(3)
     expect(exportMd(cs).trimEnd()).toBe('aaa\n\nbbb\n\nccc')
+    expect(cs.getBlock(rootB.key)).toBe(cs.blocks[1])
+    expect(cs.getBlock(rootB.children[0].key)).toBe(cs.blocks[1].children[0])
 
     // Redo
     cs.history.redo()
     expect(cs.blocks.length).toBe(2)
     expect(exportMd(cs).trimEnd()).toBe('aaa\n\nccc')
+    expect(cs.getBlock(rootB.key)).toBe(null)
+    expect(cs.getBlock(rootB.children[0].key)).toBe(null)
+  })
+
+  it('undo reuses unchanged live roots without mutating snapshots', () => {
+    const cs = createCS('aaa\n\nbbb\n\nccc')
+    const [rootA, rootB] = cs.blocks
+
+    pushHistory(cs, rootA.children[0].key)
+
+    rootB.children[0].text = 'BBB'
+    pushHistory(cs, rootB.children[0].key)
+
+    rootA.children[0].text = 'AAA'
+    pushHistory(cs, rootA.children[0].key)
+
+    const liveRootCBeforeUndo = cs.blocks[2]
+    const targetSnapshot = cs.history.stack[1]
+
+    cs.history.undo()
+
+    expect(cs.blocks[0].children[0].text).toBe('aaa')
+    expect(cs.blocks[1].children[0].text).toBe('BBB')
+    expect(cs.blocks[2].children[0].text).toBe('ccc')
+    expect(cs.blocks[2]).toBe(liveRootCBeforeUndo)
+    expect(cs.blocks[2]).not.toBe(targetSnapshot.blocks[2])
+
+    cs.blocks[2].children[0].text = 'CCC'
+    expect(targetSnapshot.blocks[2].children[0].text).toBe('ccc')
+    expect(cs.history.stack[2].blocks[2].children[0].text).toBe('ccc')
   })
 })
 

@@ -25,16 +25,9 @@ class History {
   undo () {
     this.commitPending()
     if (this.index > 0) {
+      const currentIndex = this.index
       this.index = this.index - 1
-
-      const state = deepCopy(this.stack[this.index])
-      const { blocks, cursor, renderRange } = state
-      cursor.noHistory = true
-      this.contentState.blocks = blocks
-      this.contentState._rebuildBlockMap()
-      this.contentState.renderRange = renderRange
-      this.contentState.cursor = cursor
-      this.contentState.render()
+      this._restore(this.stack[this.index], this.stack[currentIndex])
     }
   }
 
@@ -43,15 +36,9 @@ class History {
     const { index, stack } = this
     const len = stack.length
     if (index < len - 1) {
+      const currentState = stack[index]
       this.index = index + 1
-      const state = deepCopy(stack[this.index])
-      const { blocks, cursor, renderRange } = state
-      cursor.noHistory = true
-      this.contentState.blocks = blocks
-      this.contentState._rebuildBlockMap()
-      this.contentState.renderRange = renderRange
-      this.contentState.cursor = cursor
-      this.contentState.render()
+      this._restore(stack[this.index], currentState)
     }
   }
 
@@ -133,6 +120,83 @@ class History {
       blocks: newBlocks,
       cursor: deepCopy(state.cursor),
       renderRange: state.renderRange ? state.renderRange.slice() : [null, null]
+    }
+  }
+
+  _restore (targetSnapshot, currentSnapshot) {
+    const contentState = this.contentState
+    const state = currentSnapshot
+      ? this._materializeSnapshot(targetSnapshot, currentSnapshot, contentState.blocks)
+      : deepCopy(targetSnapshot)
+    const { blocks, cursor, renderRange } = state
+    cursor.noHistory = true
+    contentState.blocks = blocks
+    if (state.removedRoots && state.addedRoots) {
+      this._restoreBlockMap(state.removedRoots, state.addedRoots)
+    } else {
+      contentState._rebuildBlockMap()
+    }
+    contentState.renderRange = renderRange
+    contentState.cursor = cursor
+    contentState.render()
+  }
+
+  _materializeSnapshot (targetSnapshot, currentSnapshot, liveBlocks) {
+    const currentKeyMap = new Map()
+    for (let i = 0; i < currentSnapshot.blocks.length; i++) {
+      const block = currentSnapshot.blocks[i]
+      currentKeyMap.set(block.key, block)
+    }
+
+    const liveKeyMap = new Map()
+    for (let i = 0; i < liveBlocks.length; i++) {
+      const block = liveBlocks[i]
+      liveKeyMap.set(block.key, block)
+    }
+
+    const newBlocks = []
+    const addedRoots = []
+    const targetRootKeys = new Set()
+    const reusedRootKeys = new Set()
+    for (let i = 0; i < targetSnapshot.blocks.length; i++) {
+      const targetRoot = targetSnapshot.blocks[i]
+      targetRootKeys.add(targetRoot.key)
+      const currentRoot = currentKeyMap.get(targetRoot.key)
+      const liveRoot = liveKeyMap.get(targetRoot.key)
+
+      if (currentRoot && currentRoot === targetRoot && liveRoot) {
+        newBlocks.push(liveRoot)
+        reusedRootKeys.add(liveRoot.key)
+      } else {
+        const copiedRoot = deepCopy(targetRoot)
+        newBlocks.push(copiedRoot)
+        addedRoots.push(copiedRoot)
+      }
+    }
+
+    const removedRoots = []
+    for (let i = 0; i < liveBlocks.length; i++) {
+      const liveRoot = liveBlocks[i]
+      if (!targetRootKeys.has(liveRoot.key) || !reusedRootKeys.has(liveRoot.key)) {
+        removedRoots.push(liveRoot)
+      }
+    }
+
+    return {
+      blocks: newBlocks,
+      cursor: deepCopy(targetSnapshot.cursor),
+      renderRange: targetSnapshot.renderRange ? targetSnapshot.renderRange.slice() : [null, null],
+      removedRoots,
+      addedRoots
+    }
+  }
+
+  _restoreBlockMap (removedRoots, addedRoots) {
+    for (let i = 0; i < removedRoots.length; i++) {
+      this.contentState._removeFromBlockMap(removedRoots[i])
+    }
+    for (let i = 0; i < addedRoots.length; i++) {
+      this.contentState._addToBlockMap(addedRoots[i])
     }
   }
 }
