@@ -159,12 +159,8 @@ jobs:
           bun run lint
           bun run validate-licenses
 
-      - name: Run unit and E2E tests
-        # Playwright worker teardown timeout on Windows is a known flaky issue;
-        # all tests pass but the Electron process may hang on cleanup.
-        continue-on-error: true
-        timeout-minutes: 15
-        run: bun run test
+      - name: Run unit tests
+        run: bun run unit
 
       - name: Build and release
         run: bun run release:win --publish always "-c.publish.provider=github" "-c.publish.owner=$env:MARKTEXT_RELEASE_REPO_OWNER" "-c.publish.repo=$env:MARKTEXT_RELEASE_REPO_NAME"
