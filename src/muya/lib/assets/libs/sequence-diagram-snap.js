@@ -3,9 +3,46 @@
  *  (c) 2012-2017 Andrew Brampton (bramp.net)
  *  @license Simplified BSD license.
  */
-import _ from 'underscore'
-import Snap from 'snapsvg'
 import WebFont from 'webfontloader'
+
+const _ = {
+  all (list, predicate) {
+    return list.every(predicate)
+  },
+  defaults (target, ...sources) {
+    for (const source of sources) {
+      for (const key of Object.keys(source || {})) {
+        if (target[key] === undefined) {
+          target[key] = source[key]
+        }
+      }
+    }
+    return target
+  },
+  each (list, iteratee) {
+    if (Array.isArray(list)) {
+      list.forEach(iteratee)
+    } else {
+      Object.keys(list || {}).forEach(key => iteratee(list[key], key))
+    }
+  },
+  extend (target, ...sources) {
+    return Object.assign(target, ...sources)
+  },
+  invoke (list, method) {
+    return list.map(item => item[method]())
+  },
+  isArray: Array.isArray,
+  isEmpty (value) {
+    return Object.keys(value || {}).length === 0
+  },
+  isFinite (value) {
+    return Number.isFinite(Number(value))
+  },
+  isString (value) {
+    return typeof value === 'string'
+  }
+}
 
 function Diagram() {
   this.title   = undefined;
@@ -1251,7 +1288,8 @@ _.extend(BaseTheme.prototype, {
  */
 /*global Diagram, Snap, WebFont _ */
 // TODO Move defintion of font onto the <svg>, so it can easily be override at each level
-if (typeof Snap != 'undefined') {
+if (typeof window !== 'undefined' && typeof window.Snap !== 'undefined') {
+  var Snap = window.Snap;
 
   var xmlns = 'http://www.w3.org/2000/svg';
 
@@ -1539,16 +1577,6 @@ if (typeof Snap != 'undefined') {
  */
 /*global Diagram, _ */
 
-if (typeof Raphael == 'undefined' && typeof Snap == 'undefined') {
-  throw new Error('Raphael or Snap.svg is required to be included.');
-}
-
-if (_.isEmpty(Diagram.themes)) {
-  // If you are using stock js-sequence-diagrams you should never see this. This only
-  // happens if you have removed the built in themes.
-  throw new Error('No themes were registered. Please call registerTheme(...).');
-}
-
 // Set the default hand/simple based on which theme is available.
 Diagram.themes.hand = Diagram.themes.snapHand || Diagram.themes.raphaelHand;
 Diagram.themes.simple = Diagram.themes.snapSimple || Diagram.themes.raphaelSimple;
@@ -1563,6 +1591,10 @@ Diagram.prototype.drawSVG = function(container, options) {
   };
 
   options = _.defaults(options || {}, defaultOptions);
+
+  if (_.isEmpty(Diagram.themes)) {
+    throw new Error('No sequence diagram themes are available. Snap.svg or Raphael is required to draw sequence diagrams.')
+  }
 
   if (!(options.theme in Diagram.themes)) {
     throw new Error('Unsupported theme: ' + options.theme);
