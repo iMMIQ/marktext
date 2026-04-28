@@ -174,22 +174,19 @@ const commands = [
       bus.$emit('find', 'find')
     }
   },
-  // TODO: Find next/previous doesn't work.
-  // {
-  //   id: 'edit.find-next',
-  //   description: 'Edit: Find Next',
-  //   execute: async () => {
-  //     await delay(150)
-  //     bus.$emit('findNext', 'findNext')
-  //   }
-  // }, {
-  //   id: 'edit.find-previous',
-  //   description: 'Edit: Find Previous',
-  //   execute: async () => {
-  //     await delay(150)
-  //     bus.$emit('findPrev', 'findPrev')
-  //   }
-  // },
+  {
+    id: 'edit.find-next',
+    execute: async () => {
+      await delay(150)
+      bus.$emit('findNext', 'findNext')
+    }
+  }, {
+    id: 'edit.find-previous',
+    execute: async () => {
+      await delay(150)
+      bus.$emit('findPrev', 'findPrev')
+    }
+  },
   {
     id: 'edit.replace',
     execute: async () => {
