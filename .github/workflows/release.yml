@@ -72,7 +72,12 @@ jobs:
 
       - name: Strip ripgrep on Linux
         if: runner.os == 'Linux'
-        run: strip node_modules/vscode-ripgrep/bin/rg
+        run: |
+          if [ -f node_modules/vscode-ripgrep/bin/rg ]; then
+            strip node_modules/vscode-ripgrep/bin/rg
+          else
+            echo "vscode-ripgrep binary not found; skipping strip"
+          fi
 
       - name: Lint
         run: |
