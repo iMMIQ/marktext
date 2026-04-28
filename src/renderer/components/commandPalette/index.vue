@@ -17,7 +17,7 @@
             v-model="query"
             class="search"
             @keydown="handleBeforeInput"
-            @keyup="handleInput"
+            @input="handleInput"
             :placeholder="placeholderText"
           >
         </div>
@@ -158,37 +158,20 @@ export default {
           }
           break
         }
-      }
-    },
-    handleInput (event) {
-      if (event.isComposing) {
-        return
-      }
-      // NOTE: We're using keyup to catch "enter" key but `ctrlKey` etc doesn't work here.
-      switch (event.key) {
-        case 'Control':
-        case 'Alt':
-        case 'Meta':
-        case 'Shift':
-        case 'Escape':
-        case 'PageDown':
-        case 'PageUp':
-        case 'ArrowUp':
-        case 'ArrowDown':
-        case 'ArrowLeft':
-        case 'ArrowRight': {
-          // No-op
-          break
-        }
         case 'Enter': {
+          event.preventDefault()
+          event.stopPropagation()
           this.search()
           break
         }
-        default: {
-          this.updateCommands()
-          break
-        }
       }
+    },
+    handleInput (event) {
+      if (event && event.isComposing) {
+        return
+      }
+
+      this.updateCommands()
     },
     search (commandId = null) {
       const { availableCommands, selectedCommandIndex } = this

@@ -13,9 +13,6 @@ const executeCommandPaletteCommand = async (app, page, query, expectedCommand) =
   const search = palette.locator('input.search')
   await expect(search).toBeVisible()
   await search.fill(query)
-  await search.evaluate((input, key) => {
-    input.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true }))
-  }, query.slice(-1))
   await expect(palette.locator('ul.commands li.active')).toContainText(expectedCommand)
   await page.keyboard.press('Enter')
   await expect(page.locator('.el-dialog')).toBeHidden()

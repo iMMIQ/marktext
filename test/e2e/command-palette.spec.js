@@ -15,8 +15,7 @@ test('view menu opens the command palette and filters commands', async () => {
 
     const search = palette.locator('input.search')
     await expect(search).toBeVisible()
-    await search.click()
-    await page.keyboard.type('source code')
+    await search.fill('source code')
 
     await expect(palette.locator('ul.commands li.active')).toContainText('View: Toggle Source Code Mode')
   } finally {
