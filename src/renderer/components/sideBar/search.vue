@@ -230,12 +230,12 @@ export default {
         isCaseSensitive,
         isWholeWord,
         isRegexp,
-        exclusions: this.searchExclusions,
+        exclusions: Array.from(this.searchExclusions || []),
         maxFileSize: this.searchMaxFileSize || null,
         includeHidden: this.searchIncludeHidden,
         noIgnore: this.searchNoIgnore,
         followSymlinks: this.searchFollowSymlinks,
-        inclusions: MARKDOWN_INCLUSIONS
+        inclusions: Array.from(MARKDOWN_INCLUSIONS)
       })
         .then(searchResult => {
           if (canceled || requestId !== `search:${this.searchGeneration}`) {
