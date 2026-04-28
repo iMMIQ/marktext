@@ -197,5 +197,8 @@
       "email": "hfelix@protonmail.ch",
       "url": "https://github.com/fxha"
     }
-  ]
+  ],
+  "patchedDependencies": {
+    "fontmanager-redux@1.1.0": "patches/fontmanager-redux@1.1.0.patch"
+  }
 }

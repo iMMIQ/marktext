@@ -7,6 +7,7 @@ const root = path.resolve(__dirname, '../../..')
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 const builder = fs.readFileSync(path.join(root, 'electron-builder.yml'), 'utf8')
 const rebuildScript = fs.readFileSync(path.join(root, 'tools/build/rebuildNativeModules.mjs'), 'utf8')
+const fontmanagerPatch = fs.readFileSync(path.join(root, 'patches/fontmanager-redux@1.1.0.patch'), 'utf8')
 
 describe('phase 4 native build contract', () => {
   it('rebuilds native modules explicitly before packaging', () => {
@@ -24,5 +25,11 @@ describe('phase 4 native build contract', () => {
   it('does not force native build helper packages across incompatible dependency ranges', () => {
     expect(pkg.resolutions?.['node-addon-api']).toBeUndefined()
     expect(pkg.resolutions?.['node-abi']).toBeUndefined()
+  })
+
+  it('pins fontmanager-redux to C++17 for Electron native rebuilds', () => {
+    expect(pkg.patchedDependencies?.['fontmanager-redux@1.1.0']).toBe('patches/fontmanager-redux@1.1.0.patch')
+    expect(fontmanagerPatch).toContain("'-std=gnu++20'")
+    expect(fontmanagerPatch).toContain("'-std=gnu++17'")
   })
 })
