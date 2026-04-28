@@ -79,7 +79,7 @@ export const editorFindPrevious = win => {
 }
 
 export const editorReplace = win => {
-  edit(win, 'undo')
+  edit(win, 'replace')
 }
 
 export const findInFolder = win => {
