@@ -1,3 +1,24 @@
+## 0.18.2
+
+**:butterfly:Optimization**
+
+- Improved Muya editor performance for block lookup, block removal, and undo/redo history snapshots.
+- Reduced Linux package size by pruning unused Electron locale files.
+- Migrated project package management to Bun and stabilized native dependency rebuilds.
+
+**:beetle:Bug fix**
+
+- Fixed HTML export and sequence diagrams under the renderer Content Security Policy.
+- Fixed the Edit > Replace menu action.
+- Fixed command palette search and find navigation behavior.
+- Fixed rename dialog readiness when triggered from the menu.
+- Improved release and CI reliability for Windows and Linux packaging.
+
+**:microscope:Quality**
+
+- Added end-to-end coverage for save, preferences, command palette, find in folder, source mode, line endings, theme switching, view layout, menu actions, file lifecycle flows, export, PDF/print, and security-sensitive renderer behavior.
+- Added unit coverage for filesystem path handling, Muya block tree operations, incremental history, native build contracts, renderer boundary rules, and Vite build config.
+
 ## 0.17.1
 
 - Added experimental native support for Apple M1 (see #2983 if you have issues).
