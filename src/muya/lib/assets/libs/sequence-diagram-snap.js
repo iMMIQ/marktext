@@ -19,11 +19,11 @@ const _ = {
     }
     return target
   },
-  each (list, iteratee) {
+  each (list, iteratee, context) {
     if (Array.isArray(list)) {
-      list.forEach(iteratee)
+      list.forEach((value, index) => iteratee.call(context, value, index))
     } else {
-      Object.keys(list || {}).forEach(key => iteratee(list[key], key))
+      Object.keys(list || {}).forEach(key => iteratee.call(context, list[key], key))
     }
   },
   extend (target, ...sources) {

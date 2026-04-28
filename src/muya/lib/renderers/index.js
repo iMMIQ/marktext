@@ -8,6 +8,7 @@ const loadRenderer = async (name) => {
     let m
     switch (name) {
       case 'sequence':
+        await import('../assets/libs/snapSvg').then(({ ensureSnap }) => ensureSnap())
         m = await import('../parser/render/sequence')
         rendererCache.set(name, m.default)
         break

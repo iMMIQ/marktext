@@ -1,9 +1,28 @@
-import snapSvgSource from './snap.svg-min.js?raw'
+import snapSvgUrl from './snap.svg-min.js?url'
 
-if (!window.Snap) {
-  // Evaluate the legacy UMD bundle as a plain script so Vite does not try to
-  // resolve Snap.svg's optional CommonJS `eve` dependency during dev serve.
-  new Function(snapSvgSource)()
+let loadSnapPromise = null
+
+export const ensureSnap = () => {
+  if (typeof window === 'undefined') {
+    return Promise.resolve(undefined)
+  }
+
+  if (window.Snap) {
+    return Promise.resolve(window.Snap)
+  }
+
+  if (!loadSnapPromise) {
+    loadSnapPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script')
+      script.src = snapSvgUrl
+      script.async = true
+      script.onload = () => resolve(window.Snap)
+      script.onerror = () => reject(new Error('Failed to load Snap.svg.'))
+      document.head.appendChild(script)
+    })
+  }
+
+  return loadSnapPromise
 }
 
-export default window.Snap
+export default ensureSnap
