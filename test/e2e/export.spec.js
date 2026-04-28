@@ -2,7 +2,7 @@ const fs = require('fs')
 const os = require('os')
 const path = require('path')
 const { expect, test } = require('@playwright/test')
-const { launchElectron } = require('./helpers')
+const { clickMenuItemByPath, launchElectron } = require('./helpers')
 
 test('editor exports the opened markdown file as styled HTML', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'marktext-export-smoke-'))
@@ -20,19 +20,14 @@ test('editor exports the opened markdown file as styled HTML', async () => {
     await expect(page.locator('.editor-container')).toBeVisible()
     await expect(page.locator('.editor-component')).toContainText(token)
 
-    await app.evaluate(({ BrowserWindow, Menu, dialog }, targetPath) => {
+    await app.evaluate(({ dialog }, targetPath) => {
       global.__marktextExportDialogCalls = 0
       dialog.showSaveDialog = async () => {
         global.__marktextExportDialogCalls += 1
         return { filePath: targetPath, canceled: false }
       }
-
-      const win = BrowserWindow.getAllWindows()[0]
-      const fileMenu = Menu.getApplicationMenu().items.find(item => item.label.replace('&', '') === 'File')
-      const exportMenu = fileMenu.submenu.items.find(item => item.label === 'Export')
-      const htmlItem = exportMenu.submenu.items.find(item => item.label === 'HTML')
-      htmlItem.click(undefined, win)
     }, htmlPath)
+    await clickMenuItemByPath(app, ['File', 'Export', 'HTML'])
 
     const exportDialog = page.locator('.print-settings-dialog .el-dialog')
     await expect(exportDialog).toBeVisible()

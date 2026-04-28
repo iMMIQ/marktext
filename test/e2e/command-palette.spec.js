@@ -1,5 +1,5 @@
 const { expect, test } = require('@playwright/test')
-const { launchElectron } = require('./helpers')
+const { clickMenuItemByPath, launchElectron } = require('./helpers')
 
 test('view menu opens the command palette and filters commands', async () => {
   const { app, page } = await launchElectron()
@@ -8,12 +8,7 @@ test('view menu opens the command palette and filters commands', async () => {
     await expect(page.locator('.editor-container')).toBeVisible()
     await expect(page.locator('.command-palette')).toBeAttached()
 
-    await app.evaluate(({ BrowserWindow, Menu }) => {
-      const win = BrowserWindow.getAllWindows()[0]
-      const viewMenu = Menu.getApplicationMenu().items.find(item => item.label.replace('&', '') === 'View')
-      const commandPaletteItem = viewMenu.submenu.items.find(item => item.label === 'Command Palette...')
-      commandPaletteItem.click(undefined, win)
-    })
+    await clickMenuItemByPath(app, ['View', 'Command Palette...'])
 
     const palette = page.locator('.command-palette')
     await expect(page.locator('.el-dialog')).toBeVisible()

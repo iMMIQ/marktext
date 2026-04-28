@@ -1,5 +1,5 @@
 const { expect, test } = require('@playwright/test')
-const { launchElectron } = require('./helpers')
+const { clickMenuItemByPath, launchElectron } = require('./helpers')
 
 test('edit menu find in folder opens the sidebar search panel', async () => {
   const { app, page } = await launchElectron()
@@ -7,12 +7,7 @@ test('edit menu find in folder opens the sidebar search panel', async () => {
   try {
     await expect(page.locator('.editor-container')).toBeVisible()
 
-    await app.evaluate(({ BrowserWindow, Menu }) => {
-      const win = BrowserWindow.getAllWindows()[0]
-      const editMenu = Menu.getApplicationMenu().items.find(item => item.label.replace('&', '') === 'Edit')
-      const findInFolderItem = editMenu.submenu.items.find(item => item.label === 'Find in Folder')
-      findInFolderItem.click(undefined, win)
-    })
+    await clickMenuItemByPath(app, ['Edit', 'Find in Folder'])
 
     const searchPanel = page.locator('.side-bar-search')
     await expect(searchPanel).toBeVisible()

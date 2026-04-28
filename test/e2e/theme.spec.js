@@ -1,7 +1,7 @@
 const fs = require('fs')
 const path = require('path')
 const { expect, test } = require('@playwright/test')
-const { launchElectron } = require('./helpers')
+const { clickMenuItemById, getMenuItemChecked, launchElectron } = require('./helpers')
 
 test('theme menu updates the persisted theme and menu selection', async () => {
   const { app, page } = await launchElectron()
@@ -12,20 +12,14 @@ test('theme menu updates the persisted theme and menu selection', async () => {
 
     await expect(page.locator('.editor-container')).toBeVisible()
 
-    await app.evaluate(({ Menu }) => {
-      const themeMenu = Menu.getApplicationMenu().getMenuItemById('themeMenu')
-      const oneDarkItem = themeMenu.submenu.items.find(item => item.id === 'one-dark')
-      oneDarkItem.click()
-    })
+    await clickMenuItemById(app, 'one-dark')
 
     await expect.poll(() => {
       return JSON.parse(fs.readFileSync(preferencesPath, 'utf8')).theme
     }).toBe('one-dark')
 
     await expect.poll(() => {
-      return app.evaluate(({ Menu }) => {
-        return Menu.getApplicationMenu().getMenuItemById('one-dark').checked
-      })
+      return getMenuItemChecked(app, 'one-dark')
     }).toBe(true)
 
     await expect.poll(() => {

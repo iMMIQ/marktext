@@ -2,7 +2,7 @@ const fs = require('fs')
 const os = require('os')
 const path = require('path')
 const { expect, test } = require('@playwright/test')
-const { launchElectron } = require('./helpers')
+const { clickMenuItemByPath, launchElectron } = require('./helpers')
 
 test('edit menu replace opens the replace bar and replaces a match', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'marktext-replace-smoke-'))
@@ -20,12 +20,7 @@ test('edit menu replace opens the replace bar and replaces a match', async () =>
     await expect(page.locator('.editor-container')).toBeVisible()
     await expect(page.locator('.editor-component')).toContainText(token)
 
-    await app.evaluate(({ BrowserWindow, Menu }) => {
-      const win = BrowserWindow.getAllWindows()[0]
-      const editMenu = Menu.getApplicationMenu().items.find(item => item.label.replace('&', '') === 'Edit')
-      const replaceItem = editMenu.submenu.items.find(item => item.label === 'Replace')
-      replaceItem.click(undefined, win)
-    })
+    await clickMenuItemByPath(app, ['Edit', 'Replace'])
 
     const searchBar = page.locator('.search-bar')
     await expect(searchBar).toBeVisible()

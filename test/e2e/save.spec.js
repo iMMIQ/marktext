@@ -2,7 +2,7 @@ const fs = require('fs')
 const os = require('os')
 const path = require('path')
 const { expect, test } = require('@playwright/test')
-const { launchElectron } = require('./helpers')
+const { clickMenuItemByPath, launchElectron } = require('./helpers')
 
 test('editor saves typed content to the opened markdown file', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'marktext-save-smoke-'))
@@ -26,12 +26,7 @@ test('editor saves typed content to the opened markdown file', async () => {
     await expect(page.locator('.editor-component')).toContainText(token)
     await expect(page.locator('.tabs-container li.active.unsaved')).toHaveCount(1)
 
-    await app.evaluate(({ BrowserWindow, Menu }) => {
-      const win = BrowserWindow.getAllWindows()[0]
-      const fileMenu = Menu.getApplicationMenu().items.find(item => item.label.replace('&', '') === 'File')
-      const saveItem = fileMenu.submenu.items.find(item => item.label === 'Save')
-      saveItem.click(undefined, win)
-    })
+    await clickMenuItemByPath(app, ['File', 'Save'])
     await expect.poll(() => fs.readFileSync(filePath, 'utf8')).toContain(token)
   } finally {
     if (app) {

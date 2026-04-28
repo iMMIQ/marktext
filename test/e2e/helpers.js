@@ -16,6 +16,48 @@ const getElectronPath = () => {
   return require('electron')
 }
 
+const clickMenuItemByPath = (app, labels) => {
+  return app.evaluate(({ BrowserWindow, Menu }, menuPath) => {
+    const win = BrowserWindow.getAllWindows()[0]
+    const normalizeLabel = label => (label || '').replace(/&/g, '')
+    let items = Menu.getApplicationMenu().items
+    let menuItem
+
+    for (const label of menuPath) {
+      menuItem = items.find(item => normalizeLabel(item.label) === label)
+      if (!menuItem) {
+        throw new Error(`Cannot find menu item "${label}" in path "${menuPath.join(' > ')}"`)
+      }
+      items = menuItem.submenu ? menuItem.submenu.items : []
+    }
+
+    menuItem.click(undefined, win)
+  }, labels)
+}
+
+const clickMenuItemById = (app, id) => {
+  return app.evaluate(({ BrowserWindow, Menu }, itemId) => {
+    const win = BrowserWindow.getAllWindows()[0]
+    const menuItem = Menu.getApplicationMenu().getMenuItemById(itemId)
+    if (!menuItem) {
+      throw new Error(`Cannot find menu item by id "${itemId}"`)
+    }
+
+    menuItem.click(undefined, win)
+  }, id)
+}
+
+const getMenuItemChecked = (app, id) => {
+  return app.evaluate(({ Menu }, itemId) => {
+    const menuItem = Menu.getApplicationMenu().getMenuItemById(itemId)
+    if (!menuItem) {
+      throw new Error(`Cannot find menu item by id "${itemId}"`)
+    }
+
+    return menuItem.checked
+  }, id)
+}
+
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
 
 const waitForChildExit = childProcess => {
@@ -157,4 +199,10 @@ const launchElectron = async userArgs => {
   return { app, page }
 }
 
-module.exports = { getElectronPath, launchElectron }
+module.exports = {
+  clickMenuItemById,
+  clickMenuItemByPath,
+  getElectronPath,
+  getMenuItemChecked,
+  launchElectron
+}

@@ -2,16 +2,11 @@ const fs = require('fs')
 const os = require('os')
 const path = require('path')
 const { expect, test } = require('@playwright/test')
-const { launchElectron } = require('./helpers')
+const { clickMenuItemByPath, getMenuItemChecked, launchElectron } = require('./helpers')
 
 const toggleSourceCodeMode = async app => {
-  return app.evaluate(({ BrowserWindow, Menu }) => {
-    const win = BrowserWindow.getAllWindows()[0]
-    const viewMenu = Menu.getApplicationMenu().items.find(item => item.label.replace('&', '') === 'View')
-    const sourceModeItem = viewMenu.submenu.items.find(item => item.label === 'Source Code Mode')
-    sourceModeItem.click(undefined, win)
-    return sourceModeItem.checked
-  })
+  await clickMenuItemByPath(app, ['View', 'Source Code Mode'])
+  return getMenuItemChecked(app, 'sourceCodeModeMenuItem')
 }
 
 test('source code mode edits sync back to the rich editor', async () => {

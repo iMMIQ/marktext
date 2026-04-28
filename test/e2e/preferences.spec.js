@@ -1,7 +1,7 @@
 const fs = require('fs')
 const path = require('path')
 const { expect, test } = require('@playwright/test')
-const { launchElectron } = require('./helpers')
+const { getMenuItemChecked, launchElectron } = require('./helpers')
 
 test('general preferences persist and update the application menu', async () => {
   const { app, page } = await launchElectron()
@@ -27,9 +27,7 @@ test('general preferences persist and update the application menu', async () => 
       return JSON.parse(fs.readFileSync(preferencesPath, 'utf8')).autoSave
     }).toBe(true)
 
-    const menuAutoSave = await app.evaluate(({ Menu }) => {
-      return Menu.getApplicationMenu().getMenuItemById('autoSaveMenuItem').checked
-    })
+    const menuAutoSave = await getMenuItemChecked(app, 'autoSaveMenuItem')
     expect(menuAutoSave).toBe(true)
   } finally {
     await app.close()
