@@ -38,9 +38,7 @@ export default {
     }
   },
   created () {
-    this.$nextTick(() => {
-      bus.$on('rename', this.handleRename)
-    })
+    bus.$on('rename', this.handleRename)
   },
   beforeUnmount () {
     bus.$off('rename', this.handleRename)
@@ -57,7 +55,11 @@ export default {
     handleRename () {
       this.showRename = true
       this.tempName = this.filename
-      this.$refs.search.focus()
+      this.$nextTick(() => {
+        if (this.$refs.search) {
+          this.$refs.search.focus()
+        }
+      })
     },
     confirm () {
       this.dispatchEditor('RENAME', this.tempName)

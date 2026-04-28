@@ -44,6 +44,7 @@ import Recent from '@/components/recent'
 import EditorWithTabs from '@/components/editorWithTabs'
 import TitleBar from '@/components/titleBar'
 import SideBar from '@/components/sideBar'
+import Rename from '@/components/rename'
 import { loadingPageMixins } from '@/mixins'
 import { useAppStore } from '@/stores/app'
 import { useEditorStore } from '@/stores/editor'
@@ -57,7 +58,6 @@ import { getInitialState } from '@/services/runtime'
 const AboutDialog = defineAsyncComponent(() => import('@/components/about'))
 const CommandPalette = defineAsyncComponent(() => import('@/components/commandPalette'))
 const ExportSettingDialog = defineAsyncComponent(() => import('@/components/exportSettings'))
-const Rename = defineAsyncComponent(() => import('@/components/rename'))
 const Tweet = defineAsyncComponent(() => import('@/components/tweet'))
 const ImportModal = defineAsyncComponent(() => import('@/components/import'))
 

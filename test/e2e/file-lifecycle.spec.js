@@ -90,7 +90,6 @@ test('file menu renames the current markdown file', async () => {
     const { page } = launched
 
     await expect(page.locator('.editor-component')).toContainText(token)
-    await page.waitForSelector('.rename', { state: 'attached' })
 
     await clickMenuItemByPath(app, ['File', 'Rename...'])
 

@@ -21,7 +21,8 @@ test('format menu applies bold to selected editor text', async () => {
 
     await clickMenuItemByPath(app, ['Format', 'Bold'])
     await expect.poll(() => getMenuItemChecked(app, 'strongMenuItem')).toBe(true)
-    await page.keyboard.type('format target')
+    await page.waitForTimeout(200)
+    await page.keyboard.type('format target', { delay: 30 })
     await expect(page.locator('.editor-component strong')).toContainText('format target')
 
     await clickMenuItemByPath(app, ['File', 'Save'])
