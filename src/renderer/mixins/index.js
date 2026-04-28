@@ -1,4 +1,4 @@
-import { isSamePathSync } from 'common/filesystem/paths'
+import { isSamePathSync } from 'common/filesystem/pathUtils'
 import { useEditorStore } from '@/stores/editor'
 import { useProjectStore } from '@/stores/project'
 import { useEventBus } from '@/composables/useEventBus'

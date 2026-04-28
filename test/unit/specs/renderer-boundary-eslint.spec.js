@@ -100,4 +100,12 @@ describe('renderer boundary eslint guardrail', () => {
     expect(nativeKeymapMessages[0].ruleId).toBe('no-restricted-syntax')
     expect(nativeKeymapMessages[0].message).toContain('Use src/renderer/services/nativeApi instead.')
   }, SPEC_TIMEOUT)
+
+  it('keeps renderer code off filesystem helpers that touch Node fs', () => {
+    const messages = getBoundaryMessages(lintRendererSource("import 'common/filesystem/paths'\n"))
+
+    expect(messages).toHaveLength(1)
+    expect(messages[0].ruleId).toBe('no-restricted-imports')
+    expect(messages[0].message).toContain('Use common/filesystem/pathUtils in renderer code.')
+  }, SPEC_TIMEOUT)
 })

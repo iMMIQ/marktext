@@ -1,4 +1,11 @@
 import path from 'path'
+import {
+  IMAGE_EXTENSIONS,
+  MARKDOWN_EXTENSIONS,
+  MARKDOWN_INCLUSIONS,
+  hasMarkdownExtension,
+  isChildOfDirectory
+} from './pathUtils'
 
 const isOsx = typeof process !== 'undefined' && process.platform === 'darwin'
 
@@ -64,39 +71,12 @@ const isSymbolicLinkPath = filepath => {
   }
 }
 
-export const MARKDOWN_EXTENSIONS = Object.freeze([
-  'markdown',
-  'mdown',
-  'mkdn',
-  'md',
-  'mkd',
-  'mdwn',
-  'mdtxt',
-  'mdtext',
-  'mdx',
-  'text',
-  'txt'
-])
-
-export const MARKDOWN_INCLUSIONS = Object.freeze(MARKDOWN_EXTENSIONS.map(x => '*.' + x))
-
-export const IMAGE_EXTENSIONS = Object.freeze([
-  'jpeg',
-  'jpg',
-  'png',
-  'gif',
-  'svg',
-  'webp'
-])
-
-/**
- * Returns true if the filename matches one of the markdown extensions.
- *
- * @param {string} filename Path or filename
- */
-export const hasMarkdownExtension = filename => {
-  if (!filename || typeof filename !== 'string') return false
-  return MARKDOWN_EXTENSIONS.some(ext => filename.toLowerCase().endsWith(`.${ext}`))
+export {
+  IMAGE_EXTENSIONS,
+  MARKDOWN_EXTENSIONS,
+  MARKDOWN_INCLUSIONS,
+  hasMarkdownExtension,
+  isChildOfDirectory
 }
 
 /**
@@ -163,18 +143,6 @@ export const isSamePathSync = (pathA, pathB, isNormalized = false) => {
     }
   }
   return false
-}
-
-/**
- * Check whether a file or directory is a child of the given directory.
- *
- * @param {string} dir The parent directory.
- * @param {string} child The file or directory path to check.
- */
-export const isChildOfDirectory = (dir, child) => {
-  if (!dir || !child) return false
-  const relative = path.relative(dir, child)
-  return relative && !relative.startsWith('..') && !path.isAbsolute(relative)
 }
 
 export const getResourcesPath = () => {

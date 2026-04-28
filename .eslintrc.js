@@ -93,6 +93,10 @@ module.exports = {
             {
               name: 'native-keymap',
               message: 'Use src/renderer/services/nativeApi instead.'
+            },
+            {
+              name: 'common/filesystem/paths',
+              message: 'Use common/filesystem/pathUtils in renderer code.'
             }
           ]
         }],

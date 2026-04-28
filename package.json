@@ -174,10 +174,6 @@
     "webpack": "^5.105.4",
     "webpack-cli": "^7.0.2"
   },
-  "resolutions": {
-    "node-abi": "^4.28.0",
-    "node-addon-api": "^8.7.0"
-  },
   "repository": {
     "type": "git",
     "url": "git@github.com:marktext/marktext.git"

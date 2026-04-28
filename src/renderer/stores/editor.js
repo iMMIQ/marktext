@@ -1,7 +1,7 @@
 import path from 'path'
 import equal from 'fast-deep-equal'
 import { defineStore } from 'pinia'
-import { isSamePathSync } from 'common/filesystem/paths'
+import { isSamePathSync } from 'common/filesystem/pathUtils'
 import bus from '@/bus'
 import { hasKeys, getUniqueId } from '@/util'
 import listToTree from '@/util/listToTree'

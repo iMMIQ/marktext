@@ -28,4 +28,9 @@ describe('vite main and preload build config', () => {
 
     expect(pluginNames).not.toContain('marktext-codemirror-assets')
   })
+
+  it('keeps the renderer chunk-size budget explicit', () => {
+    expect(rendererConfig.build.chunkSizeWarningLimit).toBe(900)
+    expect(rendererConfig.build.rollupOptions).toEqual({})
+  })
 })

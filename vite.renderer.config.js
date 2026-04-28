@@ -46,6 +46,7 @@ export default defineConfig({
     outDir: path.resolve(__dirname, 'dist/electron'),
     emptyOutDir: false,
     cssMinify: 'esbuild',
+    chunkSizeWarningLimit: 900,
     rollupOptions: {}
   }
 })

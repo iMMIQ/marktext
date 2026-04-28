@@ -1,5 +1,5 @@
 import path from 'path'
-import { isChildOfDirectory, hasMarkdownExtension, MARKDOWN_INCLUSIONS } from '../../common/filesystem/paths'
+import { isChildOfDirectory, hasMarkdownExtension, MARKDOWN_INCLUSIONS } from 'common/filesystem/pathUtils'
 import bus from '../bus'
 import { delay } from '@/util'
 import appApi from '../services/nativeApi/app'

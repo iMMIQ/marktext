@@ -10,7 +10,7 @@ import events from '@/services/nativeApi/events'
 import filesystem from '@/services/nativeApi/filesystem'
 import projectApi from '@/services/nativeApi/project'
 import shell from '@/services/nativeApi/shell'
-import { hasMarkdownExtension } from 'common/filesystem/paths'
+import { hasMarkdownExtension } from 'common/filesystem/pathUtils'
 import { useEditorStore } from '@/stores/editor'
 import { useLayoutStore } from '@/stores/layout'
 

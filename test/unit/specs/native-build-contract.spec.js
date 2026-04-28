@@ -20,4 +20,9 @@ describe('phase 4 native build contract', () => {
     expect(rebuildScript).toContain('native-rebuild.json')
     expect(rebuildScript).toContain('skipping rebuild')
   })
+
+  it('does not force native build helper packages across incompatible dependency ranges', () => {
+    expect(pkg.resolutions?.['node-addon-api']).toBeUndefined()
+    expect(pkg.resolutions?.['node-abi']).toBeUndefined()
+  })
 })
