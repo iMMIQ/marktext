@@ -163,6 +163,7 @@ jobs:
         # Playwright worker teardown timeout on Windows is a known flaky issue;
         # all tests pass but the Electron process may hang on cleanup.
         continue-on-error: true
+        timeout-minutes: 15
         run: bun run test
 
       - name: Build and release
