@@ -1,7 +1,7 @@
 import commandExists from 'command-exists'
-import { rgPath } from 'vscode-ripgrep'
+import { rgPath } from '@vscode/ripgrep'
 
-// "vscode-ripgrep" is unpacked out of asar because of the binary.
+// "@vscode/ripgrep" is unpacked out of asar because of the binary.
 const rgDiskPath = rgPath.replace(/\bapp\.asar\b/, 'app.asar.unpacked')
 
 export const getRipgrepPath = ({

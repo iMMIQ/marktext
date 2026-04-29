@@ -6,6 +6,7 @@ npmRebuild: false
 compression: "maximum"
 asarUnpack:
 - "**/*.node"
+- "node_modules/@vscode/ripgrep/bin/**"
 directories:
   output: "build"
 # Workaround: Don't download prebuilt libraries (GH#2953).
@@ -24,9 +25,10 @@ files:
 - "!node_modules/**/*.cjs.map"
 - "!node_modules/**/*.mjs.map"
 - "!node_modules/**/*.ts.map"
-- "!node_modules/vscode-ripgrep/{jsconfig.json,*.md,LICENSE}"
-- "!node_modules/vscode-ripgrep/download.js"
-- "!node_modules/vscode-ripgrep/postinstall.js"
+- "!node_modules/@vscode/ripgrep/{jsconfig.json,*.md,LICENSE,SECURITY.md}"
+- "!node_modules/@vscode/ripgrep/build"
+- "!node_modules/@vscode/ripgrep/lib/download.js"
+- "!node_modules/@vscode/ripgrep/lib/postinstall.js"
 # Don't bundle build files
 - "!node_modules/ced/bin"
 - "!node_modules/ced/vendor"

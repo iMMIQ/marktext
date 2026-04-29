@@ -10,6 +10,7 @@ const nvmrc = fs.existsSync(path.join(root, '.nvmrc'))
   : ''
 const fontManagerSource = fs.readFileSync(path.join(root, 'src/main/native/fontManager.js'), 'utf8')
 const nativeKeymapSource = fs.readFileSync(path.join(root, 'src/main/native/nativeKeymap.js'), 'utf8')
+const electronBuilderConfig = fs.readFileSync(path.join(root, 'electron-builder.yml'), 'utf8')
 const rendererOnlyDependencies = [
   '@codemirror/autocomplete',
   '@codemirror/commands',
@@ -37,7 +38,7 @@ const rendererOnlyDependencies = [
   'mermaid',
   'mitt',
   'pinia',
-  'popper.js',
+  '@popperjs/core',
   'prismjs',
   'snabbdom',
   'snabbdom-to-html',
@@ -66,6 +67,13 @@ describe('phase 4 runtime dependency contract', () => {
   it('keeps native module loaders compatible with bundled cjs output', () => {
     expect(fontManagerSource).toContain("createRequire(typeof __filename === 'string' ? __filename : import.meta.url)")
     expect(nativeKeymapSource).toContain("createRequire(typeof __filename === 'string' ? __filename : import.meta.url)")
+  })
+
+  it('keeps ripgrep packaged as an unpacked runtime binary', () => {
+    expect(pkg.dependencies['@vscode/ripgrep']).toMatch(/^\^1\./)
+    expect(pkg.dependencies['vscode-ripgrep']).toBeUndefined()
+    expect(electronBuilderConfig).toContain('node_modules/@vscode/ripgrep/bin/**')
+    expect(electronBuilderConfig).not.toContain('node_modules/vscode-ripgrep')
   })
 
   it('keeps renderer-only libraries out of packaged runtime dependencies', () => {

@@ -1,4 +1,4 @@
-import Popper from 'popper.js/dist/esm/popper'
+import { createPopper } from '@popperjs/core'
 import resizeDetector from 'element-resize-detector'
 import { noop } from '../../utils'
 import { EVENT_KEYS } from '../../config'
@@ -13,6 +13,29 @@ const defaultOptions = () => ({
   },
   showArrow: true
 })
+
+const normalizePlacement = placement => placement.replace(/-center$/, '')
+
+const normalizeModifiers = (modifiers = {}, showArrow = true) => {
+  const normalized = Object.entries(modifiers).map(([name, options]) => {
+    if (name === 'offset' && typeof options.offset === 'string') {
+      return {
+        name,
+        options: {
+          offset: options.offset.split(',').map(value => Number(value.trim()))
+        }
+      }
+    }
+
+    return { name, options }
+  })
+
+  if (showArrow) {
+    normalized.push({ name: 'arrow', options: { element: '.ag-popper-arrow' } })
+  }
+
+  return normalized
+}
 
 class BaseFloat {
   constructor (muya, name, options = {}) {
@@ -40,7 +63,7 @@ class BaseFloat {
 
     if (showArrow) {
       const arrow = document.createElement('div')
-      arrow.setAttribute('x-arrow', '')
+      arrow.setAttribute('data-popper-arrow', '')
       arrow.classList.add('ag-popper-arrow')
       floatBox.appendChild(arrow)
     }
@@ -113,14 +136,14 @@ class BaseFloat {
   show (reference, cb = noop) {
     const { floatBox } = this
     const { eventCenter } = this.muya
-    const { placement, modifiers } = this.options
+    const { placement, modifiers, showArrow } = this.options
     if (this.popper && this.popper.destroy) {
       this.popper.destroy()
     }
     this.cb = cb
-    this.popper = new Popper(reference, floatBox, {
-      placement,
-      modifiers
+    this.popper = createPopper(reference, floatBox, {
+      placement: normalizePlacement(placement),
+      modifiers: normalizeModifiers(modifiers, showArrow)
     })
     this.status = true
     eventCenter.dispatch('muya-float', this, true)

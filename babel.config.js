@@ -1,4 +1,4 @@
-const proposalClassProperties = require('@babel/plugin-proposal-class-properties')
+const transformClassProperties = require('@babel/plugin-transform-class-properties')
 const syntaxClassProperties = require('@babel/plugin-syntax-class-properties')
 const transformRuntime = require('@babel/plugin-transform-runtime')
 const syntaxDynamicImport = require('@babel/plugin-syntax-dynamic-import')
@@ -31,7 +31,7 @@ const presetsHash = {
 }
 
 module.exports = function (api) {
-  const plugins = [proposalClassProperties, syntaxClassProperties, transformRuntime, syntaxDynamicImport, functionBind, exportDefault]
+  const plugins = [transformClassProperties, syntaxClassProperties, transformRuntime, syntaxDynamicImport, functionBind, exportDefault]
   const env = api.env()
   const presets = presetsHash[env]
 
