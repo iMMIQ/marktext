@@ -1,4 +1,4 @@
-import plist from 'plist'
+import { parse as parsePlist } from 'plist'
 import { clipboard, ipcMain } from 'electron'
 import { isLinux, isOsx, isWindows } from '../../config'
 
@@ -12,7 +12,7 @@ const readClipboardFilePath = () => {
       return ''
     }
 
-    const result = plist.parse(clipboard.read('NSFilenamesPboardType'))
+    const result = parsePlist(clipboard.read('NSFilenamesPboardType'))
     return Array.isArray(result) && result.length ? result[0] : ''
   }
 

@@ -57,7 +57,7 @@ const retainedDevDependencies = [
   'webpack-cli',
   'mini-css-extract-plugin',
   'imports-loader',
-  'vue-html-loader'
+  'html-loader'
 ]
 
 describe('phase 5 tooling contract', () => {

@@ -58,7 +58,13 @@ module.exports = {
       },
       {
         test: /\.html$/,
-        use: 'vue-html-loader'
+        use: {
+          loader: 'html-loader',
+          options: {
+            minimize: false,
+            sources: false
+          }
+        }
       },
       {
         test: /\.js$/,
