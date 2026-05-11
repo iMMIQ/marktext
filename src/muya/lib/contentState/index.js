@@ -39,6 +39,8 @@ const FALLBACK_IDLE_DELAY_MS = 150
 const INITIAL_RENDER_CHUNK_DELAY_MS = 2000
 const PARTITION_HYDRATION_CHUNK_SIZE = 24
 
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
+
 const scheduleIdleTask = callback => {
   if (typeof window.requestIdleCallback === 'function') {
     return {
@@ -140,6 +142,7 @@ class ContentState {
     this.renderRange = [null, null]
     this.initialRenderTask = null
     this.partitionHydrationTask = null
+    this.partitionHydrationRunId = 0
     this.viewportRenderTask = null
     this.currentCursor = null
     // you'll select the outmost block of current cursor when you click the front icon.
@@ -304,6 +307,7 @@ class ContentState {
   _cancelPartitionHydrationTask () {
     cancelIdleTask(this.partitionHydrationTask)
     this.partitionHydrationTask = null
+    this.partitionHydrationRunId++
   }
 
   _cancelViewportRenderTask () {
@@ -415,6 +419,114 @@ class ContentState {
     }
 
     return [startIndex, endIndex]
+  }
+
+  _getViewportMetrics () {
+    const container = this.muya.container || {}
+    const viewportHeight = Math.max(1, container.clientHeight || 0)
+    const scrollTop = Math.max(0, container.scrollTop || 0)
+    return {
+      scrollTop,
+      viewportHeight,
+      viewportTop: scrollTop,
+      viewportBottom: scrollTop + viewportHeight,
+      viewportCenter: scrollTop + (viewportHeight / 2)
+    }
+  }
+
+  _selectPartitionHydrationTarget (chunkSize = PARTITION_HYDRATION_CHUNK_SIZE) {
+    if (!this.blocks.some(block => block.functionType === 'partitionPlaceholder')) {
+      return null
+    }
+
+    const activeRoots = this._getActiveRootKeys()
+    const [virtualStart, virtualEnd] = this._getVirtualRange()
+    const { viewportTop, viewportBottom, viewportCenter, viewportHeight } = this._getViewportMetrics()
+
+    let offset = 0
+    let bestTarget = null
+
+    for (let i = 0; i < this.blocks.length; i++) {
+      const block = this.blocks[i]
+      const blockTop = offset
+      const blockHeight = this._getBlockHeight(block)
+      const blockBottom = blockTop + blockHeight
+
+      if (block.functionType === 'partitionPlaceholder') {
+        const viewportDistance = blockBottom < viewportTop
+          ? viewportTop - blockBottom
+          : (blockTop > viewportBottom ? blockTop - viewportBottom : 0)
+        const virtualDistance = i < virtualStart
+          ? virtualStart - i
+          : (i >= virtualEnd ? i - virtualEnd + 1 : 0)
+        let score = viewportDistance + (virtualDistance * viewportHeight)
+        if (activeRoots.has(block.key)) {
+          score -= viewportHeight * 2
+        }
+
+        if (!bestTarget || score < bestTarget.score) {
+          const partitionCount = block.partitionEndIndex - block.partitionStartIndex
+          const placeholderHeight = Math.max(1, blockBottom - blockTop)
+          const focusOffset = clamp(viewportCenter - blockTop, 0, placeholderHeight)
+          const focusRatio = clamp(focusOffset / placeholderHeight, 0, 0.999999)
+          let chunkStartIndex = block.partitionStartIndex + Math.floor(focusRatio * partitionCount)
+          const chunkRadius = Math.max(0, Math.floor((chunkSize - 1) / 2))
+          chunkStartIndex = Math.max(block.partitionStartIndex, chunkStartIndex - chunkRadius)
+          let chunkEndIndex = Math.min(block.partitionEndIndex, chunkStartIndex + chunkSize)
+          chunkStartIndex = Math.max(block.partitionStartIndex, chunkEndIndex - chunkSize)
+
+          const chunkStartOffset = chunkStartIndex <= block.partitionStartIndex
+            ? block.rawStartOffset
+            : this.partitionMap[chunkStartIndex].startOffset
+          const chunkEndOffset = chunkEndIndex >= block.partitionEndIndex
+            ? block.rawEndOffset
+            : this.partitionMap[chunkEndIndex - 1].endOffset
+
+          bestTarget = {
+            block,
+            index: i,
+            score,
+            blockTop,
+            blockBottom,
+            chunkStartIndex,
+            chunkEndIndex,
+            chunkStartOffset,
+            chunkEndOffset
+          }
+        }
+      }
+
+      offset = blockBottom
+    }
+
+    if (!bestTarget) {
+      return null
+    }
+
+    const { block, chunkStartIndex, chunkEndIndex, chunkStartOffset, chunkEndOffset } = bestTarget
+    const beforePlaceholder = chunkStartIndex > block.partitionStartIndex
+      ? this._createPartitionPlaceholder(
+        block.rawStartOffset,
+        block.partitionStartIndex,
+        chunkStartIndex
+      )
+      : null
+    const afterPlaceholder = chunkEndIndex < block.partitionEndIndex
+      ? this._createPartitionPlaceholder(
+        chunkEndOffset,
+        chunkEndIndex,
+        block.partitionEndIndex
+      )
+      : null
+    return {
+      block,
+      chunkStartIndex,
+      chunkEndIndex,
+      chunkStartOffset,
+      chunkEndOffset,
+      beforePlaceholder,
+      afterPlaceholder
+    }
   }
 
   _getViewportAnchor () {
@@ -580,39 +692,47 @@ class ContentState {
     }
   }
 
-  _schedulePartitionHydration (chunkSize = PARTITION_HYDRATION_CHUNK_SIZE) {
+  _schedulePartitionHydration (chunkSize = PARTITION_HYDRATION_CHUNK_SIZE, immediate = false) {
     this._cancelPartitionHydrationTask()
     const expectedVersion = this.partitionVersion
+    const expectedRunId = this.partitionHydrationRunId
 
     const hydrateNextChunk = () => {
       this.partitionHydrationTask = null
-      if (expectedVersion !== this.partitionVersion) {
+      if (
+        expectedVersion !== this.partitionVersion ||
+        expectedRunId !== this.partitionHydrationRunId
+      ) {
         return
       }
 
-      const placeholder = this.blocks.find(block => block.functionType === 'partitionPlaceholder')
-      if (!placeholder) {
+      const target = this._selectPartitionHydrationTarget(chunkSize)
+      if (!target) {
         return
       }
 
-      const { partitionStartIndex, partitionEndIndex, rawStartOffset } = placeholder
-      const chunkEndIndex = Math.min(partitionEndIndex, partitionStartIndex + chunkSize)
-      const chunkEndOffset = chunkEndIndex >= partitionEndIndex
-        ? placeholder.rawEndOffset
-        : this.partitionMap[chunkEndIndex - 1].endOffset
-      const chunkMarkdown = this.canonicalMarkdown.slice(rawStartOffset, chunkEndOffset)
+      const {
+        block: placeholder,
+        chunkStartIndex,
+        chunkStartOffset,
+        chunkEndOffset,
+        beforePlaceholder,
+        afterPlaceholder
+      } = target
+      const chunkMarkdown = this.canonicalMarkdown.slice(chunkStartOffset, chunkEndOffset)
       const parsedBlocks = this.markdownToState(chunkMarkdown)
-      this._assignRootEstimates(parsedBlocks, partitionStartIndex)
-      const nextPlaceholder = chunkEndIndex < partitionEndIndex
-        ? this._createPartitionPlaceholder(chunkEndOffset, chunkEndIndex, partitionEndIndex)
-        : null
+      this._assignRootEstimates(parsedBlocks, chunkStartIndex)
       this._setRenderState(parsedBlocks, 'rendered')
-      if (nextPlaceholder) {
-        nextPlaceholder.renderState = 'placeholder'
+      const replacement = []
+      if (beforePlaceholder) {
+        beforePlaceholder.renderState = 'placeholder'
+        replacement.push(beforePlaceholder)
       }
-      const replacement = nextPlaceholder
-        ? parsedBlocks.concat(nextPlaceholder)
-        : parsedBlocks
+      replacement.push(...parsedBlocks)
+      if (afterPlaceholder) {
+        afterPlaceholder.renderState = 'placeholder'
+        replacement.push(afterPlaceholder)
+      }
 
       if (!replacement.length) {
         return
@@ -623,16 +743,20 @@ class ContentState {
         this._renderPartitionReplacement(placeholder, replacement)
       }
 
-      if (nextPlaceholder) {
+      if (this.blocks.some(block => block.functionType === 'partitionPlaceholder')) {
         this.partitionHydrationTask = scheduleIdleTask(hydrateNextChunk)
       }
     }
 
-    this.partitionHydrationTask = {
-      type: 'timeout',
-      id: window.setTimeout(() => {
-        this.partitionHydrationTask = scheduleIdleTask(hydrateNextChunk)
-      }, INITIAL_RENDER_CHUNK_DELAY_MS)
+    if (immediate) {
+      this.partitionHydrationTask = scheduleIdleTask(hydrateNextChunk)
+    } else {
+      this.partitionHydrationTask = {
+        type: 'timeout',
+        id: window.setTimeout(() => {
+          this.partitionHydrationTask = scheduleIdleTask(hydrateNextChunk)
+        }, INITIAL_RENDER_CHUNK_DELAY_MS)
+      }
     }
   }
 
@@ -708,7 +832,11 @@ class ContentState {
     })
     const anchor = this._getViewportAnchor()
     const { changed } = this._applyVirtualizationState()
+    const hasPartitionPlaceholders = blocks.some(block => block.functionType === 'partitionPlaceholder')
     if (!changed && !isRenderCursor) {
+      if (hasPartitionPlaceholders) {
+        this._schedulePartitionHydration(PARTITION_HYDRATION_CHUNK_SIZE, true)
+      }
       this._measureRenderedRootBlocks()
       return
     }
@@ -720,6 +848,9 @@ class ContentState {
     this.postRender()
     this._restoreViewportAnchor(anchor)
     this._measureRenderedRootBlocks()
+    if (hasPartitionPlaceholders) {
+      this._schedulePartitionHydration(PARTITION_HYDRATION_CHUNK_SIZE, true)
+    }
   }
 
   scheduleViewportRefresh (isRenderCursor = false) {
