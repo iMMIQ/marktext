@@ -13,6 +13,34 @@ import ExportHtml from './utils/exportHtml'
 import ToolTip from './ui/tooltip'
 import './assets/styles/index.css'
 
+const FALLBACK_IDLE_DELAY_MS = 150
+
+const scheduleIdleTask = callback => {
+  if (typeof window.requestIdleCallback === 'function') {
+    return {
+      type: 'idle',
+      id: window.requestIdleCallback(callback, { timeout: 1000 })
+    }
+  }
+
+  return {
+    type: 'timeout',
+    id: window.setTimeout(callback, FALLBACK_IDLE_DELAY_MS)
+  }
+}
+
+const cancelIdleTask = task => {
+  if (!task) {
+    return
+  }
+
+  if (task.type === 'idle' && typeof window.cancelIdleCallback === 'function') {
+    window.cancelIdleCallback(task.id)
+  } else {
+    window.clearTimeout(task.id)
+  }
+}
+
 class Muya {
   static plugins = []
 
@@ -27,6 +55,9 @@ class Muya {
     this.options = Object.assign({}, MUYA_DEFAULT_OPTION, options)
     const { markdown } = this.options
     this.markdown = markdown
+    this._initialDispatchTask = null
+    this._metadataDispatchTask = null
+    this._didMarkFirstEditable = false
     this.container = getContainer(container, this.options)
     this.eventCenter = new EventCenter()
     this.tooltip = new ToolTip(this)
@@ -45,6 +76,56 @@ class Muya {
     this.resize = new Resize(this)
     this.mouseEvent = new MouseEvent(this)
     this.init()
+  }
+
+  _markPerformancePhase (phase, details = {}) {
+    const marker = this.options.performanceMarker
+    if (typeof marker === 'function') {
+      marker(phase, details)
+    }
+  }
+
+  _cancelInitialDispatchTask () {
+    cancelIdleTask(this._initialDispatchTask)
+    this._initialDispatchTask = null
+  }
+
+  _cancelMetadataDispatchTask () {
+    cancelIdleTask(this._metadataDispatchTask)
+    this._metadataDispatchTask = null
+  }
+
+  _scheduleMetadataDispatchChange (markdown) {
+    this._cancelMetadataDispatchTask()
+    const expectedMarkdown = markdown
+    this._metadataDispatchTask = scheduleIdleTask(() => {
+      this._metadataDispatchTask = null
+      if (this.markdown !== expectedMarkdown) {
+        return
+      }
+      this.dispatchChange({
+        markdown: expectedMarkdown,
+        skipExport: true
+      })
+    })
+  }
+
+  _scheduleInitialDispatchChange (markdown) {
+    this._cancelInitialDispatchTask()
+    const expectedMarkdown = markdown
+    this._initialDispatchTask = scheduleIdleTask(() => {
+      this._initialDispatchTask = null
+      if (this.markdown !== expectedMarkdown) {
+        return
+      }
+      this.dispatchChange({
+        markdown: expectedMarkdown,
+        skipExport: true,
+        skipWordCount: true,
+        skipTOC: true
+      })
+      this._scheduleMetadataDispatchChange(expectedMarkdown)
+    })
   }
 
   init () {
@@ -102,15 +183,40 @@ class Muya {
     observer.observe(container, config)
   }
 
-  dispatchChange = () => {
+  dispatchChange = (options = {}) => {
+    const {
+      markdown,
+      skipExport = false,
+      skipWordCount = false,
+      skipTOC = false
+    } = options || {}
+
+    this._markPerformancePhase('muya:dispatch-change-start', {
+      skipExport,
+      skipWordCount,
+      skipTOC
+    })
+
     const { eventCenter } = this
-    const markdown = this.markdown = this.getMarkdown()
-    const wordCount = this.getWordCount(markdown)
+    const nextMarkdown = typeof markdown === 'string'
+      ? markdown
+      : (skipExport ? this.markdown : this.getMarkdown())
+    if (!skipExport) {
+      this.contentState.cancelPartitionHydration()
+    }
+    this.markdown = nextMarkdown
+    this.contentState.canonicalMarkdown = nextMarkdown
+    const wordCount = skipWordCount ? null : this.getWordCount(nextMarkdown)
     const cursor = this.getCursor()
     const history = this.getHistory()
-    const toc = this.getTOC()
+    const toc = skipTOC ? null : this.getTOC()
 
-    eventCenter.dispatch('change', { markdown, wordCount, cursor, history, toc })
+    eventCenter.dispatch('change', { markdown: nextMarkdown, wordCount, cursor, history, toc })
+    this._markPerformancePhase('muya:dispatch-change-end', {
+      skipExport,
+      skipWordCount,
+      skipTOC
+    })
   }
 
   dispatchSelectionChange = () => {
@@ -169,12 +275,26 @@ class Muya {
     let newMarkdown = markdown
     let isValid = false
     const shouldUseBlankDocument = !markdown && !cursor
+    this._markPerformancePhase('muya:set-markdown-start', {
+      hasCursor: !!cursor,
+      isRenderCursor,
+      isBlankDocument: shouldUseBlankDocument
+    })
 
     if (shouldUseBlankDocument) {
-      this.contentState.render(isRenderCursor)
-      setTimeout(() => {
-        this.dispatchChange()
-      }, 0)
+      this.contentState.renderInitial(isRenderCursor, this.options.initialRenderBlockCount || 120)
+      this._markPerformancePhase('muya:render-end', {
+        isRenderCursor,
+        isBlankDocument: true
+      })
+      if (!this._didMarkFirstEditable) {
+        this._didMarkFirstEditable = true
+        this._markPerformancePhase('editor:first-editable', {
+          isBlankDocument: true
+        })
+      }
+      this.markdown = ''
+      this._scheduleInitialDispatchChange('')
       return
     }
 
@@ -183,12 +303,34 @@ class Muya {
       newMarkdown = cursorInfo.markdown
       isValid = cursorInfo.isValid
     }
-    this.contentState.importMarkdown(newMarkdown)
+    this.contentState.importMarkdown(newMarkdown, {
+      initialPartitionCount: cursor && isValid
+        ? Number.POSITIVE_INFINITY
+        : (this.options.initialRenderBlockCount || 120)
+    })
+    this._markPerformancePhase('muya:import-markdown-end', {
+      hasCursor: !!cursor,
+      isValidCursor: isValid,
+      markdownLength: newMarkdown.length
+    })
     this.contentState.importCursor(cursor && isValid)
-    this.contentState.render(isRenderCursor)
-    setTimeout(() => {
-      this.dispatchChange()
-    }, 0)
+    if (cursor && isValid) {
+      this.contentState.render(isRenderCursor)
+    } else {
+      this.contentState.renderInitial(isRenderCursor, this.options.initialRenderBlockCount || 120)
+    }
+    this._markPerformancePhase('muya:render-end', {
+      isRenderCursor,
+      markdownLength: newMarkdown.length
+    })
+    if (!this._didMarkFirstEditable) {
+      this._didMarkFirstEditable = true
+      this._markPerformancePhase('editor:first-editable', {
+        markdownLength: newMarkdown.length
+      })
+    }
+    this.markdown = markdown
+    this._scheduleInitialDispatchChange(markdown)
   }
 
   setCursor (cursor) {
@@ -456,6 +598,8 @@ class Muya {
   }
 
   destroy () {
+    this._cancelInitialDispatchTask()
+    this._cancelMetadataDispatchTask()
     this.contentState.clear()
     this.quickInsert.destroy()
     this.codePicker.destroy()

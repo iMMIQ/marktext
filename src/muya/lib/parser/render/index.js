@@ -186,6 +186,49 @@ class StateRender {
     this.codeCache.clear()
   }
 
+  appendRender (blocks, activeBlocks, matches) {
+    if (!blocks.length) {
+      return
+    }
+
+    const selector = `div#${CLASS_OR_ID.AG_EDITOR_ID}`
+    const children = blocks.map(block => {
+      return this.renderBlock(null, block, activeBlocks, matches, true)
+    })
+    const newVnode = h('section', children)
+    const html = toHTML(newVnode).replace(/^<section>([\s\S]+?)<\/section>$/, '$1')
+    const rootDom = document.querySelector(selector) || this.container
+
+    rootDom.insertAdjacentHTML('beforeend', html)
+    this.renderMermaid()
+    this.renderDiagram()
+    this.codeCache.clear()
+  }
+
+  replaceRender (targetKey, blocks, activeBlocks, matches) {
+    if (!blocks.length) {
+      return
+    }
+
+    const oldDom = document.querySelector(`#${targetKey}`)
+    if (!oldDom) {
+      return
+    }
+
+    const selector = `section`
+    const children = blocks.map(block => {
+      return this.renderBlock(null, block, activeBlocks, matches, true)
+    })
+    const newVnode = h(selector, children)
+    const html = toHTML(newVnode).replace(/^<section>([\s\S]+?)<\/section>$/, '$1')
+
+    oldDom.insertAdjacentHTML('beforebegin', html)
+    oldDom.remove()
+    this.renderMermaid()
+    this.renderDiagram()
+    this.codeCache.clear()
+  }
+
   // Only render the blocks which you updated
   partialRender (blocks, activeBlocks, matches, startKey, endKey) {
     const cursorOutMostBlock = activeBlocks[activeBlocks.length - 1]

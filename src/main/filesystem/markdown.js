@@ -7,6 +7,7 @@ import { isDirectory2 } from 'common/filesystem'
 import { isMarkdownFile } from 'common/filesystem/paths'
 import { normalizeAndResolvePath, writeFile } from '../filesystem'
 import { guessEncoding } from './encoding'
+import { markStartupPhase } from '../performance/startupMetrics'
 
 const getLineEnding = lineEnding => {
   if (lineEnding === 'lf') {
@@ -80,7 +81,13 @@ export const loadMarkdownFile = async (pathname, preferredEol, autoGuessEncoding
   // TODO: Use streams to not buffer the file multiple times and only guess
   //       encoding on the first 256/512 bytes.
 
-  let buffer = await fsPromises.readFile(path.resolve(pathname))
+  const resolvedPath = path.resolve(pathname)
+  markStartupPhase('file:read-start', { pathname: resolvedPath })
+  let buffer = await fsPromises.readFile(resolvedPath)
+  markStartupPhase('file:read-end', {
+    pathname: resolvedPath,
+    bytes: buffer.length
+  })
 
   const encoding = guessEncoding(buffer, autoGuessEncoding)
   const supported = iconv.encodingExists(encoding.encoding)

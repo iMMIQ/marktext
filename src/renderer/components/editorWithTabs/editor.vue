@@ -217,6 +217,7 @@ export default {
       selectionChange: null,
       editor: null,
       deferredContentSyncTask: null,
+      deferredContentSyncPayload: null,
       pathname: '',
       isShowClose: false,
       dialogTableVisible: false,
@@ -545,6 +546,8 @@ export default {
       const options = {
         focusMode,
         markdown,
+        performanceMarker: markRendererStartupPhase,
+        initialRenderBlockCount: 20,
         preferLooseListItem,
         autoPairBracket,
         autoPairMarkdownSyntax,
@@ -587,6 +590,11 @@ export default {
 
       const { container } = this.editor = new Muya(ele, options)
       markRendererStartupPhase('editor:muya-created')
+      this.editor.eventCenter.attachDOMEvent(container, 'scroll', () => {
+        if (this.editor && this.editor.contentState) {
+          this.editor.contentState.scheduleViewportRefresh()
+        }
+      })
 
       // Create spell check wrapper and enable spell checking if preferred.
       this.spellchecker = new SpellChecker(spellcheckerEnabled, spellcheckerLanguage)
@@ -716,20 +724,24 @@ export default {
     cancelDeferredContentSync () {
       cancelIdleTask(this.deferredContentSyncTask)
       this.deferredContentSyncTask = null
+      this.deferredContentSyncPayload = null
     },
 
     scheduleDeferredContentSync (payload) {
+      this.deferredContentSyncPayload = payload
       if (this.deferredContentSyncTask) {
         return
       }
 
       const expectedFileId = this.currentFile.id
       this.deferredContentSyncTask = scheduleIdleTask(() => {
+        const nextPayload = this.deferredContentSyncPayload
         this.deferredContentSyncTask = null
-        if (this.currentFile.id !== expectedFileId || payload.markdown !== this.currentFile.markdown) {
+        this.deferredContentSyncPayload = null
+        if (!nextPayload || this.currentFile.id !== expectedFileId || nextPayload.markdown !== this.currentFile.markdown) {
           return
         }
-        this.dispatchEditor('LISTEN_FOR_CONTENT_CHANGE', payload)
+        this.dispatchEditor('LISTEN_FOR_CONTENT_CHANGE', nextPayload)
       })
     },
 
@@ -1137,6 +1149,11 @@ export default {
     setMarkdownToEditor ({ id, markdown, cursor }) {
       const { editor } = this
       if (editor) {
+        markRendererStartupPhase('editor:file-loaded', {
+          id,
+          hasCursor: !!cursor,
+          markdownLength: typeof markdown === 'string' ? markdown.length : 0
+        })
         editor.clearHistory()
         if (cursor) {
           editor.setMarkdown(markdown, cursor, true)

@@ -146,10 +146,13 @@ class ExportMarkdown {
           break
         }
         case 'pre': {
-          this.insertLineBreak(result, indent)
-          if (block.functionType === 'frontmatter') {
+          if (block.functionType === 'partitionPlaceholder') {
+            result.push(block.rawMarkdown || block.text || '')
+          } else if (block.functionType === 'frontmatter') {
+            this.insertLineBreak(result, indent)
             result.push(this.normalizeFrontMatter(block, indent))
           } else {
+            this.insertLineBreak(result, indent)
             result.push(this.normalizeCodeBlock(block, indent))
           }
           break

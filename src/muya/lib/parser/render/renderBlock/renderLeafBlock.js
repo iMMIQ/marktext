@@ -92,6 +92,23 @@ export default function renderLeafBlock (parent, block, activeBlocks, matches, u
 
   let children = ''
 
+  if (type === 'pre' && functionType === 'partitionPlaceholder') {
+    selector = `pre#${key}.${CLASS_OR_ID.AG_PARAGRAPH}.ag-partition-placeholder`
+    Object.assign(data.attrs, {
+      spellcheck: 'false',
+      contenteditable: 'false'
+    })
+    if (typeof block.estimatedHeight === 'number' && block.estimatedHeight > 0) {
+      Object.assign(data.style, {
+        'min-height': `${block.estimatedHeight}px`
+      })
+    }
+    if (!block.parent) {
+      return h(selector, data, '')
+    }
+    return h(selector, data, '')
+  }
+
   if (text) {
     let tokens = []
     if (highlights.length === 0 && this.tokenCache.has(text)) {

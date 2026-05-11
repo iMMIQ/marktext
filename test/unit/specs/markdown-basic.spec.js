@@ -74,6 +74,28 @@ describe('Muya parser', () => {
   it('GFM - Tables', () => {
     verifyMarkdown(templates.GfmTablesTemplate(), defaultOptions)
   })
+
+  it('preserves markdown when the tail is represented by a partition placeholder', () => {
+    const markdown = [
+      '# Title',
+      '',
+      '- a',
+      '- b',
+      '',
+      'Tail paragraph',
+      '',
+      '> Quote'
+    ].join('\n')
+
+    const ctx = createMuyaContext(defaultOptions)
+    ctx.contentState.importMarkdown(markdown, { initialPartitionCount: 2 })
+
+    const blocks = ctx.contentState.getBlocks()
+    const exportedMarkdown = new ExportMarkdown(blocks).generate()
+
+    expect(exportedMarkdown).to.equal(markdown)
+    expect(blocks.some(block => block.functionType === 'partitionPlaceholder')).to.equal(true)
+  })
 })
 
 describe('Muya parser (CRLF)', () => {

@@ -581,7 +581,7 @@ const importRegister = ContentState => {
     if (hasCursor) {
       travel(this.blocks)
     } else {
-      const lastBlock = this.getLastBlock()
+      const lastBlock = this.getLastEditableBlock()
       const key = lastBlock.key
       const offset = lastBlock.text.length
       cursor.anchor = { key, offset }
@@ -592,9 +592,11 @@ const importRegister = ContentState => {
     }
   }
 
-  ContentState.prototype.importMarkdown = function (markdown) {
-    this.blocks = this.markdownToState(markdown)
-    this._rebuildBlockMap()
+  ContentState.prototype.importMarkdown = function (markdown, options = {}) {
+    const result = this.importPartitionedMarkdown(markdown, options)
+    if (!result.isPartitioned) {
+      return
+    }
   }
 
   ContentState.prototype.extractImages = function (markdown) {

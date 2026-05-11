@@ -38,11 +38,28 @@ Write report to a custom file:
 bun run benchmark:cold-start --out test-results/cold-start-linux.json
 ```
 
+Measure startup while opening a specific Markdown file:
+
+```sh
+bun run benchmark:cold-start --file /path/to/document.md --runs 10 --warmup 2
+```
+
 ## Output Metrics
 
 The benchmark records these startup phases:
 
 - `main:entry -> app:ready`
+- `main:entry -> file:read-start`
+- `main:entry -> first-editable`
+- `file:read-start -> file:read-end`
+- `file:read-end -> editor:first-editable`
+- `file:read-end -> input-ready`
+- `editor:init-start -> muya:set-markdown-start`
+- `muya:set-markdown-start -> muya:import-markdown-end`
+- `muya:import-markdown-end -> muya:render-end`
+- `muya:render-end -> editor:first-editable`
+- `editor:first-editable -> input-ready`
+- `muya:dispatch-change-start -> muya:dispatch-change-end`
 - `app:ready -> window:create-start`
 - `window:create-start -> browser-window-created`
 - `browser-window-created -> did-finish-load`
@@ -67,4 +84,6 @@ Summary output includes `p50`, `p95`, `mean`, `min`, and `max`.
 
 - Each run uses a fresh temporary `--user-data-dir` to keep startup cold.
 - `--disable-gpu` is enabled by default for lower variance.
+- `--file <path>` appends the file path to the MarkText launch arguments so
+  cold-start measurements include file loading and initial editor rendering.
 - Benchmark instrumentation is disabled unless `MARKTEXT_STARTUP_BENCHMARK=1`.

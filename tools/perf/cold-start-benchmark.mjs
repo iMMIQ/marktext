@@ -20,14 +20,26 @@ const DEFAULT_OPTIONS = {
   timeoutMs: 30000,
   outFile: path.join('test-results', 'cold-start-benchmark.json'),
   disableGpu: true,
-  keepUserData: false
+  keepUserData: false,
+  filePath: null
 }
 
 const METRIC_DEFINITIONS = [
   { key: 'totalMainToInputReady', label: 'main:entry -> input-ready' },
+  { key: 'totalMainToFirstEditable', label: 'main:entry -> first-editable' },
   { key: 'totalMainToRendererReady', label: 'main:entry -> renderer-ready' },
   { key: 'totalMainToBootstrap', label: 'main:entry -> bootstrap-renderer' },
   { key: 'mainToAppReady', label: 'main:entry -> app:ready' },
+  { key: 'mainToFileReadStart', label: 'main:entry -> file:read-start' },
+  { key: 'fileReadStartToEnd', label: 'file:read-start -> file:read-end' },
+  { key: 'fileReadEndToFirstEditable', label: 'file:read-end -> first-editable' },
+  { key: 'fileReadEndToInputReady', label: 'file:read-end -> input-ready' },
+  { key: 'editorInitStartToMuyaSetMarkdownStart', label: 'editor:init-start -> muya:set-markdown-start' },
+  { key: 'muyaSetMarkdownStartToImportMarkdownEnd', label: 'muya:set-markdown-start -> muya:import-markdown-end' },
+  { key: 'muyaImportMarkdownEndToRenderEnd', label: 'muya:import-markdown-end -> muya:render-end' },
+  { key: 'muyaRenderEndToFirstEditable', label: 'muya:render-end -> editor:first-editable' },
+  { key: 'editorFirstEditableToInputReady', label: 'editor:first-editable -> input-ready' },
+  { key: 'muyaDispatchChangeStartToEnd', label: 'muya:dispatch-change-start -> muya:dispatch-change-end' },
   { key: 'appReadyToWindowCreate', label: 'app:ready -> window:create-start' },
   { key: 'windowCreateToBrowserCreated', label: 'window:create-start -> browser-window-created' },
   { key: 'browserCreatedToDidFinishLoad', label: 'browser-window-created -> did-finish-load' },
@@ -38,6 +50,7 @@ const METRIC_DEFINITIONS = [
   { key: 'rendererModuleToMountComplete', label: 'renderer:module-evaluated -> mount-complete' },
   { key: 'rendererImportsToNotifyReady', label: 'renderer:imports-complete -> notify-ready' },
   { key: 'rendererNotifyReadyToMountComplete', label: 'renderer:notify-ready -> mount-complete' },
+  { key: 'rendererMountCompleteToFirstEditable', label: 'renderer:mount-complete -> first-editable' },
   { key: 'rendererMountCompleteToInputReady', label: 'renderer:mount-complete -> input-ready' },
   { key: 'editorInitToPluginsRegistered', label: 'editor:init-start -> plugins-registered' },
   { key: 'editorPluginsToMuyaCreated', label: 'editor:plugins-registered -> muya-created' },
@@ -143,6 +156,40 @@ const getRendererMetricsSnapshot = async page => {
   }).catch(() => null)
 }
 
+const waitForRendererPhase = async (page, phase, timeoutMs) => {
+  const deadline = Date.now() + timeoutMs
+
+  while (Date.now() < deadline) {
+    const snapshot = await getRendererMetricsSnapshot(page)
+    const event = snapshot?.events?.find(item => item && item.phase === phase && isFiniteNumber(item.elapsedMs))
+    if (event) {
+      return event.elapsedMs
+    }
+    await sleep(POLL_INTERVAL_MS)
+  }
+
+  const snapshot = await getRendererMetricsSnapshot(page)
+  const phases = snapshot?.events?.map(event => event.phase).join(', ') || '(no phases captured)'
+  throw new Error(`Timed out waiting for renderer phase "${phase}". Captured phases: ${phases}`)
+}
+
+const measureFirstEditableElapsed = async (app, page, timeoutMs) => {
+  const rendererElapsedMs = await waitForRendererPhase(page, 'editor:first-editable', timeoutMs)
+  const mainElapsedMs = await app.evaluate(() => {
+    const metrics = globalThis.__MARKTEXT_STARTUP_METRICS__
+    if (!metrics || typeof metrics.startedMonotonicMs !== 'number') {
+      return null
+    }
+    return Math.round((performance.now() - metrics.startedMonotonicMs) * 1000) / 1000
+  })
+
+  if (!isFiniteNumber(mainElapsedMs)) {
+    throw new Error('Cannot compute first-editable elapsed time from startup metrics state.')
+  }
+
+  return { mainElapsedMs, rendererElapsedMs }
+}
+
 const measureInputReadyElapsed = async (app, page, timeoutMs) => {
   await page.waitForSelector(EDITOR_PARAGRAPH_SELECTOR, { state: 'visible', timeout: timeoutMs })
   const initialLength = await getFirstParagraphLength(page)
@@ -184,7 +231,7 @@ const measureInputReadyElapsed = async (app, page, timeoutMs) => {
   }
 }
 
-const extractMetrics = (mainSnapshot, rendererSnapshot, inputReady) => {
+const extractMetrics = (mainSnapshot, rendererSnapshot, firstEditable, inputReady) => {
   const mainEvents = Array.isArray(mainSnapshot?.events) ? mainSnapshot.events : []
   const rendererEvents = Array.isArray(rendererSnapshot?.events) ? rendererSnapshot.events : []
   const mainPhase = name => getFirstPhaseElapsed(mainEvents, name)
@@ -192,13 +239,18 @@ const extractMetrics = (mainSnapshot, rendererSnapshot, inputReady) => {
 
   const tMainEntry = mainPhase('main:entry')
   const tAppReady = mainPhase('app:ready')
+  const tFileReadStart = mainPhase('file:read-start')
+  const tFileReadEnd = mainPhase('file:read-end')
   const tWindowCreateStart = mainPhase('window:create-start')
   const tBrowserCreated = mainPhase('window:browser-window-created')
   const tDidFinishLoad = mainPhase('window:did-finish-load')
   const tRendererReady = mainPhase('window:renderer-ready-ipc')
   const tBootstrap = mainPhase('window:bootstrap-renderer')
+  const tFirstEditable = firstEditable.mainElapsedMs
   const tInputReady = inputReady.mainElapsedMs
+  const tRendererFirstEditable = firstEditable.rendererElapsedMs
   const tRendererInputReady = inputReady.rendererElapsedMs
+  const tEditorFileLoaded = rendererPhase('editor:file-loaded')
   const tRendererModuleEvaluated = rendererPhase('renderer:module-evaluated')
   const tRendererImportsComplete = rendererPhase('renderer:imports-complete')
   const tRendererNotifyReady = rendererPhase('renderer:notify-ready')
@@ -207,17 +259,27 @@ const extractMetrics = (mainSnapshot, rendererSnapshot, inputReady) => {
   const tEditorPluginsRegistered = rendererPhase('editor:plugins-registered')
   const tEditorMuyaCreated = rendererPhase('editor:muya-created')
   const tEditorInitComplete = rendererPhase('editor:init-complete')
+  const tMuyaSetMarkdownStart = rendererPhase('muya:set-markdown-start')
+  const tMuyaImportMarkdownEnd = rendererPhase('muya:import-markdown-end')
+  const tMuyaRenderEnd = rendererPhase('muya:render-end')
+  const tMuyaDispatchChangeStart = rendererPhase('muya:dispatch-change-start')
+  const tMuyaDispatchChangeEnd = rendererPhase('muya:dispatch-change-end')
+  const tEditorFirstEditable = rendererPhase('editor:first-editable')
 
   return {
     phases: {
       'main:entry': tMainEntry,
       'app:ready': tAppReady,
+      'file:read-start': tFileReadStart,
+      'file:read-end': tFileReadEnd,
       'window:create-start': tWindowCreateStart,
       'window:browser-window-created': tBrowserCreated,
       'window:did-finish-load': tDidFinishLoad,
       'window:renderer-ready-ipc': tRendererReady,
       'window:bootstrap-renderer': tBootstrap,
+      'synthetic:first-editable': tFirstEditable,
       'synthetic:input-ready': tInputReady,
+      'editor:file-loaded': tEditorFileLoaded,
       'renderer:module-evaluated': tRendererModuleEvaluated,
       'renderer:imports-complete': tRendererImportsComplete,
       'renderer:notify-ready': tRendererNotifyReady,
@@ -226,12 +288,30 @@ const extractMetrics = (mainSnapshot, rendererSnapshot, inputReady) => {
       'editor:plugins-registered': tEditorPluginsRegistered,
       'editor:muya-created': tEditorMuyaCreated,
       'editor:init-complete': tEditorInitComplete,
+      'muya:set-markdown-start': tMuyaSetMarkdownStart,
+      'muya:import-markdown-end': tMuyaImportMarkdownEnd,
+      'muya:render-end': tMuyaRenderEnd,
+      'muya:dispatch-change-start': tMuyaDispatchChangeStart,
+      'muya:dispatch-change-end': tMuyaDispatchChangeEnd,
+      'editor:first-editable': tEditorFirstEditable,
       'synthetic:renderer-input-ready': tRendererInputReady
     },
     totalMainToInputReady: delta(tMainEntry, tInputReady),
+    totalMainToFirstEditable: delta(tMainEntry, tFirstEditable),
     totalMainToRendererReady: delta(tMainEntry, tRendererReady),
     totalMainToBootstrap: delta(tMainEntry, tBootstrap),
     mainToAppReady: delta(tMainEntry, tAppReady),
+    mainToFileReadStart: delta(tMainEntry, tFileReadStart),
+    fileReadStartToEnd: delta(tFileReadStart, tFileReadEnd),
+    fileReadEndToFirstEditable: delta(tFileReadEnd, tFirstEditable),
+    fileReadEndToInputReady: delta(tFileReadEnd, tInputReady),
+    editorInitStartToMuyaSetMarkdownStart: delta(tEditorInitStart, tMuyaSetMarkdownStart),
+    muyaSetMarkdownStartToImportMarkdownEnd: delta(tMuyaSetMarkdownStart, tMuyaImportMarkdownEnd),
+    muyaImportMarkdownEndToRenderEnd: delta(tMuyaImportMarkdownEnd, tMuyaRenderEnd),
+    muyaRenderEndToFirstEditable: delta(tMuyaRenderEnd, tEditorFirstEditable),
+    rendererMountCompleteToFirstEditable: delta(tRendererMountComplete, tRendererFirstEditable),
+    editorFirstEditableToInputReady: delta(tEditorFirstEditable, tRendererInputReady),
+    muyaDispatchChangeStartToEnd: delta(tMuyaDispatchChangeStart, tMuyaDispatchChangeEnd),
     appReadyToWindowCreate: delta(tAppReady, tWindowCreateStart),
     windowCreateToBrowserCreated: delta(tWindowCreateStart, tBrowserCreated),
     browserCreatedToDidFinishLoad: delta(tBrowserCreated, tDidFinishLoad),
@@ -280,6 +360,8 @@ const parseArgs = argv => {
       options.disableGpu = false
     } else if (arg === '--keep-user-data') {
       options.keepUserData = true
+    } else if (arg === '--file') {
+      options.filePath = argv[++i]
     } else if (arg === '--help' || arg === '-h') {
       options.help = true
     } else {
@@ -375,6 +457,9 @@ const runIteration = async (iterationIndex, options) => {
     if (options.disableGpu) {
       args.push('--disable-gpu')
     }
+    if (options.filePath) {
+      args.push(path.resolve(options.filePath))
+    }
 
     app = await electron.launch({
       executablePath: electronExecutablePath,
@@ -390,9 +475,10 @@ const runIteration = async (iterationIndex, options) => {
 
     const page = await app.firstWindow()
     const mainSnapshot = await waitForMetrics(app, options.timeoutMs)
+    const firstEditable = await measureFirstEditableElapsed(app, page, options.timeoutMs)
     const inputReady = await measureInputReadyElapsed(app, page, options.timeoutMs)
     const rendererSnapshot = await getRendererMetricsSnapshot(page)
-    const metrics = extractMetrics(mainSnapshot, rendererSnapshot, inputReady)
+    const metrics = extractMetrics(mainSnapshot, rendererSnapshot, firstEditable, inputReady)
 
     return { ok: true, iterationIndex, metrics, mainSnapshot, rendererSnapshot }
   } catch (error) {
@@ -420,6 +506,7 @@ const printUsage = () => {
   console.log('  --out <path>          Write JSON report (default: test-results/cold-start-benchmark.json)')
   console.log('  --no-out              Do not write JSON report')
   console.log('  --no-disable-gpu      Do not pass --disable-gpu to MarkText')
+  console.log('  --file <path>         Open a markdown file on startup')
   console.log('  --keep-user-data      Keep per-run temp user-data directories')
 }
 
@@ -458,7 +545,8 @@ const main = async () => {
 
     const { metrics } = result
     console.log(
-      `[${seq}] ${label} input-ready=${formatMilliseconds(metrics.totalMainToInputReady)} ` +
+      `[${seq}] ${label} first-editable=${formatMilliseconds(metrics.totalMainToFirstEditable)} ` +
+      `input-ready=${formatMilliseconds(metrics.totalMainToInputReady)} ` +
       `renderer-ready=${formatMilliseconds(metrics.totalMainToRendererReady)} ` +
       `main->ready=${formatMilliseconds(metrics.mainToAppReady)} ` +
       `didFinishLoad->rendererReady=${formatMilliseconds(metrics.didFinishLoadToRendererReady)}`

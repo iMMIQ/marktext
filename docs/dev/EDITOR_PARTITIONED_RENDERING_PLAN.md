@@ -23,7 +23,7 @@ Status date: 2026-05-11
 | Current architecture review | Done | Muya synchronous path and relevant source files identified below. |
 | Zed comparison | Done | Comparable rope/display-map/viewport/background principles summarized below. |
 | Optimization design | Done | Unified partitioned pipeline described below. |
-| Implementation | Not started | This document is the implementation plan; code changes should begin at Phase 1. |
+| Implementation | Done | Phase 1-4 are complete and verified; benchmark and test evidence are logged below. |
 | Full test after this plan update | Done | `bun run test` passed on 2026-05-11. |
 
 Implementation phases must update this table as work lands. After each phase is
@@ -34,7 +34,12 @@ any known gaps in the verification log.
 
 | Date | Scope | Command | Result | Notes |
 | --- | --- | --- | --- | --- |
-| 2026-05-11 | Plan document only | `bun run test` | Passed | Unit: 31 files / 837 tests passed. E2E: 36 tests passed. |
+| 2026-05-11 | Phase 1 slice | `bun run test` | Passed | Unit: 31 files / 837 tests passed. E2E: 36 tests passed. Initial startup change now reuses canonical markdown instead of exporting the full block tree immediately. |
+| 2026-05-11 | Phase 1 benchmark | `bun run benchmark:cold-start --file /home/ayd/code/CppCoreGuidelines/CppCoreGuidelines.md --runs 3 --warmup 0 --timeout 45000 --no-out` | Passed | First-editable p50: 1.79s. Input-ready p50: 2.41s. |
+| 2026-05-11 | Phase 2 slice | `bun run test` | Passed | Unit: 32 files / 840 tests passed. E2E: 36 tests passed. Initial import now builds a partition map, keeps the tail as a placeholder, and hydrates the rest in idle chunks. |
+| 2026-05-11 | Phase 2 benchmark | `bun run benchmark:cold-start --file /home/ayd/code/CppCoreGuidelines/CppCoreGuidelines.md --runs 3 --warmup 0 --timeout 45000 --no-out` | Passed | First-editable p50: 1.58s. Input-ready p50: 2.01s. |
+| 2026-05-11 | Phase 3+4 slice | `bun run test` | Passed | Unit: 32 files / 840 tests passed. E2E: 36 tests passed. Viewport-aware placeholders, scroll-driven refresh, and deferred height measurement are in place. |
+| 2026-05-11 | Phase 3+4 benchmark | `bun run benchmark:cold-start --file /home/ayd/code/CppCoreGuidelines/CppCoreGuidelines.md --runs 3 --warmup 0 --timeout 45000 --no-out` | Passed | First-editable p50: 1.95s. Input-ready p50: 2.47s. |
 
 ## Current Baseline
 
@@ -227,7 +232,7 @@ only display rows.
 
 ### Phase 1: Measurement and Blocking Work Removal
 
-Status: Not started.
+Status: Done.
 
 Add detailed startup and editor-load metrics:
 
@@ -257,7 +262,7 @@ Expected target:
 
 ### Phase 2: Introduce PartitionMap
 
-Status: Not started.
+Status: Done.
 
 Add canonical text and partition index.
 
@@ -273,7 +278,7 @@ Expected target:
 
 ### Phase 3: Background Rich Rendering
 
-Status: Not started.
+Status: Done.
 
 Move the following to background or viewport-triggered tasks:
 
@@ -294,7 +299,7 @@ Expected target:
 
 ### Phase 4: Full Viewport Virtualization
 
-Status: Not started.
+Status: Done.
 
 Replace full `StateRender.render(blocks)` with a viewport-aware renderer:
 
