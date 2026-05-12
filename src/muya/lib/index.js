@@ -274,6 +274,7 @@ class Muya {
   setMarkdown (markdown, cursor, isRenderCursor = true) {
     let newMarkdown = markdown
     let isValid = false
+    let cursorTargetLines = null
     const shouldUseBlankDocument = !markdown && !cursor
     this._markPerformancePhase('muya:set-markdown-start', {
       hasCursor: !!cursor,
@@ -302,15 +303,18 @@ class Muya {
       const cursorInfo = this.contentState.addCursorToMarkdown(markdown, cursor)
       newMarkdown = cursorInfo.markdown
       isValid = cursorInfo.isValid
+      if (isValid) {
+        cursorTargetLines = [cursor.anchor.line, cursor.focus.line]
+      }
     }
-    this.contentState.importMarkdown(newMarkdown, {
-      initialPartitionCount: cursor && isValid
-        ? Number.POSITIVE_INFINITY
-        : (this.options.initialRenderBlockCount || 120)
+    const importResult = this.contentState.importMarkdown(newMarkdown, {
+      initialPartitionCount: this.options.initialRenderBlockCount || 120,
+      targetLines: cursorTargetLines
     })
     this._markPerformancePhase('muya:import-markdown-end', {
       hasCursor: !!cursor,
       isValidCursor: isValid,
+      isPartitioned: importResult.isPartitioned,
       markdownLength: newMarkdown.length
     })
     this.contentState.importCursor(cursor && isValid)

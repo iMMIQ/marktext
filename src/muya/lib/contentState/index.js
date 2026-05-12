@@ -38,8 +38,65 @@ import escapeCharactersMap, { escapeCharacters } from '../parser/escapeCharacter
 const FALLBACK_IDLE_DELAY_MS = 150
 const INITIAL_RENDER_CHUNK_DELAY_MS = 2000
 const PARTITION_HYDRATION_CHUNK_SIZE = 24
+const URGENT_PARTITION_HYDRATION_CHUNK_SIZE = 6
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
+
+const getPartitionIndexForLine = (partitionMap, line) => {
+  if (!Array.isArray(partitionMap) || !partitionMap.length || !Number.isInteger(line) || line < 0) {
+    return -1
+  }
+
+  for (let i = 0; i < partitionMap.length; i++) {
+    const partition = partitionMap[i]
+    if (line <= partition.endLine) {
+      return i
+    }
+  }
+
+  return partitionMap.length - 1
+}
+
+const resolveTargetPartitionWindow = (partitionMap, targetLines, initialPartitionCount) => {
+  if (!Array.isArray(targetLines) || !targetLines.length || !Array.isArray(partitionMap) || !partitionMap.length) {
+    return null
+  }
+
+  const sortedTargetLines = targetLines
+    .filter(line => Number.isInteger(line) && line >= 0)
+    .sort((a, b) => a - b)
+
+  if (!sortedTargetLines.length) {
+    return null
+  }
+
+  const firstTargetLine = sortedTargetLines[0]
+  const lastTargetLine = sortedTargetLines[sortedTargetLines.length - 1]
+  const firstTargetIndex = getPartitionIndexForLine(partitionMap, firstTargetLine)
+  const lastTargetIndex = getPartitionIndexForLine(partitionMap, lastTargetLine)
+
+  if (firstTargetIndex === -1 || lastTargetIndex === -1) {
+    return null
+  }
+
+  const windowSize = Math.max(1, initialPartitionCount)
+  const contextBefore = Math.min(2, firstTargetIndex)
+  const contextAfter = 2
+  let parsedStartIndex = Math.max(0, firstTargetIndex - contextBefore)
+  let parsedEndIndex = Math.min(
+    partitionMap.length,
+    Math.max(lastTargetIndex + 1 + contextAfter, parsedStartIndex + windowSize)
+  )
+
+  if (parsedEndIndex - parsedStartIndex < windowSize) {
+    parsedStartIndex = Math.max(0, parsedEndIndex - windowSize)
+  }
+
+  return {
+    parsedStartIndex,
+    parsedEndIndex
+  }
+}
 
 const scheduleIdleTask = callback => {
   if (typeof window.requestIdleCallback === 'function') {
@@ -141,7 +198,8 @@ class ContentState {
     this.stateRender = new StateRender(muya)
     this.renderRange = [null, null]
     this.initialRenderTask = null
-    this.partitionHydrationTask = null
+    this.urgentPartitionHydrationTask = null
+    this.backgroundPartitionHydrationTask = null
     this.partitionHydrationRunId = 0
     this.viewportRenderTask = null
     this.currentCursor = null
@@ -304,9 +362,19 @@ class ContentState {
     this.initialRenderTask = null
   }
 
+  _cancelUrgentPartitionHydrationTask () {
+    cancelFrameTask(this.urgentPartitionHydrationTask)
+    this.urgentPartitionHydrationTask = null
+  }
+
+  _cancelBackgroundPartitionHydrationTask () {
+    cancelIdleTask(this.backgroundPartitionHydrationTask)
+    this.backgroundPartitionHydrationTask = null
+  }
+
   _cancelPartitionHydrationTask () {
-    cancelIdleTask(this.partitionHydrationTask)
-    this.partitionHydrationTask = null
+    this._cancelUrgentPartitionHydrationTask()
+    this._cancelBackgroundPartitionHydrationTask()
     this.partitionHydrationRunId++
   }
 
@@ -486,6 +554,7 @@ class ContentState {
             block,
             index: i,
             score,
+            viewportDistance,
             blockTop,
             blockBottom,
             chunkStartIndex,
@@ -503,7 +572,7 @@ class ContentState {
       return null
     }
 
-    const { block, chunkStartIndex, chunkEndIndex, chunkStartOffset, chunkEndOffset } = bestTarget
+    const { block, chunkStartIndex, chunkEndIndex, chunkStartOffset, chunkEndOffset, viewportDistance } = bestTarget
     const beforePlaceholder = chunkStartIndex > block.partitionStartIndex
       ? this._createPartitionPlaceholder(
         block.rawStartOffset,
@@ -524,6 +593,7 @@ class ContentState {
       chunkEndIndex,
       chunkStartOffset,
       chunkEndOffset,
+      viewportDistance,
       beforePlaceholder,
       afterPlaceholder
     }
@@ -632,30 +702,55 @@ class ContentState {
       return { isPartitioned: false, parsedPartitionCount: this.partitionMap.length }
     }
 
-    const parsedPartitionCount = Math.max(1, Math.min(initialPartitionCount - 1, this.partitionMap.length - 1))
-    const initialEndOffset = this.partitionMap[parsedPartitionCount - 1].endOffset
-    const initialMarkdown = markdown.slice(0, initialEndOffset)
-    const parsedBlocks = this.markdownToState(initialMarkdown)
-    const tailPlaceholder = this._createPartitionPlaceholder(
-      initialEndOffset,
-      parsedPartitionCount,
-      this.partitionMap.length
+    const targetWindow = resolveTargetPartitionWindow(
+      this.partitionMap,
+      options.targetLines,
+      initialPartitionCount
     )
+    const parsedStartIndex = targetWindow ? targetWindow.parsedStartIndex : 0
+    const parsedEndIndex = targetWindow
+      ? targetWindow.parsedEndIndex
+      : Math.max(1, Math.min(initialPartitionCount - 1, this.partitionMap.length - 1))
+    const initialStartOffset = parsedStartIndex <= 0 ? 0 : this.partitionMap[parsedStartIndex].startOffset
+    const initialEndOffset = parsedEndIndex >= this.partitionMap.length
+      ? markdown.length
+      : this.partitionMap[parsedEndIndex - 1].endOffset
+    const initialMarkdown = markdown.slice(initialStartOffset, initialEndOffset)
+    const parsedBlocks = this.markdownToState(initialMarkdown)
+    const beforePlaceholder = parsedStartIndex > 0
+      ? this._createPartitionPlaceholder(0, 0, parsedStartIndex)
+      : null
+    const afterPlaceholder = parsedEndIndex < this.partitionMap.length
+      ? this._createPartitionPlaceholder(
+        initialEndOffset,
+        parsedEndIndex,
+        this.partitionMap.length
+      )
+      : null
 
-    this.blocks = tailPlaceholder
-      ? parsedBlocks.concat(tailPlaceholder)
-      : parsedBlocks
+    this.blocks = []
+    if (beforePlaceholder) {
+      this.blocks.push(beforePlaceholder)
+    }
+    this.blocks.push(...parsedBlocks)
+    if (afterPlaceholder) {
+      this.blocks.push(afterPlaceholder)
+    }
 
-    this._assignRootEstimates(this.blocks, 0)
+    this._assignRootEstimates(parsedBlocks, parsedStartIndex)
 
     if (!this.blocks.length) {
       this.blocks = [this.createBlockP()]
     }
 
     this._linkRootBlocks()
-    this._assignRootEstimates(this.blocks, 0)
     this._rebuildBlockMap()
-    return { isPartitioned: true, parsedPartitionCount }
+    return {
+      isPartitioned: true,
+      parsedPartitionCount: parsedEndIndex - parsedStartIndex,
+      parsedPartitionStartIndex: parsedStartIndex,
+      parsedPartitionEndIndex: parsedEndIndex
+    }
   }
 
   _replaceRootBlockWithBlocks (oldBlock, newBlocks) {
@@ -680,6 +775,60 @@ class ContentState {
     this.postRender()
   }
 
+  _hydratePartitionChunk (chunkSize, expectedVersion, expectedRunId) {
+    if (
+      expectedVersion !== this.partitionVersion ||
+      expectedRunId !== this.partitionHydrationRunId
+    ) {
+      return null
+    }
+
+    const target = this._selectPartitionHydrationTarget(chunkSize)
+    if (!target) {
+      return null
+    }
+
+    const {
+      block: placeholder,
+      chunkStartIndex,
+      chunkStartOffset,
+      chunkEndOffset,
+      beforePlaceholder,
+      afterPlaceholder,
+      viewportDistance
+    } = target
+
+    const chunkMarkdown = this.canonicalMarkdown.slice(chunkStartOffset, chunkEndOffset)
+    const parsedBlocks = this.markdownToState(chunkMarkdown)
+    this._assignRootEstimates(parsedBlocks, chunkStartIndex)
+    this._setRenderState(parsedBlocks, 'rendered')
+
+    const replacement = []
+    if (beforePlaceholder) {
+      beforePlaceholder.renderState = 'placeholder'
+      replacement.push(beforePlaceholder)
+    }
+    replacement.push(...parsedBlocks)
+    if (afterPlaceholder) {
+      afterPlaceholder.renderState = 'placeholder'
+      replacement.push(afterPlaceholder)
+    }
+
+    if (!replacement.length) {
+      return null
+    }
+
+    if (this._replaceRootBlockWithBlocks(placeholder, replacement)) {
+      this._applyVirtualizationState()
+      this._renderPartitionReplacement(placeholder, replacement)
+    }
+
+    return {
+      hasMorePlaceholders: this.blocks.some(block => block.functionType === 'partitionPlaceholder'),
+      viewportDistance
+    }
+  }
+
   _measureRenderedRootBlocks () {
     for (const block of this.blocks) {
       if (block.renderState === 'placeholder') {
@@ -692,71 +841,62 @@ class ContentState {
     }
   }
 
-  _schedulePartitionHydration (chunkSize = PARTITION_HYDRATION_CHUNK_SIZE, immediate = false) {
-    this._cancelPartitionHydrationTask()
+  _scheduleUrgentPartitionHydration (chunkSize = URGENT_PARTITION_HYDRATION_CHUNK_SIZE) {
+    if (this.urgentPartitionHydrationTask) {
+      return
+    }
+
+    this._cancelBackgroundPartitionHydrationTask()
     const expectedVersion = this.partitionVersion
     const expectedRunId = this.partitionHydrationRunId
 
     const hydrateNextChunk = () => {
-      this.partitionHydrationTask = null
-      if (
-        expectedVersion !== this.partitionVersion ||
-        expectedRunId !== this.partitionHydrationRunId
-      ) {
+      this.urgentPartitionHydrationTask = null
+      const result = this._hydratePartitionChunk(chunkSize, expectedVersion, expectedRunId)
+      if (!result || !result.hasMorePlaceholders) {
         return
       }
 
-      const target = this._selectPartitionHydrationTarget(chunkSize)
-      if (!target) {
-        return
-      }
-
-      const {
-        block: placeholder,
-        chunkStartIndex,
-        chunkStartOffset,
-        chunkEndOffset,
-        beforePlaceholder,
-        afterPlaceholder
-      } = target
-      const chunkMarkdown = this.canonicalMarkdown.slice(chunkStartOffset, chunkEndOffset)
-      const parsedBlocks = this.markdownToState(chunkMarkdown)
-      this._assignRootEstimates(parsedBlocks, chunkStartIndex)
-      this._setRenderState(parsedBlocks, 'rendered')
-      const replacement = []
-      if (beforePlaceholder) {
-        beforePlaceholder.renderState = 'placeholder'
-        replacement.push(beforePlaceholder)
-      }
-      replacement.push(...parsedBlocks)
-      if (afterPlaceholder) {
-        afterPlaceholder.renderState = 'placeholder'
-        replacement.push(afterPlaceholder)
-      }
-
-      if (!replacement.length) {
-        return
-      }
-
-      if (this._replaceRootBlockWithBlocks(placeholder, replacement)) {
-        this._applyVirtualizationState()
-        this._renderPartitionReplacement(placeholder, replacement)
-      }
-
-      if (this.blocks.some(block => block.functionType === 'partitionPlaceholder')) {
-        this.partitionHydrationTask = scheduleIdleTask(hydrateNextChunk)
+      if (result.viewportDistance === 0) {
+        this._scheduleUrgentPartitionHydration(chunkSize)
+      } else {
+        this._scheduleBackgroundPartitionHydration(PARTITION_HYDRATION_CHUNK_SIZE, 0)
       }
     }
 
-    if (immediate) {
-      this.partitionHydrationTask = scheduleIdleTask(hydrateNextChunk)
-    } else {
-      this.partitionHydrationTask = {
+    this.urgentPartitionHydrationTask = scheduleFrameTask(hydrateNextChunk)
+  }
+
+  _scheduleBackgroundPartitionHydration (chunkSize = PARTITION_HYDRATION_CHUNK_SIZE, delayMs = INITIAL_RENDER_CHUNK_DELAY_MS) {
+    this._cancelBackgroundPartitionHydrationTask()
+    const expectedVersion = this.partitionVersion
+    const expectedRunId = this.partitionHydrationRunId
+
+    const hydrateNextChunk = () => {
+      this.backgroundPartitionHydrationTask = null
+      const result = this._hydratePartitionChunk(chunkSize, expectedVersion, expectedRunId)
+      if (result && result.hasMorePlaceholders) {
+        this.backgroundPartitionHydrationTask = scheduleIdleTask(hydrateNextChunk)
+      }
+    }
+
+    if (delayMs > 0) {
+      this.backgroundPartitionHydrationTask = {
         type: 'timeout',
         id: window.setTimeout(() => {
-          this.partitionHydrationTask = scheduleIdleTask(hydrateNextChunk)
-        }, INITIAL_RENDER_CHUNK_DELAY_MS)
+          this.backgroundPartitionHydrationTask = scheduleIdleTask(hydrateNextChunk)
+        }, delayMs)
       }
+    } else {
+      this.backgroundPartitionHydrationTask = scheduleIdleTask(hydrateNextChunk)
+    }
+  }
+
+  _schedulePartitionHydration (chunkSize = PARTITION_HYDRATION_CHUNK_SIZE, immediate = false) {
+    if (immediate) {
+      this._scheduleUrgentPartitionHydration(URGENT_PARTITION_HYDRATION_CHUNK_SIZE)
+    } else {
+      this._scheduleBackgroundPartitionHydration(chunkSize)
     }
   }
 
@@ -764,7 +904,7 @@ class ContentState {
     const pendingBlocks = blocks.slice()
     if (!pendingBlocks.length) {
       if (this.blocks.some(block => block.functionType === 'partitionPlaceholder')) {
-        this._schedulePartitionHydration()
+        this._scheduleBackgroundPartitionHydration()
       }
       return
     }
@@ -774,7 +914,7 @@ class ContentState {
       if (!chunk.length) {
         this.initialRenderTask = null
         if (this.blocks.some(block => block.functionType === 'partitionPlaceholder')) {
-          this._schedulePartitionHydration()
+          this._scheduleBackgroundPartitionHydration()
         }
         return
       }
@@ -788,6 +928,9 @@ class ContentState {
         this.initialRenderTask = scheduleIdleTask(renderNextChunk)
       } else {
         this.initialRenderTask = null
+        if (this.blocks.some(block => block.functionType === 'partitionPlaceholder')) {
+          this._scheduleBackgroundPartitionHydration()
+        }
       }
     }
 
@@ -822,6 +965,9 @@ class ContentState {
     }
     this.postRender()
     this._measureRenderedRootBlocks()
+    if (this.blocks.some(block => block.functionType === 'partitionPlaceholder')) {
+      this._scheduleBackgroundPartitionHydration()
+    }
   }
 
   refreshViewport (isRenderCursor = false) {
@@ -835,7 +981,7 @@ class ContentState {
     const hasPartitionPlaceholders = blocks.some(block => block.functionType === 'partitionPlaceholder')
     if (!changed && !isRenderCursor) {
       if (hasPartitionPlaceholders) {
-        this._schedulePartitionHydration(PARTITION_HYDRATION_CHUNK_SIZE, true)
+        this._scheduleUrgentPartitionHydration(URGENT_PARTITION_HYDRATION_CHUNK_SIZE)
       }
       this._measureRenderedRootBlocks()
       return
@@ -849,7 +995,7 @@ class ContentState {
     this._restoreViewportAnchor(anchor)
     this._measureRenderedRootBlocks()
     if (hasPartitionPlaceholders) {
-      this._schedulePartitionHydration(PARTITION_HYDRATION_CHUNK_SIZE, true)
+      this._scheduleUrgentPartitionHydration(URGENT_PARTITION_HYDRATION_CHUNK_SIZE)
     }
   }
 
@@ -907,7 +1053,7 @@ class ContentState {
     if (visibleBlockCount < blocks.length) {
       this._scheduleInitialRenderChunks(blocks.slice(visibleBlockCount), activeBlocks, matches)
     } else if (blocks.some(block => block.functionType === 'partitionPlaceholder')) {
-      this._schedulePartitionHydration()
+      this._scheduleBackgroundPartitionHydration()
     }
   }
 

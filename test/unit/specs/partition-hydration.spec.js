@@ -95,12 +95,82 @@ describe('partition hydration priority', () => {
     contentState.postRender = vi.fn()
     contentState.stateRender.collectLabels = vi.fn()
     contentState.stateRender.render = vi.fn()
-    contentState._schedulePartitionHydration = vi.fn()
+    contentState._scheduleUrgentPartitionHydration = vi.fn()
 
     contentState.refreshViewport(false)
 
     expect(contentState.stateRender.render).not.toHaveBeenCalled()
     expect(contentState._measureRenderedRootBlocks).toHaveBeenCalled()
-    expect(contentState._schedulePartitionHydration).toHaveBeenCalledWith(24, true)
+    expect(contentState._scheduleUrgentPartitionHydration).toHaveBeenCalledWith(6)
+  })
+
+  it('keeps an urgent hydration task alive across repeated scroll triggers', () => {
+    const ctx = createMuyaContext()
+    const contentState = ctx.contentState
+    const rafCallbacks = []
+    const originalRequestAnimationFrame = window.requestAnimationFrame
+    const originalCancelAnimationFrame = window.cancelAnimationFrame
+    try {
+      window.requestAnimationFrame = vi.fn(callback => {
+        rafCallbacks.push(callback)
+        return rafCallbacks.length
+      })
+      window.cancelAnimationFrame = vi.fn()
+
+      contentState.blocks = [
+        {
+          key: 'top-block',
+          functionType: 'p',
+          renderState: 'rendered',
+          estimatedHeight: 1000
+        },
+        {
+          key: 'tail-placeholder',
+          functionType: 'partitionPlaceholder',
+          renderState: 'rendered',
+          estimatedHeight: 2400,
+          rawStartOffset: 0,
+          rawEndOffset: 2400,
+          partitionStartIndex: 0,
+          partitionEndIndex: 100
+        }
+      ]
+      contentState.partitionMap = Array.from({ length: 100 }, (_, i) => createPartition(i, i * 24, (i + 1) * 24))
+      contentState._hydratePartitionChunk = vi.fn(() => null)
+
+      contentState._scheduleUrgentPartitionHydration(6)
+      contentState._scheduleUrgentPartitionHydration(6)
+
+      expect(window.requestAnimationFrame).toHaveBeenCalledTimes(1)
+      expect(window.cancelAnimationFrame).not.toHaveBeenCalled()
+      expect(contentState.urgentPartitionHydrationTask).not.toBeNull()
+    } finally {
+      window.requestAnimationFrame = originalRequestAnimationFrame
+      window.cancelAnimationFrame = originalCancelAnimationFrame
+    }
+  })
+
+  it('prefers the cursor partition window instead of forcing a full parse', () => {
+    const ctx = createMuyaContext()
+    const contentState = ctx.contentState
+    const markdown = Array.from({ length: 80 }, (_, i) => `line ${i}`).join('\n\n')
+
+    const result = contentState.importPartitionedMarkdown(markdown, {
+      initialPartitionCount: 8,
+      targetLines: [80, 80]
+    })
+
+    expect(result.isPartitioned).to.equal(true)
+    expect(result.parsedPartitionStartIndex).to.be.greaterThan(0)
+    expect(result.parsedPartitionEndIndex).to.be.lessThan(contentState.partitionMap.length)
+
+    const hasLine40 = blocks => blocks.some(block => {
+      if (typeof block.text === 'string' && block.text.includes('line 40')) {
+        return true
+      }
+      return Array.isArray(block.children) && hasLine40(block.children)
+    })
+
+    expect(hasLine40(contentState.blocks)).to.equal(true)
   })
 })

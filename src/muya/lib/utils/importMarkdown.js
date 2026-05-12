@@ -595,8 +595,9 @@ const importRegister = ContentState => {
   ContentState.prototype.importMarkdown = function (markdown, options = {}) {
     const result = this.importPartitionedMarkdown(markdown, options)
     if (!result.isPartitioned) {
-      return
+      return result
     }
+    return result
   }
 
   ContentState.prototype.extractImages = function (markdown) {
