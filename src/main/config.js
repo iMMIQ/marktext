@@ -1,9 +1,15 @@
 import path from 'path'
+import { app } from 'electron'
 
 export const isOsx = process.platform === 'darwin'
 export const isWindows = process.platform === 'win32'
 export const isLinux = process.platform === 'linux'
-const preload = path.join(__dirname, '../../dist/electron/preload.js')
+export const resolvePreloadPath = (electronApp = app, dirname = __dirname) => {
+  return electronApp && electronApp.isPackaged
+    ? path.join(electronApp.getAppPath(), 'dist/electron/preload.js')
+    : path.join(dirname, '../../dist/electron/preload.js')
+}
+export const preload = resolvePreloadPath()
 
 export const editorWinOptions = Object.freeze({
   minWidth: 550,
