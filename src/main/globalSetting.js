@@ -1,7 +1,8 @@
 import path from 'path'
+import { app } from 'electron'
 
-const staticPath = process.env.NODE_ENV === 'development'
-  ? path.resolve(process.cwd(), 'static')
-  : path.resolve(__dirname, 'static')
+const staticPath = app.isPackaged
+  ? path.join(app.getAppPath(), 'dist/electron/static')
+  : path.resolve(process.cwd(), 'static')
 
 global.__static = staticPath.replace(/\\/g, '\\\\')

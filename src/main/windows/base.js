@@ -1,4 +1,7 @@
 import EventEmitter from 'events'
+import path from 'path'
+import { pathToFileURL } from 'url'
+import { app } from 'electron'
 import { isLinux } from '../config'
 
 /**
@@ -79,11 +82,9 @@ class BaseWindow extends EventEmitter {
       titleBarStyle
     } = userPreference.getAll()
 
-    /* eslint-disable */
-    const baseUrl = process.env.NODE_ENV === 'development'
-      ? (process.env.MARKTEXT_DEV_SERVER_URL || 'http://127.0.0.1:9091')
-      : `file://${__dirname}/index.html`
-    /* eslint-enable */
+    const baseUrl = app.isPackaged
+      ? pathToFileURL(path.join(app.getAppPath(), 'dist/electron/index.html')).toString()
+      : (process.env.MARKTEXT_DEV_SERVER_URL || 'http://127.0.0.1:9091')
 
     const url = new URL(baseUrl)
     url.searchParams.set('udp', paths.userDataPath)
