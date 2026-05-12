@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const root = path.resolve(__dirname, '../../..')
+const root = process.cwd()
 const preload = fs.readFileSync(path.join(root, 'src/main/preload/index.js'), 'utf8')
 const fontTextbox = fs.readFileSync(path.join(root, 'src/renderer/prefComponents/common/fontTextBox/index.vue'), 'utf8')
 

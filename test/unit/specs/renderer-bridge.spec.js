@@ -3,7 +3,7 @@ import path from 'path'
 import { afterEach, describe, expect, it } from 'vitest'
 import nativeApi from '../../../src/renderer/services/nativeApi'
 
-const root = path.resolve(__dirname, '../../..')
+const root = process.cwd()
 const preloadSource = fs.readFileSync(path.join(root, 'src/main/preload/index.js'), 'utf8')
 
 describe('renderer native API facade', () => {

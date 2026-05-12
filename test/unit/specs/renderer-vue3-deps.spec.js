@@ -1,9 +1,10 @@
 import fs from 'fs'
 import path from 'path'
+import { pathToFileURL } from 'url'
 import { describe, expect, it } from 'vitest'
 
-const root = path.resolve(__dirname, '../../..')
-const { transformVueSfc } = await import(path.join(root, 'tools/build/vueSfcTransform.mjs'))
+const root = process.cwd()
+const { transformVueSfc } = await import(pathToFileURL(path.join(root, 'tools/build/vueSfcTransform.mjs')).href)
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 const bunBuildHelper = fs.readFileSync(path.join(root, 'tools/build/marktextBun.mjs'), 'utf8')
 const vueTransform = fs.readFileSync(path.join(root, 'tools/build/vueSfcTransform.mjs'), 'utf8')

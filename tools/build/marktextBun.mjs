@@ -1,3 +1,5 @@
+/* global Bun */
+
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -138,7 +140,7 @@ const createAliasResolver = aliasPatterns => importPath => {
 
 const createAliasPlugin = (name, aliasPatterns) => ({
   name,
-  setup(build) {
+  setup (build) {
     const resolveAlias = createAliasResolver(aliasPatterns)
 
     build.onResolve({ filter: /.*/ }, args => {
@@ -154,7 +156,7 @@ const createAliasPlugin = (name, aliasPatterns) => ({
 
 const createQueryImportPlugin = () => ({
   name: 'marktext-query-imports',
-  setup(build) {
+  setup (build) {
     build.onResolve({ filter: /\?(raw|inline|url)$/ }, args => {
       const queryMatch = args.path.match(/\?(raw|inline|url)$/)
       if (!queryMatch) return null
@@ -203,7 +205,7 @@ const createQueryImportPlugin = () => ({
 
 const createCssSideEffectPlugin = () => ({
   name: 'marktext-css-side-effects',
-  setup(build) {
+  setup (build) {
     build.onResolve({ filter: /\.css$/ }, args => {
       if (/\?(raw|inline|url)$/.test(args.path)) return null
       const resolved = resolveImportPath(args.path, args.resolveDir)
@@ -240,7 +242,7 @@ export default __css
 
 const createHtmlTagsPlugin = () => ({
   name: 'marktext-html-tags',
-  setup(build) {
+  setup (build) {
     build.onResolve({ filter: /^html-tags$/ }, () => {
       return {
         path: 'html-tags',
@@ -272,7 +274,7 @@ export { voidHtmlTags }
 
 const createImportMetaGlobPlugin = () => ({
   name: 'marktext-import-meta-glob',
-  setup(build) {
+  setup (build) {
     build.onLoad({ filter: /loadLanguage\.js$/ }, async args => {
       if (path.resolve(args.path) !== prismLoadLanguagePath) return null
 
@@ -299,7 +301,7 @@ const createImportMetaGlobPlugin = () => ({
 
 const createRelativeResolverPlugin = () => ({
   name: 'marktext-relative-imports',
-  setup(build) {
+  setup (build) {
     build.onResolve({ filter: /^\.{1,2}\// }, args => {
       const resolved = resolveImportPath(args.path, args.resolveDir)
       if (!resolved) return null
@@ -328,7 +330,7 @@ export const createRendererAliasPlugin = () => createAliasPlugin('marktext-rende
 
 export const createVuePlugin = () => ({
   name: 'marktext-vue-sfc',
-  setup(build) {
+  setup (build) {
     build.onLoad({ filter: /\.vue$/ }, async args => {
       const source = await fs.promises.readFile(args.path, 'utf8')
       const { code } = await transformVueSfc(source, args.path)
@@ -439,7 +441,7 @@ export const serveBuiltRenderer = (port = 9091) => {
     hostname: '127.0.0.1',
     port,
     development: true,
-    fetch(request) {
+    fetch (request) {
       const url = new URL(request.url)
       const pathname = decodeURIComponent(url.pathname)
       const relativePath = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '')

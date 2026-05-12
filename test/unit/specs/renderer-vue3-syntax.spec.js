@@ -2,7 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { describe, expect, it } from 'vitest'
 
-const root = path.resolve(__dirname, '../../..')
+const root = process.cwd()
 const files = [
   'src/renderer/main.js',
   'src/renderer/components/about/index.vue',

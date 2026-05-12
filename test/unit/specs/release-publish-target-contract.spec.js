@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const root = path.resolve(__dirname, '../../..')
+const root = process.cwd()
 const releaseWorkflow = fs.readFileSync(path.join(root, '.github/workflows/release.yml'), 'utf8')
 
 describe('release publish target contract', () => {

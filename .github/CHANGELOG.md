@@ -1,3 +1,17 @@
+## 0.18.3-beta.1
+
+**:butterfly:Optimization**
+
+- Added partitioned Muya editor rendering to reduce work for large documents.
+- Prioritized partition hydration near the visible viewport.
+- Improved partition hydration scheduling for interactive editing.
+
+**:microscope:Quality**
+
+- Migrated the development runtime from Vite to the Bun build pipeline.
+- Updated runtime dependencies and refreshed third-party license metadata.
+- Added coverage for partition mapping, partition hydration, Bun build contracts, and basic markdown behavior.
+
 ## 0.18.2
 
 **:butterfly:Optimization**

@@ -5,8 +5,8 @@ import path from 'path'
 import { execFileSync } from 'child_process'
 
 const eslintBin = process.execPath
-const eslintCliPath = path.resolve(process.cwd(), 'node_modules/eslint/bin/eslint.js')
-const eslintConfigPath = path.resolve(process.cwd(), 'eslint.config.js')
+const eslintCliPath = path.join('node_modules', 'eslint', 'bin', 'eslint.js')
+const eslintConfigPath = 'eslint.config.js'
 
 const parseEslintMessages = error => {
   const stdout = error.stdout?.toString().trim()

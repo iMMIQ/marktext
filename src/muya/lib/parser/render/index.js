@@ -215,7 +215,7 @@ class StateRender {
       return
     }
 
-    const selector = `section`
+    const selector = 'section'
     const children = blocks.map(block => {
       return this.renderBlock(null, block, activeBlocks, matches, true)
     })

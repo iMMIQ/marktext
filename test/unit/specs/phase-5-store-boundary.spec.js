@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const root = path.resolve(__dirname, '../../..')
+const root = process.cwd()
 const storesRoot = path.join(root, 'src/renderer/stores')
 const legacyModuleDispatcher = path.join(storesRoot, 'moduleDispatcher.js')
 const legacyModulesDir = path.join(storesRoot, 'modules')

@@ -5,7 +5,7 @@ import { transformVueSfc } from './tools/build/vueSfcTransform.mjs'
 
 const vueSfcPlugin = {
   name: 'marktext-vue-sfc',
-  async load(id) {
+  async load (id) {
     if (!id.endsWith('.vue')) return null
     const source = fs.readFileSync(id, 'utf8')
     return (await transformVueSfc(source, id)).code

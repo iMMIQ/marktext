@@ -3,7 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import { describe, expect, it } from 'vitest'
 
-const root = path.resolve(__dirname, '../../..')
+const root = process.cwd()
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 const builder = fs.readFileSync(path.join(root, 'electron-builder.yml'), 'utf8')
 const rebuildScript = fs.readFileSync(path.join(root, 'tools/build/rebuildNativeModules.mjs'), 'utf8')

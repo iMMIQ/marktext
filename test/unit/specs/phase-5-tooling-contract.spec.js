@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const root = path.resolve(__dirname, '../../..')
+const root = process.cwd()
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 const babelConfig = fs.readFileSync(path.join(root, 'babel.config.js'), 'utf8')
 const eslintConfigPath = path.join(root, 'eslint.config.js')

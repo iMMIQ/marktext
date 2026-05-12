@@ -116,7 +116,7 @@ const rebuildAndRestart = async () => {
     rebuildInFlight = false
     if (rebuildQueued) {
       rebuildQueued = false
-      void rebuildAndRestart()
+      rebuildAndRestart()
     }
   }
 }
@@ -180,7 +180,7 @@ const run = async () => {
     ignoreInitial: true,
     ignored: ['**/dist/**', '**/node_modules/**']
   }).on('all', () => {
-    void rebuildAndRestart()
+    rebuildAndRestart()
   })
 
   startElectron()

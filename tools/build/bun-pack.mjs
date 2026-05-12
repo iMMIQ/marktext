@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+/* global Bun */
 
 import { buildPack, buildRenderer, createMainBuildOptions, createPreloadBuildOptions, createRendererBuildOptions } from './marktextBun.mjs'
 
