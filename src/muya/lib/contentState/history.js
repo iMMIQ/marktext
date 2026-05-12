@@ -160,6 +160,9 @@ class History {
       contentState._rebuildBlockMap()
     }
     contentState.renderRange = renderRange
+    if (contentState.renderScheduler) {
+      contentState.renderScheduler.invalidate('history')
+    }
     contentState.cursor = cursor
     contentState.render()
   }

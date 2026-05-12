@@ -64,9 +64,7 @@ const createPartition = ({ id, startOffset, endOffset, startLine, endLine, typeH
   typeHint,
   version,
   estimatedHeight: Math.max(1, lineCount) * 24,
-  measuredHeight: null,
-  parseState: 'pending',
-  renderState: 'pending'
+  parseState: 'pending'
 })
 
 export const createPartitionMap = (markdown, version = 0) => {

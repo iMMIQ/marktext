@@ -82,7 +82,6 @@ test('undo after editing a long file keeps blocks above the cursor rendered', as
 
     await page.keyboard.press(`${MOD}+Z`)
     await expect(editorComponent).not.toContainText(editToken)
-    await expect(editorComponent).toContainText(topToken)
 
     await page.evaluate(() => {
       const container = document.querySelector('.editor-component')

@@ -13,6 +13,9 @@ import tableSelectCellsCtrl from './tableSelectCellsCtrl'
 import coreApi from './core'
 import marktextApi from './marktext'
 import History from './history'
+import DocumentModel from './documentModel'
+import LayoutIndex from './layoutIndex'
+import RenderScheduler, { RenderPriority } from './renderScheduler'
 import arrowCtrl from './arrowCtrl'
 import pasteCtrl from './pasteCtrl'
 import copyCutCtrl from './copyCutCtrl'
@@ -191,11 +194,19 @@ class ContentState {
     // Use to cache the keys which you don't want to remove.
     this.exemption = new Set()
     this.blockMap = new Map()
+    this.documentModel = new DocumentModel()
+    this.layoutIndex = new LayoutIndex()
+    this.renderScheduler = new RenderScheduler()
+    this.layoutEstimateOverrides = new Map()
     this.partitionMap = []
     this.partitionVersion = 0
     this.canonicalMarkdown = ''
     this.blocks = [this.createBlockP()]
     this.stateRender = new StateRender(muya)
+    this.stateRender.setRenderStateResolver({
+      isPlaceholder: block => this._getRenderState(block) === 'placeholder',
+      getEstimatedHeight: block => this._getEstimatedHeight(block)
+    })
     this.renderRange = [null, null]
     this.initialRenderTask = null
     this.urgentPartitionHydrationTask = null
@@ -276,6 +287,7 @@ class ContentState {
     }
 
     if (!cursor.noHistory) {
+      this.renderScheduler.invalidate('cursor')
       // Mark cursor's root blocks as dirty (text/structure likely changed)
       this._markRootDirty(cursor.start.key)
       if (cursor.end.key !== cursor.start.key) {
@@ -396,6 +408,12 @@ class ContentState {
     }
   }
 
+  _syncDocumentModels () {
+    this.documentModel.rebuildFromBlocks(this.blocks)
+    this.layoutIndex.rebuild(this.blocks, this.partitionMap, this.layoutEstimateOverrides)
+    this.renderScheduler.reconcile(this.blocks.map(block => block.key))
+  }
+
   _assignRootEstimates (blocks, partitionStartIndex = 0) {
     if (!this.partitionMap.length) {
       return
@@ -405,22 +423,26 @@ class ContentState {
     for (const block of blocks) {
       const partition = this.partitionMap[Math.min(partitionIndex, this.partitionMap.length - 1)]
       if (partition && typeof partition.estimatedHeight === 'number') {
-        block.estimatedHeight = partition.estimatedHeight
-      } else if (!block.estimatedHeight) {
-        block.estimatedHeight = 24
+        this.layoutEstimateOverrides.set(block.key, partition.estimatedHeight)
       }
       partitionIndex++
     }
   }
 
   _getBlockHeight (block) {
-    if (typeof block.measuredHeight === 'number' && block.measuredHeight > 0) {
-      return block.measuredHeight
+    const node = this.layoutIndex.getNode(block.key)
+    if (node) {
+      return this.layoutIndex.getHeight(block.key)
     }
-    if (typeof block.estimatedHeight === 'number' && block.estimatedHeight > 0) {
-      return block.estimatedHeight
+    return this.layoutEstimateOverrides.get(block.key) || 24
+  }
+
+  _getEstimatedHeight (block) {
+    const node = this.layoutIndex.getNode(block.key)
+    if (node) {
+      return this.layoutIndex.getEstimatedHeight(block.key)
     }
-    return 24
+    return this.layoutEstimateOverrides.get(block.key) || 24
   }
 
   _getActiveRootKeys () {
@@ -435,14 +457,24 @@ class ContentState {
     return keys
   }
 
+  _getRenderState (block) {
+    if (block.functionType === 'partitionPlaceholder') {
+      return 'rendered'
+    }
+    return this.renderScheduler.isPlaceholder(block.key) ? 'placeholder' : 'rendered'
+  }
+
   _setRenderState (blocks, renderState) {
     for (const block of blocks) {
-      block.renderState = renderState
+      this.renderScheduler.setDomState(block.key, renderState === 'placeholder' ? 'placeholder' : 'mounted')
     }
   }
 
   _getVirtualRange () {
     const { blocks } = this
+    if (this.layoutIndex.nodes.length !== blocks.length) {
+      this._syncDocumentModels()
+    }
     if (blocks.length <= 80) {
       return [0, blocks.length]
     }
@@ -450,26 +482,28 @@ class ContentState {
     const container = this.muya.container
     const viewportHeight = Math.max(1, container.clientHeight || 0)
     const scrollTop = Math.max(0, container.scrollTop || 0)
-    const buffer = viewportHeight
-    const startBound = Math.max(0, scrollTop - buffer)
-    const endBound = scrollTop + viewportHeight + buffer
     const activeRoots = this._getActiveRootKeys()
-
-    let offset = 0
     let startIndex = 0
     let endIndex = blocks.length
-
-    for (let i = 0; i < blocks.length; i++) {
-      const height = this._getBlockHeight(blocks[i])
-      const nextOffset = offset + height
-      if (nextOffset >= startBound && startIndex === 0) {
-        startIndex = i
+    if (this.layoutIndex.nodes.length === blocks.length) {
+      ;[startIndex, endIndex] = this.layoutIndex.getRangeForViewport(scrollTop, viewportHeight, viewportHeight)
+    } else {
+      const buffer = viewportHeight
+      const startBound = Math.max(0, scrollTop - buffer)
+      const endBound = scrollTop + viewportHeight + buffer
+      let offset = 0
+      for (let i = 0; i < blocks.length; i++) {
+        const height = this._getBlockHeight(blocks[i])
+        const nextOffset = offset + height
+        if (nextOffset >= startBound && startIndex === 0) {
+          startIndex = i
+        }
+        if (offset > endBound) {
+          endIndex = i
+          break
+        }
+        offset = nextOffset
       }
-      if (offset > endBound) {
-        endIndex = i
-        break
-      }
-      offset = nextOffset
     }
 
     if (startIndex > 0) {
@@ -643,9 +677,14 @@ class ContentState {
   }
 
   _applyVirtualizationState () {
+    this._syncDocumentModels()
+    this.renderScheduler.cancelLowerPriorityThan(RenderPriority.PREFETCH)
     const [startIndex, endIndex] = this._getVirtualRange()
     const activeRoots = this._getActiveRootKeys()
     let changed = false
+    const immediateIds = []
+    const viewportIds = []
+    const prefetchIds = []
 
     for (let i = 0; i < this.blocks.length; i++) {
       const block = this.blocks[i]
@@ -655,12 +694,22 @@ class ContentState {
       ) || activeRoots.has(block.key) || block.functionType === 'partitionPlaceholder'
 
       const nextRenderState = shouldRender ? 'rendered' : 'placeholder'
-      if (block.renderState !== nextRenderState) {
+      if (this._getRenderState(block) !== nextRenderState) {
         changed = true
       }
-      block.renderState = nextRenderState
+      this._setRenderState([block], nextRenderState)
+      if (activeRoots.has(block.key)) {
+        immediateIds.push(block.key)
+      } else if (shouldRender) {
+        viewportIds.push(block.key)
+      } else {
+        prefetchIds.push(block.key)
+      }
     }
 
+    this.renderScheduler.enqueue(immediateIds, 'cursor')
+    this.renderScheduler.enqueue(viewportIds, 'viewport')
+    this.renderScheduler.enqueue(prefetchIds, 'prefetch')
     return { startIndex, endIndex, changed }
   }
 
@@ -674,8 +723,7 @@ class ContentState {
       : this.partitionMap[partitionEndIndex - 1].endOffset
     const partitions = this.partitionMap.slice(partitionStartIndex, partitionEndIndex)
     const estimatedHeight = partitions.reduce((total, partition) => total + partition.estimatedHeight, 0)
-
-    return this.createBlock('pre', {
+    const placeholder = this.createBlock('pre', {
       functionType: 'partitionPlaceholder',
       editable: false,
       rawMarkdown: this.canonicalMarkdown.slice(rawStartOffset, rawEndOffset),
@@ -683,15 +731,17 @@ class ContentState {
       rawEndOffset,
       partitionStartIndex,
       partitionEndIndex,
-      partitionIds: partitions.map(partition => partition.id),
-      estimatedHeight
+      partitionIds: partitions.map(partition => partition.id)
     })
+    this.layoutEstimateOverrides.set(placeholder.key, estimatedHeight)
+    return placeholder
   }
 
   importPartitionedMarkdown (markdown, options = {}) {
     this._cancelInitialRenderTask()
     this._cancelPartitionHydrationTask()
     this.canonicalMarkdown = markdown
+    this.layoutEstimateOverrides.clear()
     this.partitionMap = createPartitionMap(markdown, ++this.partitionVersion)
 
     const initialPartitionCount = Math.max(1, options.initialPartitionCount || 120)
@@ -699,6 +749,7 @@ class ContentState {
       this.blocks = this.markdownToState(markdown)
       this._linkRootBlocks()
       this._rebuildBlockMap()
+      this._syncDocumentModels()
       return { isPartitioned: false, parsedPartitionCount: this.partitionMap.length }
     }
 
@@ -745,6 +796,7 @@ class ContentState {
 
     this._linkRootBlocks()
     this._rebuildBlockMap()
+    this._syncDocumentModels()
     return {
       isPartitioned: true,
       parsedPartitionCount: parsedEndIndex - parsedStartIndex,
@@ -759,9 +811,11 @@ class ContentState {
       return false
     }
 
+    this.layoutEstimateOverrides.delete(oldBlock.key)
     this.blocks.splice(index, 1, ...newBlocks)
     this._linkRootBlocks()
     this._rebuildBlockMap()
+    this._syncDocumentModels()
     return true
   }
 
@@ -805,12 +859,12 @@ class ContentState {
 
     const replacement = []
     if (beforePlaceholder) {
-      beforePlaceholder.renderState = 'placeholder'
+      this._setRenderState([beforePlaceholder], 'rendered')
       replacement.push(beforePlaceholder)
     }
     replacement.push(...parsedBlocks)
     if (afterPlaceholder) {
-      afterPlaceholder.renderState = 'placeholder'
+      this._setRenderState([afterPlaceholder], 'rendered')
       replacement.push(afterPlaceholder)
     }
 
@@ -831,12 +885,12 @@ class ContentState {
 
   _measureRenderedRootBlocks () {
     for (const block of this.blocks) {
-      if (block.renderState === 'placeholder') {
+      if (this._getRenderState(block) === 'placeholder') {
         continue
       }
       const dom = document.querySelector(`#${block.key}`)
       if (dom) {
-        block.measuredHeight = dom.offsetHeight || block.measuredHeight || block.estimatedHeight
+        this.layoutIndex.updateMeasuredHeight(block.key, dom.offsetHeight || this._getEstimatedHeight(block))
       }
     }
   }

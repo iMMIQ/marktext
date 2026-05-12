@@ -31,8 +31,7 @@ describe('partition map', () => {
       endLine: 0,
       typeHint: 'heading',
       version: 7,
-      parseState: 'pending',
-      renderState: 'pending'
+      parseState: 'pending'
     })
     expect(partitions[2]).to.include({
       startLine: 5,
@@ -40,7 +39,8 @@ describe('partition map', () => {
       typeHint: 'fence',
       version: 7
     })
-    expect(partitions[2].measuredHeight).to.equal(null)
+    expect(partitions[2].measuredHeight).to.equal(undefined)
+    expect(partitions[2].renderState).to.equal(undefined)
     expect(partitions[2].estimatedHeight).to.be.greaterThan(0)
   })
 

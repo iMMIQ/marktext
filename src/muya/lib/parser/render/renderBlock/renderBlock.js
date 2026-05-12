@@ -5,7 +5,7 @@ import { h } from '../snabbdom'
  * [renderBlock render one block, no matter it is a container block or text block]
  */
 export default function renderBlock (parent, block, activeBlocks, matches, useCache = false) {
-  if (!parent && block.renderState === 'placeholder') {
+  if (!parent && this.isViewportPlaceholder(block)) {
     const data = {
       attrs: {
         spellcheck: 'false',
@@ -13,8 +13,9 @@ export default function renderBlock (parent, block, activeBlocks, matches, useCa
       },
       style: {}
     }
-    if (typeof block.estimatedHeight === 'number' && block.estimatedHeight > 0) {
-      data.style['min-height'] = `${block.estimatedHeight}px`
+    const estimatedHeight = this.getEstimatedHeight(block)
+    if (typeof estimatedHeight === 'number' && estimatedHeight > 0) {
+      data.style['min-height'] = `${estimatedHeight}px`
     }
     return h(`pre#${block.key}.${CLASS_OR_ID.AG_PARAGRAPH}.ag-viewport-placeholder`, data, '')
   }

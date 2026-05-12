@@ -21,10 +21,28 @@ class StateRender {
     this.renderingTable = null
     this.renderingRowContainer = null
     this.container = null
+    this.renderStateResolver = null
   }
 
   setContainer (container) {
     this.container = container
+  }
+
+  setRenderStateResolver (resolver) {
+    this.renderStateResolver = resolver
+  }
+
+  isViewportPlaceholder (block) {
+    return this.renderStateResolver
+      ? this.renderStateResolver.isPlaceholder(block)
+      : block.renderState === 'placeholder'
+  }
+
+  getEstimatedHeight (block) {
+    if (this.renderStateResolver) {
+      return this.renderStateResolver.getEstimatedHeight(block)
+    }
+    return block.estimatedHeight
   }
 
   // collect link reference definition

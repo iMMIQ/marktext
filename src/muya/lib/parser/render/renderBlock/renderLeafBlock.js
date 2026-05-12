@@ -98,9 +98,10 @@ export default function renderLeafBlock (parent, block, activeBlocks, matches, u
       spellcheck: 'false',
       contenteditable: 'false'
     })
-    if (typeof block.estimatedHeight === 'number' && block.estimatedHeight > 0) {
+    const estimatedHeight = this.getEstimatedHeight(block)
+    if (typeof estimatedHeight === 'number' && estimatedHeight > 0) {
       Object.assign(data.style, {
-        'min-height': `${block.estimatedHeight}px`
+        'min-height': `${estimatedHeight}px`
       })
     }
     if (!block.parent) {
