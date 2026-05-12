@@ -352,6 +352,33 @@ describe('History: clearHistory resets dirty set', () => {
 })
 
 describe('History: incremental copy preserves shared block integrity', () => {
+  it('does not persist viewport render state in snapshots restored by undo', () => {
+    const cs = createCS('aaa\n\nbbb\n\nccc')
+    const [rootA, rootB, rootC] = cs.blocks
+
+    rootA.renderState = 'rendered'
+    rootB.renderState = 'rendered'
+    rootC.renderState = 'placeholder'
+    pushHistory(cs, rootA.children[0].key)
+
+    rootA.renderState = 'placeholder'
+    rootB.renderState = 'placeholder'
+    rootC.renderState = 'rendered'
+    rootB.children[0].text = 'BBB'
+    pushHistory(cs, rootB.children[0].key)
+
+    const snap0 = cs.history.stack[0]
+    const snap1 = cs.history.stack[1]
+    expect(snap0.blocks.every(block => block.renderState === undefined)).toBe(true)
+    expect(snap1.blocks.every(block => block.renderState === undefined)).toBe(true)
+
+    cs.history.undo()
+    expect(cs.blocks.every(block => block.renderState === undefined)).toBe(true)
+    expect(cs.blocks[0].children[0].text).toBe('aaa')
+    expect(cs.blocks[1].children[0].text).toBe('bbb')
+    expect(cs.blocks[2].children[0].text).toBe('ccc')
+  })
+
   it('modifying live blocks after push does not affect snapshots', () => {
     const cs = createCS('aaa\n\nbbb\n\nccc')
     const [rootA, rootB, rootC] = cs.blocks

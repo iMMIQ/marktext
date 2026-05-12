@@ -1,6 +1,7 @@
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
+const { pathToFileURL } = require('url')
 const { _electron } = require('playwright')
 
 const mainEntrypoint = 'dist/electron/main.js'
@@ -179,12 +180,19 @@ const launchElectron = async userArgs => {
   const executablePath = getElectronPath()
   const userDataDir = getTempPath()
   const args = [mainEntrypoint, '--user-data-dir', userDataDir].concat(userArgs)
+  const rendererUrl = process.env.MARKTEXT_DEV_SERVER_URL ||
+    pathToFileURL(path.join(process.cwd(), 'dist/electron/index.html')).toString()
   let electronApp
 
   try {
     electronApp = await _electron.launch({
       executablePath,
       args,
+      env: {
+        ...process.env,
+        NODE_ENV: 'production',
+        MARKTEXT_DEV_SERVER_URL: rendererUrl
+      },
       timeout: 30000
     })
   } catch (error) {

@@ -1,6 +1,21 @@
 import { deepCopy } from '../utils'
 import { UNDO_DEPTH } from '../config'
 
+const clearTransientRenderState = blocks => {
+  for (const block of blocks) {
+    delete block.renderState
+    if (Array.isArray(block.children) && block.children.length) {
+      clearTransientRenderState(block.children)
+    }
+  }
+}
+
+const copyHistoryRoot = block => {
+  const copiedBlock = deepCopy(block)
+  clearTransientRenderState([copiedBlock])
+  return copiedBlock
+}
+
 class History {
   constructor (contentState) {
     this.stack = []
@@ -49,7 +64,7 @@ class History {
     const prevState = this.index >= 0 ? this.stack[this.index] : null
     const copyState = prevState
       ? this._incrementalCopy(state, prevState)
-      : deepCopy(state)
+      : this._copySnapshot(state)
 
     this.stack.push(copyState)
     if (this.stack.length > UNDO_DEPTH) {
@@ -103,7 +118,7 @@ class History {
 
       if (!hasDirty || this._dirtyRootKeys.has(rootBlock.key)) {
         // Dirty or no tracking info → deep copy
-        newBlocks.push(deepCopy(rootBlock))
+        newBlocks.push(copyHistoryRoot(rootBlock))
       } else {
         const prevBlock = prevKeyMap.get(rootBlock.key)
         if (prevBlock) {
@@ -111,13 +126,21 @@ class History {
           newBlocks.push(prevBlock)
         } else {
           // New root block (not in previous snapshot) → deep copy
-          newBlocks.push(deepCopy(rootBlock))
+          newBlocks.push(copyHistoryRoot(rootBlock))
         }
       }
     }
 
     return {
       blocks: newBlocks,
+      cursor: deepCopy(state.cursor),
+      renderRange: state.renderRange ? state.renderRange.slice() : [null, null]
+    }
+  }
+
+  _copySnapshot (state) {
+    return {
+      blocks: state.blocks.map(copyHistoryRoot),
       cursor: deepCopy(state.cursor),
       renderRange: state.renderRange ? state.renderRange.slice() : [null, null]
     }
@@ -165,10 +188,11 @@ class History {
       const liveRoot = liveKeyMap.get(targetRoot.key)
 
       if (currentRoot && currentRoot === targetRoot && liveRoot) {
+        clearTransientRenderState([liveRoot])
         newBlocks.push(liveRoot)
         reusedRootKeys.add(liveRoot.key)
       } else {
-        const copiedRoot = deepCopy(targetRoot)
+        const copiedRoot = copyHistoryRoot(targetRoot)
         newBlocks.push(copiedRoot)
         addedRoots.push(copiedRoot)
       }
