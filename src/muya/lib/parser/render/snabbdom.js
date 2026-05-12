@@ -1,14 +1,12 @@
-import {
-  init,
-  classModule,
-  attributesModule,
-  datasetModule,
-  propsModule,
-  styleModule,
-  eventListenersModule,
-  h as sh,
-  toVNode as sToVNode
-} from 'snabbdom'
+import { init } from 'snabbdom/build/init.js'
+import { h as sh } from 'snabbdom/build/h.js'
+import { toVNode as sToVNode } from 'snabbdom/build/tovnode.js'
+import { attributesModule } from 'snabbdom/build/modules/attributes.js'
+import { classModule } from 'snabbdom/build/modules/class.js'
+import { datasetModule } from 'snabbdom/build/modules/dataset.js'
+import { eventListenersModule } from 'snabbdom/build/modules/eventlisteners.js'
+import { propsModule } from 'snabbdom/build/modules/props.js'
+import { styleModule } from 'snabbdom/build/modules/style.js'
 import toHTML from 'snabbdom-to-html'
 
 export const patch = init([

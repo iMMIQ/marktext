@@ -37,11 +37,11 @@ See [VERSION_POLICY.md](VERSION_POLICY.md) for the supported Node/Electron basel
 
 There are three runtime entry points to the application:
 
-- `src/main/index.js` for the main process that is executed first and only once per instance. It is bundled by `vite.main.config.js` to `dist/electron/main.js`. Once the application is initialized, it's safe to access all the environment variables and single-instances and the application (`App`) is started (`src/main/app/index.js`). You can use the application after `App::init()` is run successfully.
-- `src/main/preload/index.js` for the preload bridge. It is bundled by `vite.preload.config.js` to `dist/electron/preload.js` and exposes the renderer-facing native contract on `window.mtNative`.
-- `src/renderer/main.js` for each editor window. It is bundled by `vite.renderer.config.js`, together with `src/renderer/index.html`, into the renderer assets under `dist/electron/`.
+- `src/main/index.js` for the main process that is executed first and only once per instance. It is bundled by `tools/build/bun-pack.mjs` to `dist/electron/main.js`. Once the application is initialized, it's safe to access all the environment variables and single-instances and the application (`App`) is started (`src/main/app/index.js`). You can use the application after `App::init()` is run successfully.
+- `src/main/preload/index.js` for the preload bridge. It is bundled by `tools/build/bun-pack.mjs` to `dist/electron/preload.js` and exposes the renderer-facing native contract on `window.mtNative`.
+- `src/renderer/index.html` for each editor window. It is bundled by `tools/build/bun-pack.mjs`, together with `src/renderer/main.js`, into the renderer assets under `dist/electron/`.
 
-In development, `tools/dev/vite-dev-runner.js` supervises the Vite renderer dev server plus the watched main/preload bundles and restarts Electron when the app bundles change.
+In development, `tools/dev/bun-dev-runner.mjs` rebuilds the Bun bundles, serves `dist/electron` on `127.0.0.1:9091`, and restarts Electron when the app bundles change.
 
 ### How Muya work
 

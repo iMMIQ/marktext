@@ -81,7 +81,7 @@ class BaseWindow extends EventEmitter {
 
     /* eslint-disable */
     const baseUrl = process.env.NODE_ENV === 'development'
-      ? 'http://localhost:9091'
+      ? (process.env.MARKTEXT_DEV_SERVER_URL || 'http://127.0.0.1:9091')
       : `file://${__dirname}/index.html`
     /* eslint-enable */
 

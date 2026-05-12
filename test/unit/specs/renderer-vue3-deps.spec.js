@@ -3,13 +3,14 @@ import path from 'path'
 import { describe, expect, it } from 'vitest'
 
 const root = path.resolve(__dirname, '../../..')
+const { transformVueSfc } = await import(path.join(root, 'tools/build/vueSfcTransform.mjs'))
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
-const viteRendererConfig = fs.readFileSync(path.join(root, 'vite.renderer.config.js'), 'utf8')
+const bunBuildHelper = fs.readFileSync(path.join(root, 'tools/build/marktextBun.mjs'), 'utf8')
+const vueTransform = fs.readFileSync(path.join(root, 'tools/build/vueSfcTransform.mjs'), 'utf8')
 const vitestConfig = fs.readFileSync(path.join(root, 'vitest.config.js'), 'utf8')
 const rendererMain = fs.readFileSync(path.join(root, 'src/renderer/main.js'), 'utf8')
 const dependencies = pkg.dependencies ?? {}
 const devDependencies = pkg.devDependencies ?? {}
-const vuePluginImportPattern = /import\s+(\w+)\s+from\s+['"]@vitejs\/plugin-vue['"]/
 
 describe('renderer Vue 3 dependency contract', () => {
   it('pins vue to v3', () => {
@@ -40,30 +41,39 @@ describe('renderer Vue 3 dependency contract', () => {
     expect(devDependencies['vite-plugin-vue2']).toBeFalsy()
   })
 
-  it('imports the Vue 3 Vite plugin', () => {
-    expect(devDependencies['@vitejs/plugin-vue']).toBeTruthy()
-    expect(viteRendererConfig).toMatch(vuePluginImportPattern)
+  it('uses the shared Vue SFC transform for Bun and Vitest', () => {
+    expect(vueTransform).toContain('@vue/compiler-sfc')
+    expect(vueTransform).toContain('transformVueSfc')
+    expect(vueTransform).toContain('__scopeId')
+    expect(bunBuildHelper).toContain('createVuePlugin')
+    expect(vitestConfig).toContain('transformVueSfc')
   })
 
-  it('registers the imported Vue 3 Vite plugin', () => {
-    const pluginFactory = viteRendererConfig.match(vuePluginImportPattern)?.[1] ?? '__missing_vue_plugin__'
+  it('expands nested scoped styles before compiling', async () => {
+    const { code } = await transformVueSfc(`
+<template><div class="editor-middle"><div class="editor"></div></div></template>
+<script>export default {}</script>
+<style scoped>
+.editor-middle {
+  display: flex;
+  & > .editor {
+    flex: 1;
+  }
+}
+</style>
+`, '/tmp/Nesting.vue')
 
-    expect(pluginFactory).not.toBe('__missing_vue_plugin__')
-    expect(viteRendererConfig).toMatch(new RegExp(`\\b${pluginFactory}\\s*\\(`))
+    expect(code).toContain('__scopeId = "data-v-')
+    expect(code).toContain('.editor-middle[data-v-')
+    expect(code).toContain('> .editor[data-v-')
+    expect(code).not.toContain('& > .editor')
   })
 
   it('removes Vue 2 Vite tooling', () => {
-    expect(viteRendererConfig).not.toMatch(/from\s+['"]vite-plugin-vue2['"]/)
-    expect(viteRendererConfig).not.toMatch(/\bcreateVuePlugin\s*\(/)
+    expect(devDependencies['@vitejs/plugin-vue']).toBeFalsy()
     expect(devDependencies['vite-plugin-vue2']).toBeFalsy()
     expect(devDependencies['vue-template-compiler']).toBeFalsy()
-  })
-
-  it('removes Vue compatibility aliases from test and renderer configs', () => {
-    expect(viteRendererConfig).not.toMatch(/compatConfig/)
-    expect(viteRendererConfig).not.toMatch(/@vue\/compat/)
-    expect(vitestConfig).not.toMatch(/compatConfig/)
-    expect(vitestConfig).not.toMatch(/@vue\/compat/)
+    expect(bunBuildHelper).not.toContain('@vitejs/plugin-vue')
   })
 
   it('boots the renderer without the legacy store bridge', () => {

@@ -74,18 +74,19 @@ For more scripts please see `package.json`.
 
 ## Build Entry Points
 
-The desktop app now uses a Vite-based runtime pipeline with three entry points:
+The desktop app now uses Bun-native bundling with three entry points:
 
-- `src/main/index.js` is bundled by `vite.main.config.js` to `dist/electron/main.js`.
-- `src/main/preload/index.js` is bundled by `vite.preload.config.js` to `dist/electron/preload.js`.
-- `src/renderer/main.js` is bundled by `vite.renderer.config.js`, with `src/renderer/index.html` emitted to `dist/electron/index.html` alongside the renderer assets.
+- `src/main/index.js` is bundled by `tools/build/bun-pack.mjs` to `dist/electron/main.js`.
+- `src/main/preload/index.js` is bundled by `tools/build/bun-pack.mjs` to `dist/electron/preload.js`.
+- `src/renderer/index.html` is bundled by `tools/build/bun-pack.mjs` to `dist/electron/index.html` and renderer assets, with Vue SFCs transformed through the shared `@vue/compiler-sfc` helper.
 
-`bun run dev` starts `tools/dev/vite-dev-runner.js`, which watches the main/preload bundles, serves the renderer with Vite, and restarts Electron when the app bundles change.
+`bun run dev` starts `tools/dev/bun-dev-runner.mjs`, which rebuilds the Bun bundles, serves `dist/electron` on `127.0.0.1:9091`, and restarts Electron when the app bundles change.
 
 `bun run pack` is the easiest way to rebuild the full runtime boundary:
 
-- `bun run pack:main` emits both `dist/electron/main.js` and `dist/electron/preload.js`
-- `bun run pack:renderer` emits `dist/electron/index.html` and the renderer assets
+- `bun run pack:runtime` emits `dist/electron/main.js`, `dist/electron/preload.js`, and the renderer bundle
+- `bun run pack:main` emits only `dist/electron/main.js` and `dist/electron/preload.js`
+- `bun run pack:renderer` emits only `dist/electron/index.html` and the renderer assets
 
 Before packaging on any platform, run:
 

@@ -13,7 +13,8 @@ const thirdPartyCheckerPath = path.join(root, 'tools/licenses/thirdPartyChecker.
 const thirdPartyChecker = fs.readFileSync(thirdPartyCheckerPath, 'utf8')
 const validateLicenses = fs.readFileSync(path.join(root, 'tools/validateLicenses.js'), 'utf8')
 const generateThirdPartyLicense = fs.readFileSync(path.join(root, 'tools/generateThirdPartyLicense.js'), 'utf8')
-const viteDevRunner = fs.readFileSync(path.join(root, 'tools/dev/vite-dev-runner.js'), 'utf8')
+const bunDevRunner = fs.readFileSync(path.join(root, 'tools/dev/bun-dev-runner.mjs'), 'utf8')
+const bunPackScript = fs.readFileSync(path.join(root, 'tools/build/bun-pack.mjs'), 'utf8')
 const muyaWebpackConfig = fs.readFileSync(path.join(root, 'src/muya/webpack.config.js'), 'utf8')
 const legacyLifecycleScripts = [pkg.scripts.preinstall, pkg.scripts.postinstall]
   .filter(Boolean)
@@ -26,7 +27,12 @@ const eslintSurface = 'src test tools *.config.js'
 const legacyElectronVueFiles = [
   '.electron-vue/preinstall.js',
   '.electron-vue/postinstall.js',
-  '.electron-vue/thirdPartyChecker.js'
+  '.electron-vue/thirdPartyChecker.js',
+  'tools/dev/vite-dev-runner.js',
+  'tools/vite/marktextEnvironment.js',
+  'vite.main.config.js',
+  'vite.preload.config.js',
+  'vite.renderer.config.js'
 ]
 const removedDevDependencies = [
   'copy-webpack-plugin',
@@ -62,10 +68,10 @@ const retainedDevDependencies = [
 
 describe('phase 5 tooling contract', () => {
   it('keeps one official script surface and no electron-vue leftovers', () => {
-    expect(pkg.scripts.dev || '').not.toContain('dev:vite')
+    expect(pkg.scripts.dev).toBe('bun run tools/dev/bun-dev-runner.mjs')
+    expect(pkg.scripts.pack).toBe('bun run build:clean && bun run pack:runtime && bun run pack:assets')
+    expect(pkg.scripts['pack:runtime']).toBe('bun run tools/build/bun-pack.mjs')
     expect(pkg.scripts.pack || '').not.toContain('pack:vite')
-    expect(pkg.scripts.unit || '').not.toContain('unit:vite')
-    expect(pkg.scripts.build || '').not.toContain('pack:vite')
     expect(allScriptCommands).not.toMatch(legacyAliasPattern)
     expect(legacyLifecycleScripts).not.toMatch(/\.electron-vue[\\/]/)
     expect(pkg.scripts.format).toBeTruthy()
@@ -113,8 +119,12 @@ describe('phase 5 tooling contract', () => {
 
   it('keeps the dev runner compatible with the installed chokidar major', () => {
     expect(pkg.dependencies?.chokidar).toMatch(/^\^5\./)
-    expect(viteDevRunner).toContain("await import('chokidar')")
-    expect(viteDevRunner).not.toContain("require('chokidar')")
+    expect(bunDevRunner).toContain("await import('chokidar')")
+    expect(bunDevRunner).not.toContain("require('chokidar')")
+    expect(bunDevRunner).toContain('serveBuiltRenderer')
+    expect(bunDevRunner).toContain('MARKTEXT_DEV_SERVER_PORT')
+    expect(bunDevRunner).toContain('Renderer dev server listening on')
+    expect(bunPackScript).toContain('Bun.build')
   })
 
   it('keeps the Muya webpack config on supported imports-loader syntax', () => {
