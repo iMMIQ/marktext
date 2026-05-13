@@ -780,8 +780,16 @@ class ContentState {
   }
 
   _scheduleRenderSchedulerDrain (immediate = false) {
-    if (this.renderSchedulerTask || !this.renderScheduler.queue.length) {
+    if (!this.renderScheduler.queue.length) {
       return
+    }
+
+    if (this.renderSchedulerTask) {
+      if (!immediate || this.renderSchedulerTask.type === 'frame') {
+        return
+      }
+      cancelIdleTask(this.renderSchedulerTask)
+      this.renderSchedulerTask = null
     }
 
     if (immediate) {

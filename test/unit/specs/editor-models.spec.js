@@ -156,4 +156,50 @@ describe('content-state model integration', () => {
     expect(cs._measureRenderedRootBlocks).toHaveBeenCalled()
     document.body.innerHTML = ''
   })
+
+  it('upgrades a pending idle render drain when viewport work becomes urgent', async () => {
+    const { default: ContentState } = await import('../../../src/muya/lib/contentState')
+    const { default: EventCenter } = await import('../../../src/muya/lib/eventHandler/event')
+    const { MUYA_DEFAULT_OPTION } = await import('../../../src/muya/lib/config')
+    const ctx = { options: { ...MUYA_DEFAULT_OPTION } }
+    ctx.eventCenter = new EventCenter()
+    ctx.contentState = new ContentState(ctx, ctx.options)
+    const cs = ctx.contentState
+    const idleCallbacks = []
+    const frameCallbacks = []
+    const originalRequestIdleCallback = window.requestIdleCallback
+    const originalCancelIdleCallback = window.cancelIdleCallback
+    const originalRequestAnimationFrame = window.requestAnimationFrame
+    const originalCancelAnimationFrame = window.cancelAnimationFrame
+
+    try {
+      window.requestIdleCallback = vi.fn(callback => {
+        idleCallbacks.push(callback)
+        return idleCallbacks.length
+      })
+      window.cancelIdleCallback = vi.fn()
+      window.requestAnimationFrame = vi.fn(callback => {
+        frameCallbacks.push(callback)
+        return frameCallbacks.length
+      })
+      window.cancelAnimationFrame = vi.fn()
+
+      cs.renderScheduler.enqueue(['a'], 'prefetch')
+      cs._scheduleRenderSchedulerDrain(false)
+      expect(cs.renderSchedulerTask.type).toBe('idle')
+
+      cs.renderScheduler.enqueue(['b'], 'viewport')
+      cs._scheduleRenderSchedulerDrain(true)
+
+      expect(window.cancelIdleCallback).toHaveBeenCalledWith(1)
+      expect(cs.renderSchedulerTask.type).toBe('frame')
+      expect(window.requestAnimationFrame).toHaveBeenCalledTimes(1)
+      expect(frameCallbacks).toHaveLength(1)
+    } finally {
+      window.requestIdleCallback = originalRequestIdleCallback
+      window.cancelIdleCallback = originalCancelIdleCallback
+      window.requestAnimationFrame = originalRequestAnimationFrame
+      window.cancelAnimationFrame = originalCancelAnimationFrame
+    }
+  })
 })
