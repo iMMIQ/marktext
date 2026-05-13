@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest'
 import {
   createMainBuildOptions,
   createPreloadBuildOptions,
-  createRendererBuildOptions
+  createRendererBuildOptions,
+  createRendererWorkerBuildOptions
 } from '../../../tools/build/marktextBun.mjs'
 
 describe('bun main and preload build config', () => {
@@ -52,5 +53,15 @@ describe('bun main and preload build config', () => {
       asset: 'assets/[name]-[hash].[ext]',
       chunk: 'chunks/[name]-[hash].[ext]'
     })
+  })
+
+  it('emits the markdown parser worker as a classic browser worker', () => {
+    const workerConfig = createRendererWorkerBuildOptions({ production: false })
+
+    expect(workerConfig.outdir.replace(/\\/g, '/')).toMatch(/dist\/electron\/workers$/)
+    expect(workerConfig.target).toBe('browser')
+    expect(workerConfig.format).toBe('iife')
+    expect(workerConfig.entrypoints[0].replace(/\\/g, '/')).toMatch(/src\/muya\/lib\/workers\/markdownParser\.worker\.js$/)
+    expect(workerConfig.naming.entry).toBe('[name].js')
   })
 })

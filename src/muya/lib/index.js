@@ -317,10 +317,14 @@ class Muya {
       isPartitioned: importResult.isPartitioned,
       markdownLength: newMarkdown.length
     })
-    this.contentState.importCursor(cursor && isValid)
+    if (importResult.isInitialParseDeferred) {
+      this.contentState.renderInitial(false, this.options.initialRenderBlockCount || 120)
+    } else {
+      this.contentState.importCursor(cursor && isValid)
+    }
     if (cursor && isValid) {
       this.contentState.render(isRenderCursor)
-    } else {
+    } else if (!importResult.isInitialParseDeferred) {
       this.contentState.renderInitial(isRenderCursor, this.options.initialRenderBlockCount || 120)
     }
     this._markPerformancePhase('muya:render-end', {

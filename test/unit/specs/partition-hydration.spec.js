@@ -150,6 +150,44 @@ describe('partition hydration priority', () => {
     }
   })
 
+  it('hydrates partition markdown through the async parser path', async () => {
+    const ctx = createMuyaContext()
+    const contentState = ctx.contentState
+    const markdown = 'alpha\n\nbeta\n\ngamma\n\ndelta'
+    contentState.canonicalMarkdown = markdown
+    contentState.partitionVersion = 1
+    contentState.partitionHydrationRunId = 2
+    contentState.partitionMap = [
+      createPartition(0, 0, 7),
+      createPartition(1, 7, 13),
+      createPartition(2, 13, 20),
+      createPartition(3, 20, markdown.length)
+    ]
+    const placeholder = contentState._createPartitionPlaceholder(0, 0, contentState.partitionMap.length)
+    contentState.blocks = [placeholder]
+    contentState._linkRootBlocks()
+    contentState._rebuildBlockMap()
+    contentState._syncDocumentModels()
+    contentState._selectPartitionHydrationTarget = vi.fn(() => ({
+      block: placeholder,
+      chunkStartIndex: 0,
+      chunkEndIndex: contentState.partitionMap.length,
+      chunkStartOffset: 0,
+      chunkEndOffset: markdown.length,
+      beforePlaceholder: null,
+      afterPlaceholder: null,
+      viewportDistance: 0
+    }))
+    contentState._renderPartitionReplacement = vi.fn()
+
+    const result = await contentState._hydratePartitionChunk(4, 1, 2)
+
+    expect(result.hasMorePlaceholders).toBe(false)
+    expect(contentState.blocks.some(block => block.key === placeholder.key)).toBe(false)
+    expect(contentState.blocks.map(block => block.type)).toEqual(['p', 'p', 'p', 'p'])
+    expect(contentState._renderPartitionReplacement).toHaveBeenCalled()
+  })
+
   it('prefers the cursor partition window instead of forcing a full parse', () => {
     const ctx = createMuyaContext()
     const contentState = ctx.contentState
@@ -172,5 +210,26 @@ describe('partition hydration priority', () => {
     })
 
     expect(hasLine40(contentState.blocks)).to.equal(true)
+  })
+
+  it('defers initial parsing for large markdown without a cursor target', () => {
+    const ctx = createMuyaContext()
+    const contentState = ctx.contentState
+    const markdown = Array.from({ length: 80 }, (_, i) => `line ${i}`).join('\n\n')
+    const markdownToState = vi.spyOn(contentState, 'markdownToState')
+
+    const result = contentState.importPartitionedMarkdown(markdown, {
+      initialPartitionCount: 8
+    })
+
+    expect(result.isPartitioned).to.equal(true)
+    expect(result.isInitialParseDeferred).to.equal(true)
+    expect(result.parsedPartitionCount).to.equal(0)
+    expect(markdownToState).not.toHaveBeenCalled()
+    expect(contentState.blocks).toHaveLength(2)
+    expect(contentState.blocks[0].functionType).to.equal('deferredCursorAnchor')
+    expect(contentState.blocks[1].functionType).to.equal('partitionPlaceholder')
+    expect(contentState.blocks[1].partitionStartIndex).to.equal(0)
+    expect(contentState.blocks[1].partitionEndIndex).to.equal(contentState.partitionMap.length)
   })
 })

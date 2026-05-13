@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /* global Bun */
 
-import { buildPack, buildRenderer, createMainBuildOptions, createPreloadBuildOptions, createRendererBuildOptions } from './marktextBun.mjs'
+import { buildPack, buildRenderer, buildRendererWorker, createMainBuildOptions, createPreloadBuildOptions, createRendererBuildOptions, createRendererWorkerBuildOptions } from './marktextBun.mjs'
 
 const printBuildResult = (label, result) => {
   if (result.success) {
@@ -20,13 +20,15 @@ export const runPack = async ({ production = true } = {}) => {
   printBuildResult('main', results[0])
   printBuildResult('preload', results[1])
   printBuildResult('renderer', results[2])
+  printBuildResult('renderer worker', results[3])
   return results
 }
 
 export const buildConfigs = {
   main: createMainBuildOptions,
   preload: createPreloadBuildOptions,
-  renderer: createRendererBuildOptions
+  renderer: createRendererBuildOptions,
+  worker: createRendererWorkerBuildOptions
 }
 
 const parseTargets = argv => {
@@ -44,6 +46,11 @@ if (import.meta.main) {
     for (const target of targets) {
       if (target === 'renderer') {
         const result = await buildRenderer()
+        printBuildResult(target, result)
+        continue
+      }
+      if (target === 'worker') {
+        const result = await buildRendererWorker()
         printBuildResult(target, result)
         continue
       }

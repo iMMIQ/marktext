@@ -39,6 +39,10 @@ class ExportMarkdown {
     let lastListBullet = ''
 
     for (const block of blocks) {
+      if (block.functionType === 'deferredCursorAnchor') {
+        continue
+      }
+
       if (block.type !== 'ul' && block.type !== 'ol') {
         lastListBullet = ''
       }

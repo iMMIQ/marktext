@@ -33,7 +33,8 @@ import imageCtrl from './imageCtrl'
 import linkCtrl from './linkCtrl'
 import dragDropCtrl from './dragDropCtrl'
 import footnoteCtrl from './footnoteCtrl'
-import importMarkdown from '../utils/importMarkdown'
+import importMarkdown, { loadCodeBlockLanguages } from '../utils/importMarkdown'
+import markdownParserWorkerClient from '../workers/markdownParserClient'
 import { createPartitionMap } from './partitionMap'
 import Cursor from '../selection/cursor'
 import escapeCharactersMap, { escapeCharacters } from '../parser/escapeCharacter'
@@ -212,6 +213,7 @@ class ContentState {
     this.initialRenderTask = null
     this.urgentPartitionHydrationTask = null
     this.backgroundPartitionHydrationTask = null
+    this.partitionHydrationInFlight = false
     this.partitionHydrationRunId = 0
     this.viewportRenderTask = null
     this.renderSchedulerTask = null
@@ -389,6 +391,7 @@ class ContentState {
   _cancelPartitionHydrationTask () {
     this._cancelUrgentPartitionHydrationTask()
     this._cancelBackgroundPartitionHydrationTask()
+    this.partitionHydrationInFlight = false
     this.partitionHydrationRunId++
   }
 
@@ -582,9 +585,14 @@ class ContentState {
           const placeholderHeight = Math.max(1, blockBottom - blockTop)
           const focusOffset = clamp(viewportCenter - blockTop, 0, placeholderHeight)
           const focusRatio = clamp(focusOffset / placeholderHeight, 0, 0.999999)
-          let chunkStartIndex = block.partitionStartIndex + Math.floor(focusRatio * partitionCount)
+          const isAtPlaceholderTop = viewportDistance === 0 && viewportTop <= blockTop
+          let chunkStartIndex = isAtPlaceholderTop
+            ? block.partitionStartIndex
+            : block.partitionStartIndex + Math.floor(focusRatio * partitionCount)
           const chunkRadius = Math.max(0, Math.floor((chunkSize - 1) / 2))
-          chunkStartIndex = Math.max(block.partitionStartIndex, chunkStartIndex - chunkRadius)
+          if (!isAtPlaceholderTop) {
+            chunkStartIndex = Math.max(block.partitionStartIndex, chunkStartIndex - chunkRadius)
+          }
           let chunkEndIndex = Math.min(block.partitionEndIndex, chunkStartIndex + chunkSize)
           chunkStartIndex = Math.max(block.partitionStartIndex, chunkEndIndex - chunkSize)
 
@@ -814,6 +822,8 @@ class ContentState {
   importPartitionedMarkdown (markdown, options = {}) {
     this._cancelInitialRenderTask()
     this._cancelPartitionHydrationTask()
+    const fallbackCursorBlock = this.createBlockP()
+    fallbackCursorBlock.functionType = 'deferredCursorAnchor'
     this.canonicalMarkdown = markdown
     this.layoutEstimateOverrides.clear()
     this.partitionMap = createPartitionMap(markdown, ++this.partitionVersion)
@@ -825,6 +835,27 @@ class ContentState {
       this._rebuildBlockMap()
       this._syncDocumentModels()
       return { isPartitioned: false, parsedPartitionCount: this.partitionMap.length }
+    }
+
+    const shouldDeferInitialParse = !Array.isArray(options.targetLines) || !options.targetLines.length
+    if (shouldDeferInitialParse) {
+      const placeholder = this._createPartitionPlaceholder(0, 0, this.partitionMap.length)
+      this.blocks = placeholder ? [fallbackCursorBlock, placeholder] : [fallbackCursorBlock]
+      this._linkRootBlocks()
+      this._rebuildBlockMap()
+      this._syncDocumentModels()
+      const cursorBlock = this.firstInDescendant(fallbackCursorBlock)
+      this.cursor = {
+        start: { key: cursorBlock.key, offset: 0 },
+        end: { key: cursorBlock.key, offset: 0 }
+      }
+      return {
+        isInitialParseDeferred: true,
+        isPartitioned: true,
+        parsedPartitionCount: 0,
+        parsedPartitionStartIndex: 0,
+        parsedPartitionEndIndex: 0
+      }
     }
 
     const targetWindow = resolveTargetPartitionWindow(
@@ -903,10 +934,29 @@ class ContentState {
     this.postRender()
   }
 
-  _hydratePartitionChunk (chunkSize, expectedVersion, expectedRunId) {
+  async _parsePartitionMarkdown (markdown, keyPrefix) {
+    const {
+      footnote,
+      isGitlabCompatibilityEnabled,
+      superSubScript,
+      trimUnnecessaryCodeBlockEmptyLines
+    } = this.muya.options
+    const result = await markdownParserWorkerClient.parse(markdown, {
+      footnote,
+      isGitlabCompatibilityEnabled,
+      keyPrefix,
+      superSubScript,
+      trimUnnecessaryCodeBlockEmptyLines
+    })
+    loadCodeBlockLanguages(result.languagesToLoad || [], this)
+    return result.blocks
+  }
+
+  async _hydratePartitionChunk (chunkSize, expectedVersion, expectedRunId) {
     if (
       expectedVersion !== this.partitionVersion ||
-      expectedRunId !== this.partitionHydrationRunId
+      expectedRunId !== this.partitionHydrationRunId ||
+      this.partitionHydrationInFlight
     ) {
       return null
     }
@@ -927,7 +977,25 @@ class ContentState {
     } = target
 
     const chunkMarkdown = this.canonicalMarkdown.slice(chunkStartOffset, chunkEndOffset)
-    const parsedBlocks = this.markdownToState(chunkMarkdown)
+    this.partitionHydrationInFlight = true
+    let parsedBlocks
+    try {
+      parsedBlocks = await this._parsePartitionMarkdown(
+        chunkMarkdown,
+        `ag-w${expectedVersion}-${expectedRunId}-${chunkStartIndex}`
+      )
+    } finally {
+      this.partitionHydrationInFlight = false
+    }
+
+    if (
+      expectedVersion !== this.partitionVersion ||
+      expectedRunId !== this.partitionHydrationRunId ||
+      !this.getBlock(placeholder.key)
+    ) {
+      return null
+    }
+
     this._assignRootEstimates(parsedBlocks, chunkStartIndex)
     this._setRenderState(parsedBlocks, 'rendered')
 
@@ -935,6 +1003,22 @@ class ContentState {
     if (beforePlaceholder) {
       this._setRenderState([beforePlaceholder], 'rendered')
       replacement.push(beforePlaceholder)
+    } else {
+      const placeholderIndex = this.blocks.findIndex(block => block.key === placeholder.key)
+      const previousBlock = placeholderIndex > 0 ? this.blocks[placeholderIndex - 1] : null
+      if (previousBlock && previousBlock.functionType === 'deferredCursorAnchor') {
+        const cursorBlock = this.getBlock(this.cursor.start.key)
+        const cursorRoot = cursorBlock ? this.findOutMostBlock(cursorBlock) : null
+        const nextCursorBlock = parsedBlocks.length ? this.firstInDescendant(parsedBlocks[0]) : null
+        if (cursorRoot && cursorRoot.key === previousBlock.key && nextCursorBlock) {
+          this.cursor = {
+            start: { key: nextCursorBlock.key, offset: 0 },
+            end: { key: nextCursorBlock.key, offset: 0 }
+          }
+        }
+        this._removeFromBlockMap(previousBlock)
+        this.blocks.splice(placeholderIndex - 1, 1)
+      }
     }
     replacement.push(...parsedBlocks)
     if (afterPlaceholder) {
@@ -978,9 +1062,14 @@ class ContentState {
     const expectedVersion = this.partitionVersion
     const expectedRunId = this.partitionHydrationRunId
 
-    const hydrateNextChunk = () => {
+    const hydrateNextChunk = async () => {
       this.urgentPartitionHydrationTask = null
-      const result = this._hydratePartitionChunk(chunkSize, expectedVersion, expectedRunId)
+      let result = null
+      try {
+        result = await this._hydratePartitionChunk(chunkSize, expectedVersion, expectedRunId)
+      } catch (error) {
+        console.warn('Cannot hydrate partition chunk.', error)
+      }
       if (!result || !result.hasMorePlaceholders) {
         return
       }
@@ -1000,9 +1089,14 @@ class ContentState {
     const expectedVersion = this.partitionVersion
     const expectedRunId = this.partitionHydrationRunId
 
-    const hydrateNextChunk = () => {
+    const hydrateNextChunk = async () => {
       this.backgroundPartitionHydrationTask = null
-      const result = this._hydratePartitionChunk(chunkSize, expectedVersion, expectedRunId)
+      let result = null
+      try {
+        result = await this._hydratePartitionChunk(chunkSize, expectedVersion, expectedRunId)
+      } catch (error) {
+        console.warn('Cannot hydrate partition chunk.', error)
+      }
       if (result && result.hasMorePlaceholders) {
         this.backgroundPartitionHydrationTask = scheduleIdleTask(hydrateNextChunk)
       }
@@ -1187,7 +1281,7 @@ class ContentState {
     if (visibleBlockCount < blocks.length) {
       this._scheduleInitialRenderChunks(blocks.slice(visibleBlockCount), activeBlocks, matches)
     } else if (blocks.some(block => block.functionType === 'partitionPlaceholder')) {
-      this._scheduleBackgroundPartitionHydration()
+      this._scheduleUrgentPartitionHydration(URGENT_PARTITION_HYDRATION_CHUNK_SIZE)
     }
     this._scheduleRenderSchedulerDrain()
   }
@@ -1835,6 +1929,7 @@ class ContentState {
     this._cancelPartitionHydrationTask()
     this._cancelViewportRenderTask()
     this._cancelRenderSchedulerTask()
+    markdownParserWorkerClient.terminate()
     this.history.clearHistory()
   }
 }

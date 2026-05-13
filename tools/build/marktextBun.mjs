@@ -388,6 +388,24 @@ export const createRendererBuildOptions = ({ production = true } = {}) => ({
   plugins: [createQueryImportPlugin(), createCssSideEffectPlugin(), createHtmlTagsPlugin(), createImportMetaGlobPlugin(), createRelativeResolverPlugin(), createRendererAliasPlugin(), createVuePlugin()]
 })
 
+export const createRendererWorkerBuildOptions = ({ production = true } = {}) => ({
+  entrypoints: [path.join(projectRoot, 'src/muya/lib/workers/markdownParser.worker.js')],
+  outdir: path.join(distDir, 'workers'),
+  target: 'browser',
+  format: 'iife',
+  conditions: ['browser'],
+  mainFields: ['browser', 'module', 'main'],
+  naming: {
+    entry: '[name].js',
+    asset: '../assets/[name]-[hash].[ext]',
+    chunk: '../chunks/[name]-[hash].[ext]'
+  },
+  define: getRendererDefines(),
+  minify: production,
+  sourcemap: production ? 'external' : 'linked',
+  plugins: [createHtmlTagsPlugin(), createImportMetaGlobPlugin(), createRelativeResolverPlugin(), createRendererAliasPlugin()]
+})
+
 const repairRendererHtmlEntrypoint = async result => {
   const jsEntrypoint = (result.outputs || []).find(output => {
     return output.kind === 'entry-point' && output.path.endsWith('.js')
@@ -415,6 +433,7 @@ const repairRendererHtmlEntrypoint = async result => {
 
 export const buildMain = async (options = {}) => Bun.build(createMainBuildOptions(options))
 export const buildPreload = async (options = {}) => Bun.build(createPreloadBuildOptions(options))
+export const buildRendererWorker = async (options = {}) => Bun.build(createRendererWorkerBuildOptions(options))
 export const buildRenderer = async (options = {}) => {
   const result = await Bun.build(createRendererBuildOptions(options))
   if (result.success) {
@@ -430,6 +449,7 @@ export const buildPack = async (options = {}) => {
   results.push(await buildMain({ production }))
   results.push(await buildPreload({ production }))
   results.push(await buildRenderer({ production }))
+  results.push(await buildRendererWorker({ production }))
 
   return results
 }

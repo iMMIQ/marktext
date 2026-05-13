@@ -21,6 +21,39 @@ test('slow scrolling drains queued viewport placeholders', async () => {
     const { page } = launched
     const editorComponent = page.locator('.editor-component')
 
+    await page.evaluate(() => {
+      const NativeWorker = window.Worker
+      window.__marktextWorkerStats = {
+        created: 0,
+        errors: 0,
+        messageErrors: 0,
+        messages: 0,
+        posted: 0,
+        urls: []
+      }
+      window.Worker = class MarkTextTrackedWorker extends NativeWorker {
+        constructor (url, options) {
+          super(url, options)
+          window.__marktextWorkerStats.created++
+          window.__marktextWorkerStats.urls.push(String(url))
+          this.addEventListener('message', () => {
+            window.__marktextWorkerStats.messages++
+          })
+          this.addEventListener('error', () => {
+            window.__marktextWorkerStats.errors++
+          })
+          this.addEventListener('messageerror', () => {
+            window.__marktextWorkerStats.messageErrors++
+          })
+        }
+
+        postMessage (...args) {
+          window.__marktextWorkerStats.posted++
+          return super.postMessage(...args)
+        }
+      }
+    })
+
     await app.evaluate(({ dialog }, targetPath) => {
       global.__marktextViewportRenderOpenDialogCalls = 0
       dialog.showOpenDialog = async () => {
@@ -51,6 +84,16 @@ test('slow scrolling drains queued viewport placeholders', async () => {
 
       expect(visiblePlaceholders).toBe(0)
     }
+
+    await expect.poll(() => page.evaluate(() => window.__marktextWorkerStats || null)).toMatchObject({
+      created: 1
+    })
+    await expect.poll(() => page.evaluate(() => window.__marktextWorkerStats.posted)).toBeGreaterThan(0)
+    await expect.poll(() => page.evaluate(() => window.__marktextWorkerStats.messages)).toBeGreaterThan(0)
+    expect(await page.evaluate(() => window.__marktextWorkerStats)).toMatchObject({
+      errors: 0,
+      messageErrors: 0
+    })
   } finally {
     if (app) {
       await app.close()

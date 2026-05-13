@@ -16,6 +16,9 @@ const getCurrentLevel = type => {
 const paragraphCtrl = ContentState => {
   ContentState.prototype.selectionChange = function (cursor) {
     const { start, end } = cursor || selection.getCursorRange()
+    if ((!start || !end) && this.cursor && this.cursor.start && this.cursor.end) {
+      return this.selectionChange(this.cursor)
+    }
     if (!start || !end) {
       // TODO: Throw an exception and try to fix this later (GH#848).
       throw new Error('selectionChange: expected cursor but cursor is null.')
