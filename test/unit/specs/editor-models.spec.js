@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import DocumentModel from '../../../src/muya/lib/contentState/documentModel'
 import LayoutIndex from '../../../src/muya/lib/contentState/layoutIndex'
 import RenderScheduler, { RenderPriority } from '../../../src/muya/lib/contentState/renderScheduler'
@@ -94,6 +94,19 @@ describe('editor render scheduler', () => {
     expect(scheduler.flushNext().blockId).toBe('b')
     expect(scheduler.flushNext()).toBe(null)
   })
+
+  it('promotes queued work when a block becomes urgent', () => {
+    const scheduler = new RenderScheduler()
+
+    scheduler.reset(['a'])
+    scheduler.enqueue(['a'], 'prefetch')
+    scheduler.enqueue(['a'], 'viewport')
+
+    const task = scheduler.flushNext()
+    expect(task.blockId).toBe('a')
+    expect(task.priority).toBe(RenderPriority.VIEWPORT)
+    expect(scheduler.flushNext()).toBe(null)
+  })
 })
 
 describe('content-state model integration', () => {
@@ -115,5 +128,32 @@ describe('content-state model integration', () => {
       expect(block.renderState).toBeUndefined()
       expect(block.measuredHeight).toBeUndefined()
     }
+  })
+
+  it('drains scheduled placeholder blocks into mounted render state', async () => {
+    const { default: ContentState } = await import('../../../src/muya/lib/contentState')
+    const { default: EventCenter } = await import('../../../src/muya/lib/eventHandler/event')
+    const { MUYA_DEFAULT_OPTION } = await import('../../../src/muya/lib/config')
+    const ctx = { options: { ...MUYA_DEFAULT_OPTION } }
+    ctx.eventCenter = new EventCenter()
+    ctx.contentState = new ContentState(ctx, ctx.options)
+    const cs = ctx.contentState
+
+    cs.importMarkdown('alpha\n\nbeta\n\ngamma', { initialPartitionCount: 20 })
+    const targetBlock = cs.blocks[1]
+    cs.stateRender.singleRender = vi.fn()
+    cs.postRender = vi.fn()
+    cs._measureRenderedRootBlocks = vi.fn()
+    cs._setRenderState([targetBlock], 'placeholder')
+    cs.renderScheduler.enqueue([targetBlock.key], 'prefetch')
+    document.body.innerHTML = `<pre id="${targetBlock.key}" class="ag-viewport-placeholder"></pre>`
+
+    cs._drainRenderSchedulerQueue(1)
+
+    expect(cs.stateRender.singleRender).toHaveBeenCalledWith(targetBlock, expect.any(Array), expect.any(Array))
+    expect(cs.renderScheduler.getDomState(targetBlock.key)).toBe('mounted')
+    expect(cs.postRender).toHaveBeenCalled()
+    expect(cs._measureRenderedRootBlocks).toHaveBeenCalled()
+    document.body.innerHTML = ''
   })
 })

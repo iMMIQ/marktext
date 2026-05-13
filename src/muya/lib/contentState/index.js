@@ -42,6 +42,7 @@ const FALLBACK_IDLE_DELAY_MS = 150
 const INITIAL_RENDER_CHUNK_DELAY_MS = 2000
 const PARTITION_HYDRATION_CHUNK_SIZE = 24
 const URGENT_PARTITION_HYDRATION_CHUNK_SIZE = 6
+const RENDER_SCHEDULER_CHUNK_SIZE = 12
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
 
@@ -213,6 +214,7 @@ class ContentState {
     this.backgroundPartitionHydrationTask = null
     this.partitionHydrationRunId = 0
     this.viewportRenderTask = null
+    this.renderSchedulerTask = null
     this.currentCursor = null
     // you'll select the outmost block of current cursor when you click the front icon.
     this.selectedBlock = null
@@ -393,6 +395,15 @@ class ContentState {
   _cancelViewportRenderTask () {
     cancelFrameTask(this.viewportRenderTask)
     this.viewportRenderTask = null
+  }
+
+  _cancelRenderSchedulerTask () {
+    if (this.renderSchedulerTask && this.renderSchedulerTask.type === 'frame') {
+      cancelFrameTask(this.renderSchedulerTask)
+    } else {
+      cancelIdleTask(this.renderSchedulerTask)
+    }
+    this.renderSchedulerTask = null
   }
 
   cancelPartitionHydration () {
@@ -713,6 +724,69 @@ class ContentState {
     return { startIndex, endIndex, changed }
   }
 
+  _renderScheduledBlock (task, activeBlocks, matches) {
+    const block = this.getBlock(task.blockId)
+    if (!block || block.functionType === 'partitionPlaceholder') {
+      return false
+    }
+    const currentState = this._getRenderState(block)
+    if (currentState !== 'placeholder') {
+      return false
+    }
+    if (!document.querySelector(`#${block.key}`)) {
+      return false
+    }
+
+    this._setRenderState([block], 'rendered')
+    this.stateRender.singleRender(block, activeBlocks, matches)
+    return true
+  }
+
+  _drainRenderSchedulerQueue (chunkSize = RENDER_SCHEDULER_CHUNK_SIZE) {
+    this.renderSchedulerTask = null
+    const { searchMatches: { matches, index } } = this
+    const activeBlocks = this.getActiveBlocks()
+    matches.forEach((m, i) => {
+      m.active = i === index
+    })
+
+    let renderedCount = 0
+    let attempts = 0
+    let task = null
+    const maxAttempts = chunkSize * 4
+    while (renderedCount < chunkSize && attempts < maxAttempts && (task = this.renderScheduler.flushNext())) {
+      attempts++
+      if (this._renderScheduledBlock(task, activeBlocks, matches)) {
+        renderedCount++
+      }
+    }
+
+    if (renderedCount > 0) {
+      this.postRender()
+      this._measureRenderedRootBlocks()
+    }
+
+    if (this.renderScheduler.queue.length) {
+      this._scheduleRenderSchedulerDrain()
+    }
+  }
+
+  _scheduleRenderSchedulerDrain (immediate = false) {
+    if (this.renderSchedulerTask || !this.renderScheduler.queue.length) {
+      return
+    }
+
+    if (immediate) {
+      this.renderSchedulerTask = scheduleFrameTask(() => {
+        this._drainRenderSchedulerQueue()
+      })
+    } else {
+      this.renderSchedulerTask = scheduleIdleTask(() => {
+        this._drainRenderSchedulerQueue()
+      })
+    }
+  }
+
   _createPartitionPlaceholder (rawStartOffset, partitionStartIndex, partitionEndIndex) {
     if (partitionStartIndex >= partitionEndIndex || !this.partitionMap.length) {
       return null
@@ -979,6 +1053,7 @@ class ContentState {
       this._measureRenderedRootBlocks()
       if (pendingBlocks.length) {
         this._applyVirtualizationState()
+        this._scheduleRenderSchedulerDrain()
         this.initialRenderTask = scheduleIdleTask(renderNextChunk)
       } else {
         this.initialRenderTask = null
@@ -1000,6 +1075,7 @@ class ContentState {
     this._cancelInitialRenderTask()
     this._cancelPartitionHydrationTask()
     this._cancelViewportRenderTask()
+    this._cancelRenderSchedulerTask()
     const { blocks, searchMatches: { matches, index } } = this
     const activeBlocks = this.getActiveBlocks()
     if (clearCache) {
@@ -1022,6 +1098,7 @@ class ContentState {
     if (this.blocks.some(block => block.functionType === 'partitionPlaceholder')) {
       this._scheduleBackgroundPartitionHydration()
     }
+    this._scheduleRenderSchedulerDrain(true)
   }
 
   refreshViewport (isRenderCursor = false) {
@@ -1038,6 +1115,7 @@ class ContentState {
         this._scheduleUrgentPartitionHydration(URGENT_PARTITION_HYDRATION_CHUNK_SIZE)
       }
       this._measureRenderedRootBlocks()
+      this._scheduleRenderSchedulerDrain(true)
       return
     }
     this.stateRender.collectLabels(blocks)
@@ -1051,6 +1129,7 @@ class ContentState {
     if (hasPartitionPlaceholders) {
       this._scheduleUrgentPartitionHydration(URGENT_PARTITION_HYDRATION_CHUNK_SIZE)
     }
+    this._scheduleRenderSchedulerDrain(true)
   }
 
   scheduleViewportRefresh (isRenderCursor = false) {
@@ -1067,6 +1146,7 @@ class ContentState {
   renderInitial (isRenderCursor = true, blockLimit = 120) {
     this._cancelInitialRenderTask()
     this._cancelViewportRenderTask()
+    this._cancelRenderSchedulerTask()
 
     const { blocks, searchMatches: { matches, index } } = this
     const activeBlocks = this.getActiveBlocks()
@@ -1109,6 +1189,7 @@ class ContentState {
     } else if (blocks.some(block => block.functionType === 'partitionPlaceholder')) {
       this._scheduleBackgroundPartitionHydration()
     }
+    this._scheduleRenderSchedulerDrain()
   }
 
   partialRender (isRenderCursor = true) {
@@ -1753,6 +1834,7 @@ class ContentState {
     this._cancelInitialRenderTask()
     this._cancelPartitionHydrationTask()
     this._cancelViewportRenderTask()
+    this._cancelRenderSchedulerTask()
     this.history.clearHistory()
   }
 }
