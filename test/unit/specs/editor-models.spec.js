@@ -157,6 +157,32 @@ describe('content-state model integration', () => {
     document.body.innerHTML = ''
   })
 
+  it('renders a visible placeholder even after viewport state is promoted', async () => {
+    const { default: ContentState } = await import('../../../src/muya/lib/contentState')
+    const { default: EventCenter } = await import('../../../src/muya/lib/eventHandler/event')
+    const { MUYA_DEFAULT_OPTION } = await import('../../../src/muya/lib/config')
+    const ctx = { options: { ...MUYA_DEFAULT_OPTION } }
+    ctx.eventCenter = new EventCenter()
+    ctx.contentState = new ContentState(ctx, ctx.options)
+    const cs = ctx.contentState
+
+    cs.importMarkdown('alpha\n\nbeta\n\ngamma', { initialPartitionCount: 20 })
+    const targetBlock = cs.blocks[1]
+    cs.stateRender.singleRender = vi.fn()
+    cs.postRender = vi.fn()
+    cs._measureRenderedRootBlocks = vi.fn()
+    cs._setRenderState([targetBlock], 'rendered')
+    cs.renderScheduler.enqueue([targetBlock.key], 'viewport')
+    document.body.innerHTML = `<pre id="${targetBlock.key}" class="ag-viewport-placeholder"></pre>`
+
+    cs._drainRenderSchedulerQueue(1)
+
+    expect(cs.stateRender.singleRender).toHaveBeenCalledWith(targetBlock, expect.any(Array), expect.any(Array))
+    expect(cs.postRender).toHaveBeenCalled()
+    expect(cs._measureRenderedRootBlocks).toHaveBeenCalled()
+    document.body.innerHTML = ''
+  })
+
   it('upgrades a pending idle render drain when viewport work becomes urgent', async () => {
     const { default: ContentState } = await import('../../../src/muya/lib/contentState')
     const { default: EventCenter } = await import('../../../src/muya/lib/eventHandler/event')

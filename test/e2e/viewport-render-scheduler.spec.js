@@ -76,7 +76,7 @@ test('slow scrolling drains queued viewport placeholders', async () => {
         container.dispatchEvent(new Event('scroll'))
         await new Promise(resolve => setTimeout(resolve, 180))
         const containerRect = container.getBoundingClientRect()
-        return Array.from(document.querySelectorAll('.ag-viewport-placeholder')).filter(dom => {
+        return Array.from(document.querySelectorAll('.ag-viewport-placeholder, .ag-partition-placeholder')).filter(dom => {
           const rect = dom.getBoundingClientRect()
           return rect.bottom > containerRect.top && rect.top < containerRect.bottom
         }).length

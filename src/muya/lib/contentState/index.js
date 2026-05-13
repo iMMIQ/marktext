@@ -42,8 +42,10 @@ import escapeCharactersMap, { escapeCharacters } from '../parser/escapeCharacter
 const FALLBACK_IDLE_DELAY_MS = 150
 const INITIAL_RENDER_CHUNK_DELAY_MS = 2000
 const PARTITION_HYDRATION_CHUNK_SIZE = 24
-const URGENT_PARTITION_HYDRATION_CHUNK_SIZE = 6
+const URGENT_PARTITION_HYDRATION_CHUNK_SIZE = 24
+const URGENT_PARTITION_HYDRATION_MAX_CHUNKS = 4
 const RENDER_SCHEDULER_CHUNK_SIZE = 12
+const PARTITION_HYDRATION_TIMEOUT_MS = 5000
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
 
@@ -155,6 +157,19 @@ const cancelFrameTask = task => {
   }
 }
 
+const withTimeout = (promise, timeoutMs, message) => {
+  let timeoutId = null
+  const timeout = new Promise((resolve, reject) => {
+    timeoutId = window.setTimeout(() => {
+      reject(new Error(message))
+    }, timeoutMs)
+  })
+
+  return Promise.race([promise, timeout]).finally(() => {
+    window.clearTimeout(timeoutId)
+  })
+}
+
 const prototypes = [
   coreApi,
   marktextApi,
@@ -213,7 +228,8 @@ class ContentState {
     this.initialRenderTask = null
     this.urgentPartitionHydrationTask = null
     this.backgroundPartitionHydrationTask = null
-    this.partitionHydrationInFlight = false
+    this.partitionHydrationPromise = null
+    this.partitionHydrationPendingUrgent = false
     this.partitionHydrationRunId = 0
     this.viewportRenderTask = null
     this.renderSchedulerTask = null
@@ -391,7 +407,8 @@ class ContentState {
   _cancelPartitionHydrationTask () {
     this._cancelUrgentPartitionHydrationTask()
     this._cancelBackgroundPartitionHydrationTask()
-    this.partitionHydrationInFlight = false
+    this.partitionHydrationPromise = null
+    this.partitionHydrationPendingUrgent = false
     this.partitionHydrationRunId++
   }
 
@@ -548,6 +565,29 @@ class ContentState {
       viewportBottom: scrollTop + viewportHeight,
       viewportCenter: scrollTop + (viewportHeight / 2)
     }
+  }
+
+  _hasVisiblePartitionPlaceholder () {
+    if (!this.blocks.some(block => block.functionType === 'partitionPlaceholder')) {
+      return false
+    }
+
+    const { viewportTop, viewportBottom } = this._getViewportMetrics()
+    let offset = 0
+    for (const block of this.blocks) {
+      const blockTop = offset
+      const blockBottom = blockTop + this._getBlockHeight(block)
+      if (
+        block.functionType === 'partitionPlaceholder' &&
+        blockBottom > viewportTop &&
+        blockTop < viewportBottom
+      ) {
+        return true
+      }
+      offset = blockBottom
+    }
+
+    return false
   }
 
   _selectPartitionHydrationTarget (chunkSize = PARTITION_HYDRATION_CHUNK_SIZE) {
@@ -716,7 +756,6 @@ class ContentState {
       if (this._getRenderState(block) !== nextRenderState) {
         changed = true
       }
-      this._setRenderState([block], nextRenderState)
       if (activeRoots.has(block.key)) {
         immediateIds.push(block.key)
       } else if (shouldRender) {
@@ -724,6 +763,7 @@ class ContentState {
       } else {
         prefetchIds.push(block.key)
       }
+      this._setRenderState([block], nextRenderState)
     }
 
     this.renderScheduler.enqueue(immediateIds, 'cursor')
@@ -738,10 +778,11 @@ class ContentState {
       return false
     }
     const currentState = this._getRenderState(block)
-    if (currentState !== 'placeholder') {
+    const dom = document.querySelector(`#${block.key}`)
+    if (currentState !== 'placeholder' && !(dom && dom.classList.contains('ag-viewport-placeholder'))) {
       return false
     }
-    if (!document.querySelector(`#${block.key}`)) {
+    if (!dom) {
       return false
     }
 
@@ -963,10 +1004,12 @@ class ContentState {
   async _hydratePartitionChunk (chunkSize, expectedVersion, expectedRunId) {
     if (
       expectedVersion !== this.partitionVersion ||
-      expectedRunId !== this.partitionHydrationRunId ||
-      this.partitionHydrationInFlight
+      expectedRunId !== this.partitionHydrationRunId
     ) {
       return null
+    }
+    if (this.partitionHydrationPromise) {
+      return { blockedByInFlight: true, hasMorePlaceholders: true, viewportDistance: 0 }
     }
 
     const target = this._selectPartitionHydrationTarget(chunkSize)
@@ -985,15 +1028,26 @@ class ContentState {
     } = target
 
     const chunkMarkdown = this.canonicalMarkdown.slice(chunkStartOffset, chunkEndOffset)
-    this.partitionHydrationInFlight = true
-    let parsedBlocks
-    try {
-      parsedBlocks = await this._parsePartitionMarkdown(
+    const hydrationPromise = withTimeout(
+      this._parsePartitionMarkdown(
         chunkMarkdown,
         `ag-w${expectedVersion}-${expectedRunId}-${chunkStartIndex}`
-      )
-    } finally {
-      this.partitionHydrationInFlight = false
+      ),
+      PARTITION_HYDRATION_TIMEOUT_MS,
+      'Partition hydration timed out'
+    )
+    this.partitionHydrationPromise = hydrationPromise
+    let parsedBlocks
+    try {
+      parsedBlocks = await hydrationPromise
+    } catch (error) {
+      if (this.partitionHydrationPromise === hydrationPromise) {
+        this.partitionHydrationPromise = null
+      }
+      throw error
+    }
+    if (this.partitionHydrationPromise === hydrationPromise) {
+      this.partitionHydrationPromise = null
     }
 
     if (
@@ -1045,6 +1099,7 @@ class ContentState {
 
     return {
       hasMorePlaceholders: this.blocks.some(block => block.functionType === 'partitionPlaceholder'),
+      hasVisiblePlaceholder: this._hasVisiblePartitionPlaceholder(),
       viewportDistance
     }
   }
@@ -1072,17 +1127,42 @@ class ContentState {
 
     const hydrateNextChunk = async () => {
       this.urgentPartitionHydrationTask = null
+      if (
+        expectedVersion !== this.partitionVersion ||
+        expectedRunId !== this.partitionHydrationRunId
+      ) {
+        return
+      }
+      if (this.partitionHydrationPromise) {
+        this.partitionHydrationPendingUrgent = true
+        this.urgentPartitionHydrationTask = scheduleFrameTask(hydrateNextChunk)
+        return
+      }
+      this.partitionHydrationPendingUrgent = false
       let result = null
-      try {
-        result = await this._hydratePartitionChunk(chunkSize, expectedVersion, expectedRunId)
-      } catch (error) {
-        console.warn('Cannot hydrate partition chunk.', error)
+      let hydratedChunks = 0
+      while (hydratedChunks < URGENT_PARTITION_HYDRATION_MAX_CHUNKS) {
+        try {
+          result = await this._hydratePartitionChunk(chunkSize, expectedVersion, expectedRunId)
+        } catch (error) {
+          console.warn('Cannot hydrate partition chunk.', error)
+          break
+        }
+        if (result && result.blockedByInFlight) {
+          this.partitionHydrationPendingUrgent = true
+          this.urgentPartitionHydrationTask = scheduleFrameTask(hydrateNextChunk)
+          return
+        }
+        if (!result || !result.hasMorePlaceholders || !result.hasVisiblePlaceholder) {
+          break
+        }
+        hydratedChunks++
       }
       if (!result || !result.hasMorePlaceholders) {
         return
       }
 
-      if (result.viewportDistance === 0) {
+      if (result.hasVisiblePlaceholder || result.viewportDistance === 0) {
         this._scheduleUrgentPartitionHydration(chunkSize)
       } else {
         this._scheduleBackgroundPartitionHydration(PARTITION_HYDRATION_CHUNK_SIZE, 0)
@@ -1104,6 +1184,9 @@ class ContentState {
         result = await this._hydratePartitionChunk(chunkSize, expectedVersion, expectedRunId)
       } catch (error) {
         console.warn('Cannot hydrate partition chunk.', error)
+      }
+      if (this.urgentPartitionHydrationTask || this.partitionHydrationPendingUrgent) {
+        return
       }
       if (result && result.hasMorePlaceholders) {
         this.backgroundPartitionHydrationTask = scheduleIdleTask(hydrateNextChunk)

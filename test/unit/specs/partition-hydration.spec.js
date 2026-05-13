@@ -101,7 +101,7 @@ describe('partition hydration priority', () => {
 
     expect(contentState.stateRender.render).not.toHaveBeenCalled()
     expect(contentState._measureRenderedRootBlocks).toHaveBeenCalled()
-    expect(contentState._scheduleUrgentPartitionHydration).toHaveBeenCalledWith(6)
+    expect(contentState._scheduleUrgentPartitionHydration).toHaveBeenCalledWith(24)
   })
 
   it('keeps an urgent hydration task alive across repeated scroll triggers', () => {
@@ -143,6 +143,71 @@ describe('partition hydration priority', () => {
 
       expect(window.requestAnimationFrame).toHaveBeenCalledTimes(1)
       expect(window.cancelAnimationFrame).not.toHaveBeenCalled()
+      expect(contentState.urgentPartitionHydrationTask).not.toBeNull()
+    } finally {
+      window.requestAnimationFrame = originalRequestAnimationFrame
+      window.cancelAnimationFrame = originalCancelAnimationFrame
+    }
+  })
+
+  it('promotes urgent hydration after the current in-flight chunk finishes', async () => {
+    const ctx = createMuyaContext()
+    const contentState = ctx.contentState
+    const rafCallbacks = []
+    const originalRequestAnimationFrame = window.requestAnimationFrame
+    const originalCancelAnimationFrame = window.cancelAnimationFrame
+    let resolveParse
+
+    try {
+      window.requestAnimationFrame = vi.fn(callback => {
+        rafCallbacks.push(callback)
+        return rafCallbacks.length
+      })
+      window.cancelAnimationFrame = vi.fn()
+
+      const placeholder = {
+        key: 'tail-placeholder',
+        functionType: 'partitionPlaceholder',
+        renderState: 'rendered',
+        estimatedHeight: 2400,
+        rawStartOffset: 0,
+        rawEndOffset: 2400,
+        partitionStartIndex: 0,
+        partitionEndIndex: 100
+      }
+      contentState.blocks = [placeholder]
+      contentState.partitionMap = Array.from({ length: 100 }, (_, i) => createPartition(i, i * 24, (i + 1) * 24))
+      contentState.partitionVersion = 1
+      contentState.partitionHydrationRunId = 2
+      contentState.canonicalMarkdown = 'x'.repeat(2400)
+      contentState._selectPartitionHydrationTarget = vi.fn(() => ({
+        block: placeholder,
+        chunkStartIndex: 0,
+        chunkEndIndex: 6,
+        chunkStartOffset: 0,
+        chunkEndOffset: 144,
+        beforePlaceholder: null,
+        afterPlaceholder: null,
+        viewportDistance: 0
+      }))
+      contentState._parsePartitionMarkdown = vi.fn(() => new Promise(resolve => {
+        resolveParse = resolve
+      }))
+
+      const hydration = contentState._hydratePartitionChunk(6, 1, 2)
+      expect(contentState.partitionHydrationPromise).not.toBeNull()
+
+      contentState._scheduleUrgentPartitionHydration(6)
+
+      expect(window.requestAnimationFrame).toHaveBeenCalledTimes(1)
+      expect(contentState.urgentPartitionHydrationTask).not.toBeNull()
+
+      resolveParse([])
+      await hydration
+
+      expect(contentState.partitionHydrationPromise).toBeNull()
+      expect(contentState.partitionHydrationPendingUrgent).toBe(false)
+      expect(window.requestAnimationFrame).toHaveBeenCalledTimes(1)
       expect(contentState.urgentPartitionHydrationTask).not.toBeNull()
     } finally {
       window.requestAnimationFrame = originalRequestAnimationFrame

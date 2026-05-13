@@ -1,4 +1,4 @@
-import { createPopper } from '@popperjs/core'
+import * as Popper from '@popperjs/core'
 import resizeDetector from 'element-resize-detector'
 import { noop } from '../../utils'
 import { EVENT_KEYS } from '../../config'
@@ -141,7 +141,7 @@ class BaseFloat {
       this.popper.destroy()
     }
     this.cb = cb
-    this.popper = createPopper(reference, floatBox, {
+    this.popper = Popper.createPopper(reference, floatBox, {
       placement: normalizePlacement(placement),
       modifiers: normalizeModifiers(modifiers, showArrow)
     })
