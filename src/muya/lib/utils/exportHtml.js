@@ -90,6 +90,7 @@ class ExportHtml {
       } else if (functionType === 'vega-lite') {
         Object.assign(options, {
           actions: false,
+          ast: true,
           tooltip: false,
           renderer: 'svg',
           theme: 'latimes' // only render light theme

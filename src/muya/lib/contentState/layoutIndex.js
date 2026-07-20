@@ -55,15 +55,16 @@ class LayoutIndex {
   }
 
   rebuild (rootBlocks, partitionMap = [], estimateOverrides = new Map()) {
+    const previousNodes = this.nodeMap
     this.nodes = []
-    this.nodeMap.clear()
+    this.nodeMap = new Map()
     this.heightTree.reset(rootBlocks.length)
 
     let top = 0
     for (let index = 0; index < rootBlocks.length; index++) {
       const block = rootBlocks[index]
       const partition = partitionMap[Math.min(index, Math.max(0, partitionMap.length - 1))]
-      const previousNode = this.nodeMap.get(block.key)
+      const previousNode = previousNodes.get(block.key)
       const estimatedHeight = this._resolveEstimatedHeight(block, partition, previousNode, estimateOverrides)
       const measuredHeight = previousNode ? previousNode.measuredHeight : null
       const height = this._resolveHeight({ estimatedHeight, measuredHeight })

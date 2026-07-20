@@ -1,4 +1,5 @@
 const rendererCache = new Map()
+const loadExternalVendor = name => import(new URL(`../vendor/${name}.js`, import.meta.url).href)
 /**
  *
  * @param {string} name the renderer name: katex, sequence, plantuml, flowchart, mermaid, vega-lite
@@ -21,11 +22,11 @@ const loadRenderer = async (name) => {
         rendererCache.set(name, m.default)
         break
       case 'mermaid':
-        m = await import('mermaid/dist/mermaid.core.mjs')
+        m = await loadExternalVendor('mermaid')
         rendererCache.set(name, m.default)
         break
       case 'vega-lite':
-        m = await import('vega-embed')
+        m = await loadExternalVendor('vega-embed')
         rendererCache.set(name, m.default)
         break
       default:

@@ -4,9 +4,37 @@ const path = require('path')
 const { pathToFileURL } = require('url')
 const { _electron } = require('playwright')
 
-const mainEntrypoint = 'dist/electron/main.js'
-const CLOSE_TIMEOUT = 5000
+const mainEntrypoint = 'test/e2e/electron-main.cjs'
 const FORCE_CLOSE_TIMEOUT = 2000
+
+const assertLinuxIsolation = () => {
+  if (process.env.MARKTEXT_E2E_ISOLATED !== '1' || process.env.MARKTEXT_E2E_SANDBOXED !== '1') {
+    throw new Error('Linux E2E must run through "bun run e2e" inside the desktop-isolation sandbox.')
+  }
+
+  for (const name of ['net', 'pid', 'ipc']) {
+    const hostNamespace = process.env[`MARKTEXT_E2E_HOST_${name.toUpperCase()}_NS`]
+    if (!hostNamespace || fs.readlinkSync(`/proc/self/ns/${name}`) === hostNamespace) {
+      throw new Error(`Linux E2E ${name} namespace isolation is missing.`)
+    }
+  }
+
+  const display = process.env.DISPLAY || ''
+  const displayNumber = display.match(/^:(\d+)$/)?.[1]
+  if (!displayNumber || !fs.existsSync(`/tmp/.X11-unix/X${displayNumber}`)) {
+    throw new Error('Linux E2E private X11 display is missing.')
+  }
+
+  const runtimeDir = `/run/user/${process.getuid()}`
+  if (fs.existsSync(path.join(runtimeDir, 'bus')) ||
+      fs.readdirSync(runtimeDir).some(name => name.startsWith('wayland-'))) {
+    throw new Error('Linux E2E can still reach the host DBus or Wayland session.')
+  }
+}
+
+if (process.platform === 'linux') {
+  assertLinuxIsolation()
+}
 
 const getTempPath = () => {
   const name = `marktext-e2etest-${Date.now()}-${Math.random().toString(16).slice(2)}`
@@ -19,7 +47,8 @@ const getElectronPath = () => {
 
 const clickMenuItemByPath = (app, labels) => {
   return app.evaluate(({ BrowserWindow, Menu }, menuPath) => {
-    const win = BrowserWindow.getAllWindows()[0]
+    const windows = BrowserWindow.getAllWindows()
+    const win = BrowserWindow.getFocusedWindow() || windows.find(window => window.isVisible()) || windows[0]
     const normalizeLabel = label => (label || '').replace(/&/g, '')
     let items = Menu.getApplicationMenu().items
     let menuItem
@@ -38,7 +67,8 @@ const clickMenuItemByPath = (app, labels) => {
 
 const clickMenuItemById = (app, id) => {
   return app.evaluate(({ BrowserWindow, Menu }, itemId) => {
-    const win = BrowserWindow.getAllWindows()[0]
+    const windows = BrowserWindow.getAllWindows()
+    const win = BrowserWindow.getFocusedWindow() || windows.find(window => window.isVisible()) || windows[0]
     const menuItem = Menu.getApplicationMenu().getMenuItemById(itemId)
     if (!menuItem) {
       throw new Error(`Cannot find menu item by id "${itemId}"`)
@@ -91,7 +121,6 @@ const waitForAppExit = (app, childProcess, timeout) => {
 }
 
 const withForcedClose = (app, userDataDir) => {
-  const originalClose = app.close.bind(app)
   const childProcess = app.process()
   let closePromise = null
 
@@ -122,16 +151,8 @@ const withForcedClose = (app, userDataDir) => {
     if (closePromise) return closePromise
 
     closePromise = (async () => {
-      try {
-        // Kick off Playwright context shutdown, but treat process termination as
-        // the real success condition because unsaved-tab guards can stall close().
-        originalClose().catch(() => {})
-        await waitForAppExit(app, childProcess, CLOSE_TIMEOUT)
-        return
-      } catch {}
-
-      // MarkText intercepts window close to handle unsaved tabs. For tests, force
-      // quit if graceful shutdown does not finish in time.
+      // A graceful close intentionally asks about unsaved tabs. Test teardown
+      // must never enter that product flow because it can open a native dialog.
       await forceQuitFromMain()
 
       try {
@@ -175,11 +196,23 @@ const withForcedClose = (app, userDataDir) => {
   return app
 }
 
+const blockNativeDialogs = app => {
+  return app.evaluate(({ dialog }) => {
+    if (dialog.__marktextE2ENativeDialogsBlocked !== true) {
+      throw new Error('Native dialogs were not blocked before MarkText startup.')
+    }
+    dialog.__marktextE2ENativeDialogsBlocked = true
+  })
+}
+
 const launchElectron = async userArgs => {
   userArgs = userArgs || []
   const executablePath = getElectronPath()
   const userDataDir = getTempPath()
-  const args = [mainEntrypoint, '--user-data-dir', userDataDir].concat(userArgs)
+  const isolationArgs = process.env.MARKTEXT_E2E_ISOLATED === '1'
+    ? ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage']
+    : []
+  const args = [mainEntrypoint, ...isolationArgs, '--user-data-dir', userDataDir].concat(userArgs)
   const rendererUrl = process.env.MARKTEXT_DEV_SERVER_URL ||
     pathToFileURL(path.join(process.cwd(), 'dist/electron/index.html')).toString()
   let electronApp
@@ -201,10 +234,13 @@ const launchElectron = async userArgs => {
   }
 
   const app = withForcedClose(electronApp, userDataDir)
+  await blockNativeDialogs(app)
   const page = await app.firstWindow()
+  const rendererErrors = []
+  page.on('pageerror', error => rendererErrors.push(error.stack || error.message))
   await page.waitForLoadState('domcontentloaded')
-  await new Promise((resolve) => setTimeout(resolve, 500))
-  return { app, page }
+  await page.locator('.editor-container').waitFor({ state: 'visible', timeout: 30000 })
+  return { app, page, rendererErrors, userDataDir }
 }
 
 module.exports = {

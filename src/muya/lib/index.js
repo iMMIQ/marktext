@@ -461,6 +461,7 @@ class Muya {
   replace (value, opt) {
     this.contentState.replace(value, opt)
     this.contentState.render(false)
+    this.dispatchChange()
     return this.contentState.searchMatches
   }
 

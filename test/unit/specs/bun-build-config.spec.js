@@ -1,10 +1,14 @@
 // @vitest-environment node
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   createMainBuildOptions,
   createPreloadBuildOptions,
   createRendererBuildOptions,
-  createRendererWorkerBuildOptions
+  createRendererWorkerBuildOptions,
+  repairRendererDocumentAssetUrls
 } from '../../../tools/build/marktextBun.mjs'
 
 describe('bun main and preload build config', () => {
@@ -18,6 +22,7 @@ describe('bun main and preload build config', () => {
     expect(mainConfig.define['global.MARKTEXT_VERSION']).toBeTruthy()
     expect(mainConfig.define['global.MARKTEXT_VERSION_STRING']).toBeTruthy()
     expect(mainConfig.define['global.MARKTEXT_IS_STABLE']).toBeTruthy()
+    expect(mainConfig.define['process.env.NODE_ENV']).toBe(JSON.stringify(process.env.NODE_ENV || 'production'))
   })
 
   it('emits the preload bundle to dist/electron/preload.js with shared defines', () => {
@@ -30,6 +35,7 @@ describe('bun main and preload build config', () => {
     expect(preloadConfig.define['global.MARKTEXT_VERSION']).toBeTruthy()
     expect(preloadConfig.define['global.MARKTEXT_VERSION_STRING']).toBeTruthy()
     expect(preloadConfig.define['global.MARKTEXT_IS_STABLE']).toBeTruthy()
+    expect(preloadConfig.define['process.env.NODE_ENV']).toBe(JSON.stringify(process.env.NODE_ENV || 'production'))
   })
 
   it('keeps the renderer bundle on the shared Bun Vue transform', () => {
@@ -53,6 +59,34 @@ describe('bun main and preload build config', () => {
       asset: 'assets/[name]-[hash].[ext]',
       chunk: 'chunks/[name]-[hash].[ext]'
     })
+    expect(rendererConfig.minify).toBe(false)
+  })
+
+  it('uses production minification for renderer chunks', () => {
+    const rendererConfig = createRendererBuildOptions({ production: true })
+
+    expect(rendererConfig.minify).toBe(true)
+  })
+
+  it('repairs chunk-relative assets for URLs inserted into the renderer document', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'marktext-renderer-assets-'))
+    const chunk = path.join(root, 'app.js')
+
+    try {
+      fs.writeFileSync(chunk, [
+        'const icon = "./../assets/icon.png"',
+        'const module = "./../assets/snap.svg-min.js"',
+        ''
+      ].join('\n'), 'utf8')
+      await repairRendererDocumentAssetUrls({ outputs: [{ path: chunk }] })
+      expect(fs.readFileSync(chunk, 'utf8')).toBe([
+        'const icon = "./assets/icon.png"',
+        'const module = "./../assets/snap.svg-min.js"',
+        ''
+      ].join('\n'))
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
   })
 
   it('emits the markdown parser worker as a classic browser worker', () => {

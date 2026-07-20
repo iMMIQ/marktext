@@ -1,5 +1,11 @@
-import * as Popper from '@popperjs/core'
-import resizeDetector from 'element-resize-detector'
+import {
+  arrow as arrowMiddleware,
+  autoUpdate,
+  computePosition,
+  flip,
+  offset,
+  shift
+} from '@floating-ui/dom'
 import { noop } from '../../utils'
 import { EVENT_KEYS } from '../../config'
 import './index.css'
@@ -16,25 +22,12 @@ const defaultOptions = () => ({
 
 const normalizePlacement = placement => placement.replace(/-center$/, '')
 
-const normalizeModifiers = (modifiers = {}, showArrow = true) => {
-  const normalized = Object.entries(modifiers).map(([name, options]) => {
-    if (name === 'offset' && typeof options.offset === 'string') {
-      return {
-        name,
-        options: {
-          offset: options.offset.split(',').map(value => Number(value.trim()))
-        }
-      }
-    }
-
-    return { name, options }
-  })
-
-  if (showArrow) {
-    normalized.push({ name: 'arrow', options: { element: '.ag-popper-arrow' } })
-  }
-
-  return normalized
+const getOffset = modifiers => {
+  const value = modifiers?.offset?.offset
+  const [crossAxis = 0, mainAxis = 0] = typeof value === 'string'
+    ? value.split(',').map(part => Number(part.trim()))
+    : [0, 0]
+  return { crossAxis, mainAxis }
 }
 
 class BaseFloat {
@@ -47,7 +40,7 @@ class BaseFloat {
     this.container = null
     this.popper = null
     this.lastScrollTop = null
-    this.resizeDetector = null
+    this.resizeObserver = null
     this.cb = noop
     this.init()
   }
@@ -70,25 +63,13 @@ class BaseFloat {
 
     floatBox.appendChild(container)
     document.body.appendChild(floatBox)
-    this.resizeDetector = resizeDetector({
-      strategy: 'scroll'
-    })
-
-    // use polyfill
-    this.resizeDetector.listenTo(container, ele => {
-      const { offsetWidth, offsetHeight } = ele
+    this.resizeObserver = new ResizeObserver(entries => {
+      const { target } = entries[entries.length - 1]
+      const { offsetWidth, offsetHeight } = target
       Object.assign(floatBox.style, { width: `${offsetWidth}px`, height: `${offsetHeight}px` })
       this.popper && this.popper.update()
     })
-
-    // const ro = new ResizeObserver(entries => {
-    //   for (const entry of entries) {
-    //     const { offsetWidth, offsetHeight } = entry.target
-    //     Object.assign(floatBox.style, { width: `${offsetWidth + 2}px`, height: `${offsetHeight + 2}px` })
-    //     this.popper && this.popper.update()
-    //   }
-    // })
-    // ro.observe(container)
+    this.resizeObserver.observe(container)
     this.floatBox = floatBox
     this.container = container
   }
@@ -128,6 +109,7 @@ class BaseFloat {
     if (this.popper && this.popper.destroy) {
       this.popper.destroy()
     }
+    this.floatBox.removeAttribute('data-popper-placement')
     this.cb = noop
     eventCenter.dispatch('muya-float', this, false)
     this.lastScrollTop = null
@@ -140,11 +122,36 @@ class BaseFloat {
     if (this.popper && this.popper.destroy) {
       this.popper.destroy()
     }
+    this.floatBox.removeAttribute('data-popper-placement')
     this.cb = cb
-    this.popper = Popper.createPopper(reference, floatBox, {
+    const arrowElement = showArrow ? floatBox.querySelector('.ag-popper-arrow') : null
+    const middleware = [
+      offset(getOffset(modifiers)),
+      flip(),
+      shift({ padding: 8 }),
+      arrowElement && arrowMiddleware({ element: arrowElement })
+    ].filter(Boolean)
+    const update = () => computePosition(reference, floatBox, {
       placement: normalizePlacement(placement),
-      modifiers: normalizeModifiers(modifiers, showArrow)
+      middleware
+    }).then(({ x, y, placement: resolvedPlacement, middlewareData }) => {
+      Object.assign(floatBox.style, {
+        left: `${x}px`,
+        right: 'auto',
+        top: `${y}px`
+      })
+      floatBox.setAttribute('data-popper-placement', resolvedPlacement)
+
+      if (arrowElement && middlewareData.arrow) {
+        const { x: arrowX, y: arrowY } = middlewareData.arrow
+        Object.assign(arrowElement.style, {
+          left: arrowX == null ? '' : `${arrowX}px`,
+          top: arrowY == null ? '' : `${arrowY}px`
+        })
+      }
     })
+    const destroy = autoUpdate(reference, floatBox, update)
+    this.popper = { destroy, update }
     this.status = true
     eventCenter.dispatch('muya-float', this, true)
   }
@@ -153,8 +160,8 @@ class BaseFloat {
     if (this.popper && this.popper.destroy) {
       this.popper.destroy()
     }
-    if (this.resizeDetector && this.container) {
-      this.resizeDetector.uninstall(this.container)
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect()
     }
     this.floatBox.remove()
   }

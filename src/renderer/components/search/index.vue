@@ -336,6 +336,7 @@ export default {
 
   .search-bar .right-controls {
     flex: 1;
+    min-width: 0;
   }
   .search, .replace {
     height: 28px;
@@ -375,6 +376,7 @@ export default {
   .input-wrapper {
     display: flex;
     flex: 1;
+    min-width: 0;
     position: relative;
     border: 1px solid var(--inputBgColor);
     background: var(--inputBgColor);
@@ -418,6 +420,11 @@ export default {
         }
       }
   }
+  .input-wrapper .controls > span:not(.search-result) > svg {
+    display: block;
+    width: 20px;
+    height: 20px;
+  }
 
   .input-wrapper .error-msg {
     position: absolute;
@@ -438,6 +445,7 @@ export default {
 
   .input-wrapper input {
     flex: 1;
+    min-width: 0;
     padding: 0 8px;
     height: 26px;
     outline: none;
@@ -447,5 +455,9 @@ export default {
     color: var(--editorColor);
     padding: 0 8px;
     background: transparent;
+  }
+  .button-group {
+    display: flex;
+    flex: 0 0 auto;
   }
 </style>

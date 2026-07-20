@@ -1,9 +1,17 @@
+const path = require('path')
+
 const config = {
+  expect: {
+    timeout: 10000
+  },
+  outputDir: path.resolve('test-results/e2e'),
+  reporter: [['list']],
+  timeout: 45000,
   workers: 1,
   use: {
-    headless: false,
-    viewport: { width: 1280, height: 720 },
-    timeout: 30000
+    screenshot: 'only-on-failure',
+    trace: 'retain-on-failure',
+    viewport: { width: 1280, height: 720 }
   }
 }
 module.exports = config

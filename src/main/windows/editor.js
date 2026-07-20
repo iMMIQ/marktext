@@ -28,6 +28,7 @@ class EditorWindow extends BaseWindow {
     // used to find the best window to open new files in.
     this._openedRootDirectory = ''
     this._openedFiles = []
+    this._rendererReady = false
     this._rendererBootstrapped = false
   }
 
@@ -103,6 +104,7 @@ class EditorWindow extends BaseWindow {
       markStartupPhase('window:did-finish-load', { windowId: this.id })
       this.lifecycle = WindowLifecycle.READY
       this.emit('window-ready')
+      this.bootstrapRenderer()
 
       // Restore and focus window
       this.bringToFront()
@@ -259,7 +261,7 @@ class EditorWindow extends BaseWindow {
 
     for (const { filePath, options, selected } of fileList) {
       loadMarkdownFile(filePath, eol, autoGuessEncoding, trimTrailingNewline).then(rawDocument => {
-        if (this.lifecycle === WindowLifecycle.READY) {
+        if (this.lifecycle === WindowLifecycle.READY && this._rendererReady) {
           this._doOpenTab(rawDocument, options, selected)
         } else {
           this._filesToOpen.push({ doc: rawDocument, options, selected })
@@ -407,6 +409,7 @@ class EditorWindow extends BaseWindow {
     this._markdownToOpen = []
     this._openedRootDirectory = ''
     this._openedFiles = []
+    this._rendererReady = false
     this._rendererBootstrapped = false
 
     browserWindow.webContents.once('did-finish-load', () => {
@@ -427,6 +430,7 @@ class EditorWindow extends BaseWindow {
     this._markdownToOpen = null
     this._openedRootDirectory = null
     this._openedFiles = null
+    this._rendererReady = false
   }
 
   get openedRootDirectory () {
@@ -434,7 +438,7 @@ class EditorWindow extends BaseWindow {
   }
 
   bootstrapRenderer () {
-    if (this._rendererBootstrapped || !this.browserWindow || this.lifecycle !== WindowLifecycle.READY) {
+    if (!this._rendererReady || this._rendererBootstrapped || !this.browserWindow || this.lifecycle !== WindowLifecycle.READY) {
       return
     }
 
@@ -458,6 +462,11 @@ class EditorWindow extends BaseWindow {
     this._doOpenFilesToOpen()
     this._markdownToOpen.length = 0
     this._rendererBootstrapped = true
+  }
+
+  notifyRendererReady () {
+    this._rendererReady = true
+    this.bootstrapRenderer()
   }
 
   // --- private ---------------------------------

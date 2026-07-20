@@ -544,6 +544,21 @@ class ContentState {
       endIndex = Math.min(blocks.length, endIndex + 2)
     }
 
+    const root = this.stateRender.container || container.children[0]
+    if (root && typeof container.getBoundingClientRect === 'function') {
+      const viewportBounds = container.getBoundingClientRect()
+      for (const dom of Array.from(root.children)) {
+        const rect = dom.getBoundingClientRect()
+        if (rect.bottom > viewportBounds.top && rect.top < viewportBounds.bottom) {
+          const node = this.layoutIndex.getNode(dom.id)
+          if (node) {
+            startIndex = Math.min(startIndex, node.index)
+            endIndex = Math.max(endIndex, node.index + 1)
+          }
+        }
+      }
+    }
+
     for (let i = 0; i < blocks.length; i++) {
       if (activeRoots.has(blocks[i].key)) {
         startIndex = Math.min(startIndex, i)
@@ -1384,6 +1399,7 @@ class ContentState {
     matches.forEach((m, i) => {
       m.active = i === index
     })
+    this._applyVirtualizationState()
 
     // The `endKey` may already be removed from blocks if range was selected via keyboard (GH#1854).
     let startIndex = startKey ? blocks.findIndex(block => block.key === startKey) : 0

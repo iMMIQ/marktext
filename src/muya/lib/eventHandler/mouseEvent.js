@@ -14,26 +14,19 @@ class MouseEvent {
       const target = event.target
       const parent = target.parentNode
       const preSibling = target.previousElementSibling
-      const parentPreSibling = parent ? parent.previousElementSibling : null
+      const link = target.closest && target.closest('a.ag-inline-rule')
+      const linkPreSibling = link ? link.previousElementSibling : null
       const { hideLinkPopup, footnote } = this.muya.options
-      const rect = parent.getBoundingClientRect()
-      const reference = {
-        getBoundingClientRect () {
-          return rect
-        }
-      }
 
       if (
         !hideLinkPopup &&
-        parent &&
-        parent.tagName === 'A' &&
-        parent.classList.contains('ag-inline-rule') &&
-        parentPreSibling &&
-        parentPreSibling.classList.contains('ag-hide')
+        link &&
+        linkPreSibling &&
+        linkPreSibling.classList.contains('ag-hide')
       ) {
         eventCenter.dispatch('muya-link-tools', {
-          reference,
-          linkInfo: getLinkInfo(parent)
+          reference: link,
+          linkInfo: getLinkInfo(link)
         })
       }
 
@@ -45,9 +38,14 @@ class MouseEvent {
         preSibling &&
         preSibling.classList.contains('ag-hide')
       ) {
+        const rect = parent.getBoundingClientRect()
         const identifier = target.textContent
         eventCenter.dispatch('muya-footnote-tool', {
-          reference,
+          reference: {
+            getBoundingClientRect () {
+              return rect
+            }
+          },
           identifier,
           footnotes: collectFootnotes(this.muya.contentState.blocks)
         })
@@ -57,8 +55,9 @@ class MouseEvent {
       const target = event.target
       const parent = target.parentNode
       const preSibling = target.previousElementSibling
+      const link = target.closest && target.closest('a.ag-inline-rule')
       const { footnote } = this.muya.options
-      if (parent && parent.tagName === 'A' && parent.classList.contains('ag-inline-rule')) {
+      if (link) {
         eventCenter.dispatch('muya-link-tools', {
           reference: null
         })

@@ -73,6 +73,15 @@ describe('editor layout index', () => {
     expect(layout.getHeight('b')).toBe(40)
     expect(layout.getTopForIndex(2)).toBe(50)
     expect(layout.getRangeForViewport(35, 10, 0)).toEqual([1, 3])
+
+    layout.rebuild(blocks, [
+      { estimatedHeight: 10 },
+      { estimatedHeight: 20 },
+      { estimatedHeight: 30 }
+    ])
+
+    expect(layout.getHeight('b')).toBe(40)
+    expect(layout.getTopForIndex(2)).toBe(50)
   })
 })
 

@@ -5,6 +5,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { builtinModules, createRequire } from 'node:module'
 import { spawnSync } from 'node:child_process'
+import { build as esbuild } from 'esbuild'
 import { transformVueSfc } from './vueSfcTransform.mjs'
 
 const require = createRequire(import.meta.url)
@@ -22,6 +23,11 @@ const htmlTagsPath = path.join(path.dirname(require.resolve('html-tags')), 'html
 const htmlTagsVoidPath = path.join(path.dirname(require.resolve('html-tags')), 'html-tags-void.json')
 const prismLoadLanguagePath = path.join(projectRoot, 'src/muya/lib/prism/loadLanguage.js')
 const prismComponentsDir = path.join(projectRoot, 'node_modules/prismjs/components')
+const rendererVendorDir = path.join(distDir, 'vendor')
+const rendererVendors = {
+  'mermaid/dist/mermaid.core.mjs': 'mermaid',
+  'vega-embed': 'vega-embed'
+}
 
 const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
 
@@ -115,6 +121,7 @@ export const getMarkTextDefines = () => {
     'global.MARKTEXT_VERSION': JSON.stringify(pkg.version),
     'global.MARKTEXT_VERSION_STRING': JSON.stringify(`v${pkg.version}${versionSuffix}`),
     'global.MARKTEXT_IS_STABLE': JSON.stringify(isStableRelease),
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
     'process.versions.MARKTEXT_VERSION': JSON.stringify(pkg.version),
     'process.versions.MARKTEXT_VERSION_STRING': JSON.stringify(`v${pkg.version}${versionSuffix}`)
   }
@@ -123,7 +130,6 @@ export const getMarkTextDefines = () => {
 export const getRendererDefines = () => ({
   ...getMarkTextDefines(),
   global: 'window',
-  'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
   'process.env.UNSPLASH_ACCESS_KEY': JSON.stringify(process.env.UNSPLASH_ACCESS_KEY || '')
 })
 
@@ -419,6 +425,9 @@ const repairRendererHtmlEntrypoint = async result => {
   const relativeEntrypoint = path.relative(distDir, jsEntrypoint.path).replace(/\\/g, '/')
   const scriptTag = `<script type="module" crossorigin src="./${relativeEntrypoint}"></script>`
   const html = await fs.promises.readFile(indexFile, 'utf8')
+  if (html.includes(`src="./${relativeEntrypoint}"`)) {
+    return
+  }
   const repairedHtml = html.replace(
     /<script\b(?=[^>]*\btype="module")(?=[^>]*\bsrc="\.\/[^"]+")[^>]*><\/script>/,
     scriptTag
@@ -431,13 +440,51 @@ const repairRendererHtmlEntrypoint = async result => {
   await fs.promises.writeFile(indexFile, repairedHtml)
 }
 
+export const repairRendererDocumentAssetUrls = async result => {
+  const jsOutputs = (result.outputs || []).filter(output => output.path.endsWith('.js'))
+
+  await Promise.all(jsOutputs.map(async output => {
+    const source = await fs.promises.readFile(output.path, 'utf8')
+    const repaired = source.replace(
+      /\.\/\.\.\/assets\/([^'"`]+\.(?:gif|ico|jpe?g|png|svg|webp))(?=['"`])/gi,
+      './assets/$1'
+    )
+    if (repaired !== source) {
+      await fs.promises.writeFile(output.path, repaired)
+    }
+  }))
+}
+
 export const buildMain = async (options = {}) => Bun.build(createMainBuildOptions(options))
 export const buildPreload = async (options = {}) => Bun.build(createPreloadBuildOptions(options))
 export const buildRendererWorker = async (options = {}) => Bun.build(createRendererWorkerBuildOptions(options))
+export const buildRendererVendors = async ({ production = true } = {}) => {
+  const entryPoints = Object.fromEntries(Object.entries(rendererVendors).map(([specifier, name]) => {
+    return [name, require.resolve(specifier)]
+  }))
+
+  return esbuild({
+    entryPoints,
+    outdir: rendererVendorDir,
+    bundle: true,
+    splitting: true,
+    format: 'esm',
+    platform: 'browser',
+    target: 'chrome140',
+    entryNames: '[name]',
+    chunkNames: 'chunks/[name]-[hash]',
+    assetNames: 'assets/[name]-[hash]',
+    minify: production,
+    sourcemap: production ? 'external' : 'linked',
+    logLevel: 'silent'
+  })
+}
 export const buildRenderer = async (options = {}) => {
+  await buildRendererVendors(options)
   const result = await Bun.build(createRendererBuildOptions(options))
   if (result.success) {
     await repairRendererHtmlEntrypoint(result)
+    await repairRendererDocumentAssetUrls(result)
   }
   return result
 }

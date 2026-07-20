@@ -377,7 +377,7 @@ class WindowManager extends EventEmitter {
         log.error(`Cannot find window id "${win.id}" to bootstrap renderer.`)
         return
       }
-      editor.bootstrapRenderer()
+      editor.notifyRendererReady()
     })
 
     ipcMain.on('mt::window-tab-closed', (e, pathname) => {

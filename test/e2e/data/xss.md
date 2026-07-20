@@ -1,5 +1,9 @@
 # XSS Tests
 
+<script>window.__marktextXssExecuted = true</script>
+
+<img src="xss-marker" onerror="window.__marktextXssExecuted = true">
+
 ### HTML
 
 <script>process.crash()</script>

@@ -14,7 +14,7 @@ export const ensureSnap = () => {
   if (!loadSnapPromise) {
     loadSnapPromise = new Promise((resolve, reject) => {
       const script = document.createElement('script')
-      script.src = snapSvgUrl
+      script.src = new URL(snapSvgUrl, import.meta.url).href
       script.async = true
       script.onload = () => resolve(window.Snap)
       script.onerror = () => reject(new Error('Failed to load Snap.svg.'))

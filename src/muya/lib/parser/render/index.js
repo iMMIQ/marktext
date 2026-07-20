@@ -1,6 +1,7 @@
 import loadRenderer from '../../renderers'
 import { CLASS_OR_ID, PREVIEW_DOMPURIFY_CONFIG } from '../../config'
-import { conflict, mixins, camelToSnake, sanitize } from '../../utils'
+import { conflict, mixins, camelToSnake } from '../../utils'
+import purify from '../../utils/dompurify'
 import { patch, toVNode, toHTML, h } from './snabbdom'
 import { beginRules } from '../rules'
 import renderInlines from './renderInlines'
@@ -117,6 +118,8 @@ class StateRender {
     if (this.mermaidCache.size) {
       const mermaid = await loadRenderer('mermaid')
       mermaid.initialize({
+        flowchart: { htmlLabels: false },
+        htmlLabels: false,
         securityLevel: 'strict',
         theme: this.muya.options.mermaidTheme
       })
@@ -127,9 +130,10 @@ class StateRender {
           continue
         }
         try {
-          mermaid.parse(code)
-          target.innerHTML = sanitize(code, PREVIEW_DOMPURIFY_CONFIG, true)
-          mermaid.init(undefined, target)
+          const renderId = `marktext-mermaid-${key.slice(1)}`
+          const { svg, bindFunctions } = await mermaid.render(renderId, code, target)
+          target.innerHTML = purify(svg, PREVIEW_DOMPURIFY_CONFIG)
+          if (bindFunctions) bindFunctions(target)
         } catch (err) {
           target.innerHTML = '< Invalid Mermaid Codes >'
           target.classList.add(CLASS_OR_ID.AG_MATH_ERROR)
@@ -163,6 +167,7 @@ class StateRender {
         } else if (functionType === 'vega-lite') {
           Object.assign(options, {
             actions: false,
+            ast: true,
             tooltip: false,
             renderer: 'svg',
             theme: this.muya.options.vegaTheme
@@ -181,7 +186,12 @@ class StateRender {
             await render(key, JSON.parse(code), options)
           }
         } catch (err) {
-          target.innerHTML = `< Invalid ${functionType === 'flowchart' ? 'Flow Chart' : 'Sequence'} Codes >`
+          const label = {
+            flowchart: 'Flow Chart',
+            sequence: 'Sequence',
+            'vega-lite': 'Vega-Lite'
+          }[functionType] || functionType
+          target.innerHTML = `< Invalid ${label} Codes >`
           target.classList.add(CLASS_OR_ID.AG_MATH_ERROR)
         }
       }
@@ -198,7 +208,7 @@ class StateRender {
     const rootDom = document.querySelector(selector) || this.container
     const oldVdom = toVNode(rootDom)
 
-    patch(oldVdom, newVdom)
+    this.container = patch(oldVdom, newVdom).elm
     this.renderMermaid()
     this.renderDiagram()
     this.codeCache.clear()
