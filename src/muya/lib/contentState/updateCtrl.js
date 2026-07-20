@@ -23,9 +23,15 @@ const updateCtrl = ContentState => {
 
   ContentState.prototype.checkNeedRender = function (cursor = this.cursor) {
     const { labels } = this.stateRender
+    if (!cursor) return false
     const { start: cStart, end: cEnd, anchor, focus } = cursor
+    if ((!cStart && !anchor) || (!cEnd && !focus)) return false
     const startBlock = this.getBlock(cStart ? cStart.key : anchor.key)
     const endBlock = this.getBlock(cEnd ? cEnd.key : focus.key)
+    // Hydration can replace the deferred cursor anchor between the browser
+    // selection event and this render check. The new internal cursor is already
+    // mapped by the hydration path; the stale DOM selection must be ignored.
+    if (!startBlock || !endBlock) return false
     const startOffset = cStart ? cStart.offset : anchor.offset
     const endOffset = cEnd ? cEnd.offset : focus.offset
     const NO_NEED_TOKEN_REG = /text|hard_line_break|soft_line_break/

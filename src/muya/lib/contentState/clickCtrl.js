@@ -148,6 +148,10 @@ const clickCtrl = ContentState => {
       }
     }
     const block = this.getBlock(start.key)
+    const endSelectionBlock = this.getBlock(end.key)
+    if (!block || !endSelectionBlock) {
+      return
+    }
     let needRender = false
     // is show format float box?
     if (

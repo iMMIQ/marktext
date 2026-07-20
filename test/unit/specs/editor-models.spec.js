@@ -2,11 +2,11 @@ import { describe, expect, it, vi } from 'vitest'
 import DocumentModel from '../../../src/muya/lib/contentState/documentModel'
 import LayoutIndex from '../../../src/muya/lib/contentState/layoutIndex'
 import RenderScheduler, { RenderPriority } from '../../../src/muya/lib/contentState/renderScheduler'
+import ContentState from '../../../src/muya/lib/contentState'
+import EventCenter from '../../../src/muya/lib/eventHandler/event'
+import { MUYA_DEFAULT_OPTION } from '../../../src/muya/lib/config'
 
-const createContentState = async () => {
-  const { default: ContentState } = await import('../../../src/muya/lib/contentState')
-  const { default: EventCenter } = await import('../../../src/muya/lib/eventHandler/event')
-  const { MUYA_DEFAULT_OPTION } = await import('../../../src/muya/lib/config')
+const createContentState = () => {
   const ctx = {
     blur: vi.fn(),
     container: document.createElement('div'),

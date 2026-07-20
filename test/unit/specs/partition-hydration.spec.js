@@ -27,6 +27,35 @@ const createPartition = (index, startOffset, endOffset) => ({
 })
 
 describe('partition hydration priority', () => {
+  it('rebases later partition ranges after a length-changing prefix edit', () => {
+    const ctx = createMuyaContext()
+    const contentState = ctx.contentState
+    const markdown = 'alpha\n\nbeta\n\ngamma'
+    contentState.canonicalMarkdown = markdown
+    contentState.partitionMap = [
+      createPartition(0, 0, 5),
+      createPartition(1, 7, 11),
+      createPartition(2, 13, 18)
+    ]
+    contentState.partitionVersion = 1
+    contentState.blocks = [{
+      key: 'tail-placeholder',
+      functionType: 'partitionPlaceholder',
+      rawMarkdown: 'beta\n\ngamma',
+      rawStartOffset: 7,
+      rawEndOffset: 18,
+      partitionStartIndex: 1,
+      partitionEndIndex: 3
+    }]
+
+    contentState.replaceDocumentText('xalpha\n\nbeta\n\ngamma', markdown, 'legacy-block-export')
+
+    expect(contentState.partitionMap[1].startOffset).toBe(8)
+    expect(contentState.partitionMap[1].endOffset).toBe(12)
+    expect(contentState.blocks[0].rawStartOffset).toBe(8)
+    expect(contentState.documentStore.slice(8, 12)).toBe('beta')
+  })
+
   it('uses partition placeholder DOM geometry when layout estimates are stale', () => {
     const ctx = createMuyaContext()
     const contentState = ctx.contentState
@@ -310,9 +339,9 @@ describe('partition hydration priority', () => {
       }
       contentState.blocks = [placeholder]
       contentState.partitionMap = Array.from({ length: 100 }, (_, i) => createPartition(i, i * 24, (i + 1) * 24))
+      contentState.canonicalMarkdown = 'x'.repeat(2400)
       contentState.partitionVersion = 1
       contentState.partitionHydrationRunId = 2
-      contentState.canonicalMarkdown = 'x'.repeat(2400)
       contentState._selectPartitionHydrationTarget = vi.fn(() => ({
         block: placeholder,
         chunkStartIndex: 0,
@@ -362,10 +391,20 @@ describe('partition hydration priority', () => {
       createPartition(3, 20, markdown.length)
     ]
     const placeholder = contentState._createPartitionPlaceholder(0, 0, contentState.partitionMap.length)
-    contentState.blocks = [placeholder]
+    const deferredAnchor = contentState.createBlockP()
+    deferredAnchor.functionType = 'deferredCursorAnchor'
+    const deferredLeaf = contentState.firstInDescendant(deferredAnchor)
+    contentState.cursor = {
+      start: { key: deferredLeaf.key, offset: 0 },
+      end: { key: deferredLeaf.key, offset: 0 }
+    }
+    contentState.blocks = [deferredAnchor, placeholder]
     contentState._linkRootBlocks()
     contentState._rebuildBlockMap()
     contentState._syncDocumentModels()
+    const orphanCandidate = document.createElement('div')
+    orphanCandidate.id = deferredAnchor.key
+    document.body.appendChild(orphanCandidate)
     contentState._selectPartitionHydrationTarget = vi.fn(() => ({
       block: placeholder,
       chunkStartIndex: 0,
@@ -387,6 +426,8 @@ describe('partition hydration priority', () => {
 
     expect(result.hasMorePlaceholders).toBe(false)
     expect(contentState.blocks.some(block => block.key === placeholder.key)).toBe(false)
+    expect(contentState.blocks.some(block => block.key === deferredAnchor.key)).toBe(false)
+    expect(document.querySelector(`#${deferredAnchor.key}`)).toBeNull()
     expect(contentState.blocks.map(block => block.type)).toEqual(['p', 'p', 'p', 'p'])
     expect(contentState._renderPartitionReplacement).toHaveBeenCalled()
     expect(contentState.stateRender.renderBlocks).toHaveBeenCalledWith(
@@ -439,5 +480,15 @@ describe('partition hydration priority', () => {
     expect(contentState.blocks[1].functionType).to.equal('partitionPlaceholder')
     expect(contentState.blocks[1].partitionStartIndex).to.equal(0)
     expect(contentState.blocks[1].partitionEndIndex).to.equal(contentState.partitionMap.length)
+  })
+
+  it('ignores a stale deferred-anchor selection after hydration replaces its block', () => {
+    const ctx = createMuyaContext()
+    const contentState = ctx.contentState
+
+    expect(contentState.checkNeedRender({
+      start: { key: 'removed-deferred-anchor', offset: 0 },
+      end: { key: 'removed-deferred-anchor', offset: 0 }
+    })).to.equal(false)
   })
 })

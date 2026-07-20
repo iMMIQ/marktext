@@ -91,10 +91,52 @@ describe('Muya parser', () => {
     ctx.contentState.importMarkdown(markdown, { initialPartitionCount: 2 })
 
     const blocks = ctx.contentState.getBlocks()
-    const exportedMarkdown = new ExportMarkdown(blocks).generate()
+    const exportedMarkdown = new ExportMarkdown(
+      blocks,
+      1,
+      false,
+      ctx.contentState.documentStore
+    ).generate()
 
     expect(exportedMarkdown).to.equal(markdown)
     expect(blocks.some(block => block.functionType === 'partitionPlaceholder')).to.equal(true)
+    expect(blocks.find(block => block.functionType === 'partitionPlaceholder').rawMarkdown).toBeUndefined()
+  })
+
+  it('exports only the materialized cursor island for an incremental edit', () => {
+    const ctx = createMuyaContext(defaultOptions)
+    const markdown = Array.from({ length: 12 }, (_, index) => `paragraph ${index}`).join('\n\n')
+    const cs = ctx.contentState
+    cs.importMarkdown(markdown, {
+      initialPartitionCount: 3,
+      targetLines: [0]
+    })
+    const editableRoot = cs.blocks.find(block => block.functionType !== 'partitionPlaceholder')
+    const editableLeaf = cs.firstInDescendant(editableRoot)
+    cs.cursor = {
+      noHistory: true,
+      start: { key: editableLeaf.key, offset: editableLeaf.text.length },
+      end: { key: editableLeaf.key, offset: editableLeaf.text.length }
+    }
+    editableLeaf.text += ' changed'
+
+    const range = cs.getIncrementalEditRange()
+    const segment = new ExportMarkdown(
+      range.blocks,
+      cs.listIndentation,
+      cs.isGitlabCompatibilityEnabled
+    ).generate()
+    const incremental = markdown.slice(0, range.from) + segment + markdown.slice(range.to)
+    const full = new ExportMarkdown(
+      cs.blocks,
+      cs.listIndentation,
+      cs.isGitlabCompatibilityEnabled,
+      cs.documentStore
+    ).generate()
+
+    expect(range.to - range.from).toBeLessThan(markdown.length)
+    expect(incremental).toBe(full)
+    expect(incremental).toContain('paragraph 0 changed')
   })
 })
 

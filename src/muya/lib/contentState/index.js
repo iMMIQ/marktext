@@ -14,6 +14,7 @@ import coreApi from './core'
 import marktextApi from './marktext'
 import History from './history'
 import DocumentModel from './documentModel'
+import DocumentStore, { mapOffsetThroughSteps } from './documentStore'
 import LayoutIndex from './layoutIndex'
 import RenderScheduler, { RenderPriority } from './renderScheduler'
 import arrowCtrl from './arrowCtrl'
@@ -210,6 +211,7 @@ class ContentState {
     // Use to cache the keys which you don't want to remove.
     this.exemption = new Set()
     this.blockMap = new Map()
+    this.documentStore = new DocumentStore()
     this.documentModel = new DocumentModel()
     this.layoutIndex = new LayoutIndex()
     this.renderScheduler = new RenderScheduler()
@@ -217,7 +219,6 @@ class ContentState {
     this.partitionMap = []
     this.partitionHeightPrefix = [0]
     this.partitionVersion = 0
-    this.canonicalMarkdown = ''
     this.blocks = [this.createBlockP()]
     this.stateRender = new StateRender(muya)
     this.stateRender.setRenderStateResolver({
@@ -428,6 +429,112 @@ class ContentState {
 
   cancelPartitionHydration () {
     this._cancelPartitionHydrationTask()
+  }
+
+  get canonicalMarkdown () {
+    return this.documentStore.toString()
+  }
+
+  set canonicalMarkdown (markdown) {
+    this.replaceDocumentText(markdown, this.documentStore.toString(), 'compatibility-setter')
+  }
+
+  replaceDocumentText (markdown, previousMarkdown = null, origin = 'source-mode') {
+    if (typeof markdown !== 'string') {
+      throw new TypeError('Document text must be a string.')
+    }
+    if (typeof previousMarkdown === 'string') {
+      if (!this.documentStore.equals(previousMarkdown)) {
+        if (this.documentStore.equals(markdown)) return null
+        return this.documentStore.replaceAll(markdown, origin)
+      }
+      const applied = this.documentStore.syncText(previousMarkdown, markdown, origin)
+      if (applied) this._rebasePartitionCoordinates(applied)
+      return applied
+    }
+    if (this.documentStore.equals(markdown)) return null
+    if (this.documentStore.length === 0 && markdown.length === 0) {
+      return null
+    }
+    return this.documentStore.replaceAll(markdown, origin)
+  }
+
+  _rebasePartitionCoordinates (applied) {
+    if (!applied || !this.partitionMap.length) return
+
+    this._cancelPartitionHydrationTask()
+    const nextVersion = ++this.partitionVersion
+    for (const partition of this.partitionMap) {
+      partition.startOffset = mapOffsetThroughSteps(partition.startOffset, 'right', applied.steps)
+      partition.endOffset = mapOffsetThroughSteps(partition.endOffset, 'left', applied.steps)
+      partition.version = nextVersion
+      if (partition.endOffset < partition.startOffset) {
+        partition.endOffset = partition.startOffset
+        partition.parseState = 'invalidated'
+      }
+    }
+
+    for (const block of this.blocks) {
+      if (block.functionType !== 'partitionPlaceholder') continue
+      const previousStart = block.rawStartOffset
+      const previousEnd = block.rawEndOffset
+      block.rawStartOffset = mapOffsetThroughSteps(previousStart, 'right', applied.steps)
+      block.rawEndOffset = mapOffsetThroughSteps(previousEnd, 'left', applied.steps)
+    }
+  }
+
+  getDocumentText (from = 0, to = this.documentStore.length) {
+    return this.documentStore.slice(from, to)
+  }
+
+  getIncrementalEditRange () {
+    if (!this.blocks.some(block => block.functionType === 'partitionPlaceholder') || !this.currentCursor) {
+      return null
+    }
+
+    const roots = [this.currentCursor.start, this.currentCursor.end]
+      .map(position => this.getBlock(position.key))
+      .filter(Boolean)
+      .map(block => this.findOutMostBlock(block))
+    if (!roots.length) return null
+
+    const indexes = roots.map(root => this.blocks.findIndex(block => block.key === root.key))
+    if (indexes.some(index => index < 0)) return null
+    let startIndex = Math.min(...indexes)
+    let endIndex = Math.max(...indexes) + 1
+    if (this.blocks.slice(startIndex, endIndex).some(block => block.functionType === 'partitionPlaceholder')) {
+      return null
+    }
+
+    while (startIndex > 0 && this.blocks[startIndex - 1].functionType !== 'partitionPlaceholder') {
+      startIndex--
+    }
+    while (endIndex < this.blocks.length && this.blocks[endIndex].functionType !== 'partitionPlaceholder') {
+      endIndex++
+    }
+
+    const before = startIndex > 0 ? this.blocks[startIndex - 1] : null
+    const after = endIndex < this.blocks.length ? this.blocks[endIndex] : null
+    const from = before && before.functionType === 'partitionPlaceholder' ? before.rawEndOffset : 0
+    const to = after && after.functionType === 'partitionPlaceholder'
+      ? after.rawStartOffset
+      : this.documentStore.length
+    const blocks = this.blocks.slice(startIndex, endIndex).filter(block => {
+      if (block.functionType !== 'deferredCursorAnchor') return true
+      const leaf = this.firstInDescendant(block)
+      if (!leaf || !leaf.text) return false
+      delete block.functionType
+      return true
+    })
+
+    if (from > to || !blocks.length) return null
+    return { from, to, blocks }
+  }
+
+  applyDocumentEdit (from, to, insert, origin = 'input') {
+    const applied = this.documentStore.replace(from, to, insert, origin)
+    this._rebasePartitionCoordinates(applied)
+    return applied
   }
 
   _linkRootBlocks () {
@@ -923,13 +1030,12 @@ class ContentState {
     }
 
     const rawEndOffset = partitionEndIndex >= this.partitionMap.length
-      ? this.canonicalMarkdown.length
+      ? this.documentStore.length
       : this.partitionMap[partitionEndIndex - 1].endOffset
     const estimatedHeight = this._getPartitionEstimatedHeight(partitionStartIndex, partitionEndIndex)
     const placeholder = this.createBlock('pre', {
       functionType: 'partitionPlaceholder',
       editable: false,
-      rawMarkdown: this.canonicalMarkdown.slice(rawStartOffset, rawEndOffset),
       rawStartOffset,
       rawEndOffset,
       partitionStartIndex,
@@ -944,7 +1050,7 @@ class ContentState {
     this._cancelPartitionHydrationTask()
     const fallbackCursorBlock = this.createBlockP()
     fallbackCursorBlock.functionType = 'deferredCursorAnchor'
-    this.canonicalMarkdown = markdown
+    this.replaceDocumentText(markdown)
     this.layoutEstimateOverrides.clear()
     this.partitionMap = createPartitionMap(markdown, ++this.partitionVersion)
     this._rebuildPartitionHeightPrefix()
@@ -1114,7 +1220,7 @@ class ContentState {
       viewportDistance
     } = target
 
-    const chunkMarkdown = this.canonicalMarkdown.slice(chunkStartOffset, chunkEndOffset)
+    const chunkMarkdown = this.documentStore.slice(chunkStartOffset, chunkEndOffset)
     const hydrationPromise = withTimeout(
       this._parsePartitionMarkdown(
         chunkMarkdown,
@@ -1149,6 +1255,7 @@ class ContentState {
     this._setRenderState(parsedBlocks, 'rendered')
 
     const replacement = []
+    let removedDeferredAnchorKey = null
     if (beforePlaceholder) {
       this._setRenderState([beforePlaceholder], 'rendered')
       replacement.push(beforePlaceholder)
@@ -1159,14 +1266,23 @@ class ContentState {
         const cursorBlock = this.getBlock(this.cursor.start.key)
         const cursorRoot = cursorBlock ? this.findOutMostBlock(cursorBlock) : null
         const nextCursorBlock = parsedBlocks.length ? this.firstInDescendant(parsedBlocks[0]) : null
-        if (cursorRoot && cursorRoot.key === previousBlock.key && nextCursorBlock) {
+        const anchorLeaf = this.firstInDescendant(previousBlock)
+        const anchorDom = document.querySelector(`#${previousBlock.key}`)
+        const isActiveAnchor = !!(anchorDom && anchorDom.contains(document.activeElement))
+        const shouldKeepAnchor = !!(anchorLeaf && anchorLeaf.text) || isActiveAnchor
+        if (!shouldKeepAnchor && cursorRoot && cursorRoot.key === previousBlock.key && nextCursorBlock) {
           this.cursor = {
             start: { key: nextCursorBlock.key, offset: 0 },
             end: { key: nextCursorBlock.key, offset: 0 }
           }
         }
-        this._removeFromBlockMap(previousBlock)
-        this.blocks.splice(placeholderIndex - 1, 1)
+        if (shouldKeepAnchor) {
+          delete previousBlock.functionType
+        } else {
+          removedDeferredAnchorKey = previousBlock.key
+          this._removeFromBlockMap(previousBlock)
+          this.blocks.splice(placeholderIndex - 1, 1)
+        }
       }
     }
     replacement.push(...parsedBlocks)
@@ -1183,6 +1299,9 @@ class ContentState {
     if (this._replaceRootBlockWithBlocks(placeholder, replacement)) {
       const { changedBlocks } = this._applyVirtualizationState(false, false)
       this._renderPartitionReplacement(placeholder, replacement)
+      if (removedDeferredAnchorKey) {
+        document.querySelector(`#${removedDeferredAnchorKey}`)?.remove()
+      }
       const replacementKeys = new Set(replacement.map(block => block.key))
       const transitionedBlocks = changedBlocks.filter(block => !replacementKeys.has(block.key))
       if (transitionedBlocks.length) {

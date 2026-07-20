@@ -197,21 +197,66 @@ class Muya {
       skipTOC
     })
 
-    const { eventCenter } = this
-    const nextMarkdown = typeof markdown === 'string'
-      ? markdown
-      : (skipExport ? this.markdown : this.getMarkdown())
+    const { eventCenter, contentState } = this
+    const previousMarkdown = this.markdown
+    let appliedEdit = null
+    let nextMarkdown
+    if (typeof markdown === 'string') {
+      nextMarkdown = markdown
+    } else if (skipExport) {
+      nextMarkdown = previousMarkdown
+    } else {
+      const editRange = contentState.getIncrementalEditRange()
+      if (editRange) {
+        const { isGitlabCompatibilityEnabled, listIndentation } = contentState
+        const nextRangeMarkdown = new ExportMarkdown(
+          editRange.blocks,
+          listIndentation,
+          isGitlabCompatibilityEnabled
+        ).generate()
+        const previousRangeMarkdown = contentState.getDocumentText(editRange.from, editRange.to)
+        if (nextRangeMarkdown !== previousRangeMarkdown) {
+          appliedEdit = contentState.applyDocumentEdit(
+            editRange.from,
+            editRange.to,
+            nextRangeMarkdown,
+            'legacy-block-export'
+          )
+          nextMarkdown = previousMarkdown.slice(0, editRange.from) +
+            nextRangeMarkdown +
+            previousMarkdown.slice(editRange.to)
+        } else {
+          nextMarkdown = previousMarkdown
+        }
+      } else {
+        nextMarkdown = this.getMarkdown()
+      }
+    }
     if (!skipExport) {
-      this.contentState.cancelPartitionHydration()
+      contentState.cancelPartitionHydration()
+    }
+    if (!appliedEdit && nextMarkdown !== previousMarkdown) {
+      contentState.replaceDocumentText(nextMarkdown, previousMarkdown, skipExport ? 'initial-sync' : 'legacy-block-export')
     }
     this.markdown = nextMarkdown
-    this.contentState.canonicalMarkdown = nextMarkdown
-    const wordCount = skipWordCount ? null : this.getWordCount(nextMarkdown)
+    const shouldDeferMetadata = !skipExport && contentState.blocks.some(block => block.functionType === 'partitionPlaceholder')
+    const wordCount = skipWordCount || shouldDeferMetadata ? null : this.getWordCount(nextMarkdown)
     const cursor = this.getCursor()
     const history = this.getHistory()
-    const toc = skipTOC ? null : this.getTOC()
+    const toc = skipTOC || shouldDeferMetadata ? null : this.getTOC()
 
-    eventCenter.dispatch('change', { markdown: nextMarkdown, wordCount, cursor, history, toc })
+    eventCenter.dispatch('change', {
+      markdown: nextMarkdown,
+      revision: contentState.documentStore.revision,
+      transaction: appliedEdit ? appliedEdit.steps : null,
+      wordCount,
+      cursor,
+      history,
+      toc
+    })
+    if (shouldDeferMetadata) {
+      this._scheduleMetadataDispatchChange(nextMarkdown)
+    }
     this._markPerformancePhase('muya:dispatch-change-end', {
       skipExport,
       skipWordCount,
@@ -234,7 +279,12 @@ class Muya {
   getMarkdown () {
     const blocks = this.contentState.getBlocks()
     const { isGitlabCompatibilityEnabled, listIndentation } = this.contentState
-    return new ExportMarkdown(blocks, listIndentation, isGitlabCompatibilityEnabled).generate()
+    return new ExportMarkdown(
+      blocks,
+      listIndentation,
+      isGitlabCompatibilityEnabled,
+      this.contentState.documentStore
+    ).generate()
   }
 
   getHistory () {
@@ -294,6 +344,7 @@ class Muya {
           isBlankDocument: true
         })
       }
+      this.contentState.replaceDocumentText('')
       this.markdown = ''
       this._scheduleInitialDispatchChange('')
       return
@@ -337,6 +388,7 @@ class Muya {
         markdownLength: newMarkdown.length
       })
     }
+    this.contentState.replaceDocumentText(markdown, newMarkdown, 'cursor-normalization')
     this.markdown = markdown
     this._scheduleInitialDispatchChange(markdown)
   }

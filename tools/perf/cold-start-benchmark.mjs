@@ -60,6 +60,19 @@ const METRIC_DEFINITIONS = [
 ]
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+const withTimeout = async (promise, timeoutMs, label) => {
+  let timer = null
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error(`Timed out during ${label}.`)), timeoutMs)
+      })
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
+}
 const isFiniteNumber = value => typeof value === 'number' && Number.isFinite(value)
 const round = value => Math.round(value * 1000) / 1000
 const REMOVE_RETRY_DELAYS_MS = [50, 100, 200, 400, 800]
@@ -197,8 +210,16 @@ const measureInputReadyElapsed = async (app, page, timeoutMs) => {
     throw new Error(`Cannot read paragraph length from selector "${EDITOR_PARAGRAPH_SELECTOR}".`)
   }
 
-  await page.click(EDITOR_PARAGRAPH_SELECTOR, { timeout: timeoutMs })
-  await page.keyboard.type(INPUT_PROBE_CHARACTER)
+  await withTimeout(
+    page.click(EDITOR_PARAGRAPH_SELECTOR, { timeout: timeoutMs }),
+    timeoutMs,
+    'typing probe click'
+  )
+  await withTimeout(
+    page.keyboard.type(INPUT_PROBE_CHARACTER),
+    timeoutMs,
+    'typing probe input'
+  )
 
   const typed = await waitForLengthIncrease(page, initialLength, timeoutMs)
   if (!typed) {
@@ -382,15 +403,30 @@ const closeElectronApp = async app => {
   }
 
   try {
-    await app.evaluate(({ app, BrowserWindow }) => {
-      for (const win of BrowserWindow.getAllWindows()) {
-        try {
-          win.destroy()
-        } catch {}
-      }
-      app.exit(0)
-    })
+    await withTimeout(
+      app.evaluate(({ app, BrowserWindow }) => {
+        for (const win of BrowserWindow.getAllWindows()) {
+          try {
+            win.destroy()
+          } catch {}
+        }
+        app.exit(0)
+      }),
+      5000,
+      'Electron shutdown'
+    )
   } catch {}
+
+  try {
+    await withTimeout(app.close(), 5000, 'forced Electron shutdown')
+  } catch {}
+
+  const childProcess = app.process()
+  if (childProcess.exitCode === null && !childProcess.killed) {
+    try {
+      childProcess.kill('SIGKILL')
+    } catch {}
+  }
 }
 
 const removeDirectoryWithRetry = async directory => {
@@ -451,6 +487,7 @@ const waitForMetrics = async (app, timeoutMs) => {
 const runIteration = async (iterationIndex, options) => {
   const userDataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'marktext-cold-start-'))
   let app = null
+  const rendererDiagnostics = []
 
   try {
     const args = [MAIN_ENTRYPOINT, '--user-data-dir', userDataDir]
@@ -474,6 +511,14 @@ const runIteration = async (iterationIndex, options) => {
     })
 
     const page = await app.firstWindow()
+    page.on('crash', () => rendererDiagnostics.push('renderer crashed'))
+    page.on('close', () => rendererDiagnostics.push('page closed'))
+    page.on('pageerror', error => rendererDiagnostics.push(`page error: ${error.message}`))
+    page.on('console', message => {
+      if (message.type() === 'error') {
+        rendererDiagnostics.push(`console error: ${message.text()}`)
+      }
+    })
     const mainSnapshot = await waitForMetrics(app, options.timeoutMs)
     const firstEditable = await measureFirstEditableElapsed(app, page, options.timeoutMs)
     const inputReady = await measureInputReadyElapsed(app, page, options.timeoutMs)
@@ -485,7 +530,10 @@ const runIteration = async (iterationIndex, options) => {
     return {
       ok: false,
       iterationIndex,
-      error: error instanceof Error ? error.message : String(error)
+      error: [
+        error instanceof Error ? error.message : String(error),
+        ...rendererDiagnostics
+      ].join(' | ')
     }
   } finally {
     await closeElectronApp(app)

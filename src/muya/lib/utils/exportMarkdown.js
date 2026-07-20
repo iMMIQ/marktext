@@ -10,8 +10,9 @@
  */
 
 class ExportMarkdown {
-  constructor (blocks, listIndentation = 1, isGitlabCompatibilityEnabled = false) {
+  constructor (blocks, listIndentation = 1, isGitlabCompatibilityEnabled = false, documentSource = null) {
     this.blocks = blocks
+    this.documentSource = documentSource
     this.listType = [] // 'ul' or 'ol'
     // helper to translate the first tight item in a nested list
     this.isLooseParentList = true
@@ -151,7 +152,15 @@ class ExportMarkdown {
         }
         case 'pre': {
           if (block.functionType === 'partitionPlaceholder') {
-            result.push(block.rawMarkdown || block.text || '')
+            if (
+              this.documentSource &&
+              Number.isInteger(block.rawStartOffset) &&
+              Number.isInteger(block.rawEndOffset)
+            ) {
+              result.push(this.documentSource.slice(block.rawStartOffset, block.rawEndOffset))
+            } else {
+              result.push(block.rawMarkdown || block.text || '')
+            }
           } else if (block.functionType === 'frontmatter') {
             this.insertLineBreak(result, indent)
             result.push(this.normalizeFrontMatter(block, indent))
