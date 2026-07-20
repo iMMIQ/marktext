@@ -10,6 +10,17 @@ class FenwickTree {
     this.tree = new Array(size + 1).fill(0)
   }
 
+  build (values) {
+    this.reset(values.length)
+    for (let i = 1; i <= values.length; i++) {
+      this.tree[i] += values[i - 1]
+      const parent = i + (i & -i)
+      if (parent <= values.length) {
+        this.tree[parent] += this.tree[i]
+      }
+    }
+  }
+
   add (index, delta) {
     for (let i = index + 1; i <= this.size; i += i & -i) {
       this.tree[i] += delta
@@ -58,9 +69,7 @@ class LayoutIndex {
     const previousNodes = this.nodeMap
     this.nodes = []
     this.nodeMap = new Map()
-    this.heightTree.reset(rootBlocks.length)
-
-    let top = 0
+    const heights = []
     for (let index = 0; index < rootBlocks.length; index++) {
       const block = rootBlocks[index]
       const partition = partitionMap[Math.min(index, Math.max(0, partitionMap.length - 1))]
@@ -73,16 +82,14 @@ class LayoutIndex {
         index,
         estimatedHeight,
         measuredHeight,
-        top,
-        bottom: top + height,
         dirty: false
       }
 
       this.nodes.push(node)
       this.nodeMap.set(block.key, node)
-      this.heightTree.add(index, height)
-      top = node.bottom
+      heights.push(height)
     }
+    this.heightTree.build(heights)
   }
 
   _resolveEstimatedHeight (block, partition, previousNode, estimateOverrides) {
@@ -139,11 +146,6 @@ class LayoutIndex {
     const delta = nextHeight - previousHeight
     if (delta !== 0) {
       this.heightTree.add(node.index, delta)
-      for (let i = node.index; i < this.nodes.length; i++) {
-        const current = this.nodes[i]
-        current.top += i === node.index ? 0 : delta
-        current.bottom += delta
-      }
     }
   }
 
@@ -159,11 +161,6 @@ class LayoutIndex {
     const delta = nextHeight - previousHeight
     if (delta !== 0) {
       this.heightTree.add(node.index, delta)
-      for (let i = node.index; i < this.nodes.length; i++) {
-        const current = this.nodes[i]
-        current.top += i === node.index ? 0 : delta
-        current.bottom += delta
-      }
     }
   }
 

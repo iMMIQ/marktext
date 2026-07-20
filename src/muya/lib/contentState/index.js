@@ -43,7 +43,6 @@ const FALLBACK_IDLE_DELAY_MS = 150
 const INITIAL_RENDER_CHUNK_DELAY_MS = 2000
 const PARTITION_HYDRATION_CHUNK_SIZE = 24
 const URGENT_PARTITION_HYDRATION_CHUNK_SIZE = 24
-const URGENT_PARTITION_HYDRATION_MAX_CHUNKS = 4
 const RENDER_SCHEDULER_CHUNK_SIZE = 12
 const PARTITION_HYDRATION_TIMEOUT_MS = 5000
 
@@ -90,7 +89,7 @@ const resolveTargetPartitionWindow = (partitionMap, targetLines, initialPartitio
   const contextBefore = Math.min(2, firstTargetIndex)
   const contextAfter = 2
   let parsedStartIndex = Math.max(0, firstTargetIndex - contextBefore)
-  let parsedEndIndex = Math.min(
+  const parsedEndIndex = Math.min(
     partitionMap.length,
     Math.max(lastTargetIndex + 1 + contextAfter, parsedStartIndex + windowSize)
   )
@@ -216,6 +215,7 @@ class ContentState {
     this.renderScheduler = new RenderScheduler()
     this.layoutEstimateOverrides = new Map()
     this.partitionMap = []
+    this.partitionHeightPrefix = [0]
     this.partitionVersion = 0
     this.canonicalMarkdown = ''
     this.blocks = [this.createBlockP()]
@@ -445,19 +445,33 @@ class ContentState {
     this.renderScheduler.reconcile(this.blocks.map(block => block.key))
   }
 
-  _assignRootEstimates (blocks, partitionStartIndex = 0) {
+  _assignRootEstimates (blocks, partitionStartIndex = 0, partitionEndIndex = partitionStartIndex + blocks.length) {
     if (!this.partitionMap.length) {
       return
     }
 
-    let partitionIndex = partitionStartIndex
+    const totalHeight = this._getPartitionEstimatedHeight(partitionStartIndex, partitionEndIndex)
+    const estimatedHeight = Math.max(1, totalHeight / Math.max(1, blocks.length))
     for (const block of blocks) {
-      const partition = this.partitionMap[Math.min(partitionIndex, this.partitionMap.length - 1)]
-      if (partition && typeof partition.estimatedHeight === 'number') {
-        this.layoutEstimateOverrides.set(block.key, partition.estimatedHeight)
-      }
-      partitionIndex++
+      this.layoutEstimateOverrides.set(block.key, estimatedHeight)
     }
+  }
+
+  _rebuildPartitionHeightPrefix () {
+    this.partitionHeightPrefix = [0]
+    for (const partition of this.partitionMap) {
+      const height = typeof partition.estimatedHeight === 'number' ? partition.estimatedHeight : 24
+      this.partitionHeightPrefix.push(this.partitionHeightPrefix[this.partitionHeightPrefix.length - 1] + height)
+    }
+  }
+
+  _getPartitionEstimatedHeight (startIndex, endIndex) {
+    if (this.partitionHeightPrefix.length !== this.partitionMap.length + 1) {
+      this._rebuildPartitionHeightPrefix()
+    }
+    const start = clamp(startIndex, 0, this.partitionMap.length)
+    const end = clamp(endIndex, start, this.partitionMap.length)
+    return this.partitionHeightPrefix[end] - this.partitionHeightPrefix[start]
   }
 
   _getBlockHeight (block) {
@@ -471,7 +485,7 @@ class ContentState {
   _getEstimatedHeight (block) {
     const node = this.layoutIndex.getNode(block.key)
     if (node) {
-      return this.layoutIndex.getEstimatedHeight(block.key)
+      return this.layoutIndex.getHeight(block.key)
     }
     return this.layoutEstimateOverrides.get(block.key) || 24
   }
@@ -513,7 +527,6 @@ class ContentState {
     const container = this.muya.container
     const viewportHeight = Math.max(1, container.clientHeight || 0)
     const scrollTop = Math.max(0, container.scrollTop || 0)
-    const activeRoots = this._getActiveRootKeys()
     let startIndex = 0
     let endIndex = blocks.length
     if (this.layoutIndex.nodes.length === blocks.length) {
@@ -544,28 +557,6 @@ class ContentState {
       endIndex = Math.min(blocks.length, endIndex + 2)
     }
 
-    const root = this.stateRender.container || container.children[0]
-    if (root && typeof container.getBoundingClientRect === 'function') {
-      const viewportBounds = container.getBoundingClientRect()
-      for (const dom of Array.from(root.children)) {
-        const rect = dom.getBoundingClientRect()
-        if (rect.bottom > viewportBounds.top && rect.top < viewportBounds.bottom) {
-          const node = this.layoutIndex.getNode(dom.id)
-          if (node) {
-            startIndex = Math.min(startIndex, node.index)
-            endIndex = Math.max(endIndex, node.index + 1)
-          }
-        }
-      }
-    }
-
-    for (let i = 0; i < blocks.length; i++) {
-      if (activeRoots.has(blocks[i].key)) {
-        startIndex = Math.min(startIndex, i)
-        endIndex = Math.max(endIndex, i + 1)
-      }
-    }
-
     return [startIndex, endIndex]
   }
 
@@ -588,16 +579,24 @@ class ContentState {
     }
 
     const { viewportTop, viewportBottom } = this._getViewportMetrics()
+    const container = this.muya.container
+    const containerBounds = container && typeof container.getBoundingClientRect === 'function'
+      ? container.getBoundingClientRect()
+      : null
     let offset = 0
     for (const block of this.blocks) {
       const blockTop = offset
       const blockBottom = blockTop + this._getBlockHeight(block)
-      if (
-        block.functionType === 'partitionPlaceholder' &&
-        blockBottom > viewportTop &&
-        blockTop < viewportBottom
-      ) {
-        return true
+      if (block.functionType === 'partitionPlaceholder') {
+        const dom = document.getElementById(block.key)
+        if (dom && containerBounds) {
+          const bounds = dom.getBoundingClientRect()
+          if (bounds.bottom > containerBounds.top && bounds.top < containerBounds.bottom) {
+            return true
+          }
+        } else if (blockBottom > viewportTop && blockTop < viewportBottom) {
+          return true
+        }
       }
       offset = blockBottom
     }
@@ -613,17 +612,29 @@ class ContentState {
     const activeRoots = this._getActiveRootKeys()
     const [virtualStart, virtualEnd] = this._getVirtualRange()
     const { viewportTop, viewportBottom, viewportCenter, viewportHeight } = this._getViewportMetrics()
+    const container = this.muya.container
+    const containerBounds = container && typeof container.getBoundingClientRect === 'function'
+      ? container.getBoundingClientRect()
+      : null
 
     let offset = 0
     let bestTarget = null
 
     for (let i = 0; i < this.blocks.length; i++) {
       const block = this.blocks[i]
-      const blockTop = offset
-      const blockHeight = this._getBlockHeight(block)
-      const blockBottom = blockTop + blockHeight
+      const estimatedBlockTop = offset
+      const estimatedBlockHeight = this._getBlockHeight(block)
+      const estimatedBlockBottom = estimatedBlockTop + estimatedBlockHeight
 
       if (block.functionType === 'partitionPlaceholder') {
+        let blockTop = estimatedBlockTop
+        let blockBottom = estimatedBlockBottom
+        const dom = document.getElementById(block.key)
+        if (dom && containerBounds) {
+          const bounds = dom.getBoundingClientRect()
+          blockTop = viewportTop + bounds.top - containerBounds.top
+          blockBottom = blockTop + bounds.height
+        }
         const viewportDistance = blockBottom < viewportTop
           ? viewportTop - blockBottom
           : (blockTop > viewportBottom ? blockTop - viewportBottom : 0)
@@ -648,7 +659,7 @@ class ContentState {
           if (!isAtPlaceholderTop) {
             chunkStartIndex = Math.max(block.partitionStartIndex, chunkStartIndex - chunkRadius)
           }
-          let chunkEndIndex = Math.min(block.partitionEndIndex, chunkStartIndex + chunkSize)
+          const chunkEndIndex = Math.min(block.partitionEndIndex, chunkStartIndex + chunkSize)
           chunkStartIndex = Math.max(block.partitionStartIndex, chunkEndIndex - chunkSize)
 
           const chunkStartOffset = chunkStartIndex <= block.partitionStartIndex
@@ -673,7 +684,7 @@ class ContentState {
         }
       }
 
-      offset = blockBottom
+      offset = estimatedBlockBottom
     }
 
     if (!bestTarget) {
@@ -709,37 +720,73 @@ class ContentState {
 
   _getViewportAnchor () {
     const container = this.muya.container
+    if (!container) {
+      return null
+    }
+
     const root = this.stateRender.container || container.children[0]
     if (!container || !root || !root.children.length) {
       return null
     }
 
-    const containerTop = container.getBoundingClientRect().top
-    for (const dom of Array.from(root.children)) {
-      const rect = dom.getBoundingClientRect()
-      if (rect.bottom >= containerTop) {
-        return {
-          key: dom.id,
-          top: rect.top - containerTop
-        }
+    const containerBounds = container.getBoundingClientRect()
+    const scrollHeight = container.scrollHeight
+    const maxScrollTop = Math.max(0, scrollHeight - container.clientHeight)
+    let dom = null
+    if (typeof document.elementFromPoint === 'function') {
+      const x = clamp(containerBounds.left + (containerBounds.width / 2), containerBounds.left, containerBounds.right - 1)
+      const y = clamp(containerBounds.top + 1, containerBounds.top, containerBounds.bottom - 1)
+      dom = document.elementFromPoint(x, y)
+      while (dom && dom.parentElement !== root) {
+        dom = dom.parentElement
+      }
+    }
+    if (!dom || dom.parentElement !== root) {
+      const index = this.layoutIndex.findIndexAtOffset(container.scrollTop)
+      const candidate = this.blocks[index]
+      dom = candidate ? document.getElementById(candidate.key) : null
+    }
+    if (!dom) {
+      return {
+        key: null,
+        top: 0,
+        scrollHeight,
+        scrollTop: container.scrollTop,
+        pinnedToBottom: maxScrollTop > 0 && maxScrollTop - container.scrollTop <= 2
       }
     }
 
-    return null
+    return {
+      key: dom.id,
+      top: dom.getBoundingClientRect().top - containerBounds.top,
+      scrollHeight,
+      scrollTop: container.scrollTop,
+      pinnedToBottom: maxScrollTop > 0 && maxScrollTop - container.scrollTop <= 2
+    }
   }
 
   _restoreViewportAnchor (anchor) {
-    if (!anchor || !anchor.key) {
+    if (!anchor) {
       return
     }
 
     const container = this.muya.container
-    if (!container || container.scrollTop <= 0) {
+    if (!container) {
       return
     }
 
-    const dom = document.querySelector(`#${anchor.key}`)
+    if (anchor.pinnedToBottom) {
+      container.scrollTop = Math.max(0, container.scrollHeight - container.clientHeight)
+      return
+    }
+
+    const dom = anchor.key ? document.getElementById(anchor.key) : null
     if (!dom) {
+      const previousMax = Math.max(0, anchor.scrollHeight - container.clientHeight)
+      const nextMax = Math.max(0, container.scrollHeight - container.clientHeight)
+      if (previousMax > 0 && nextMax > 0) {
+        container.scrollTop = (anchor.scrollTop / previousMax) * nextMax
+      }
       return
     }
 
@@ -750,15 +797,18 @@ class ContentState {
     }
   }
 
-  _applyVirtualizationState () {
-    this._syncDocumentModels()
-    this.renderScheduler.cancelLowerPriorityThan(RenderPriority.PREFETCH)
+  _applyVirtualizationState (enqueue = true, syncModels = true) {
+    if (syncModels) {
+      this._syncDocumentModels()
+    }
+    this.renderScheduler.cancelLowerPriorityThan(RenderPriority.VIEWPORT)
     const [startIndex, endIndex] = this._getVirtualRange()
     const activeRoots = this._getActiveRootKeys()
     let changed = false
+    const changedBlocks = []
+    const renderedBlocks = []
     const immediateIds = []
     const viewportIds = []
-    const prefetchIds = []
 
     for (let i = 0; i < this.blocks.length; i++) {
       const block = this.blocks[i]
@@ -768,23 +818,26 @@ class ContentState {
       ) || activeRoots.has(block.key) || block.functionType === 'partitionPlaceholder'
 
       const nextRenderState = shouldRender ? 'rendered' : 'placeholder'
+      if (shouldRender) {
+        renderedBlocks.push(block)
+      }
       if (this._getRenderState(block) !== nextRenderState) {
         changed = true
+        changedBlocks.push(block)
       }
       if (activeRoots.has(block.key)) {
         immediateIds.push(block.key)
       } else if (shouldRender) {
         viewportIds.push(block.key)
-      } else {
-        prefetchIds.push(block.key)
       }
       this._setRenderState([block], nextRenderState)
     }
 
-    this.renderScheduler.enqueue(immediateIds, 'cursor')
-    this.renderScheduler.enqueue(viewportIds, 'viewport')
-    this.renderScheduler.enqueue(prefetchIds, 'prefetch')
-    return { startIndex, endIndex, changed }
+    if (enqueue) {
+      this.renderScheduler.enqueue(immediateIds, 'cursor')
+      this.renderScheduler.enqueue(viewportIds, 'viewport')
+    }
+    return { startIndex, endIndex, changed, changedBlocks, renderedBlocks }
   }
 
   _renderScheduledBlock (task, activeBlocks, matches) {
@@ -815,6 +868,7 @@ class ContentState {
     })
 
     let renderedCount = 0
+    const renderedBlocks = []
     let attempts = 0
     let task = null
     const maxAttempts = chunkSize * 4
@@ -822,12 +876,16 @@ class ContentState {
       attempts++
       if (this._renderScheduledBlock(task, activeBlocks, matches)) {
         renderedCount++
+        const block = this.getBlock(task.blockId)
+        if (block) {
+          renderedBlocks.push(block)
+        }
       }
     }
 
     if (renderedCount > 0) {
       this.postRender()
-      this._measureRenderedRootBlocks()
+      this._measureRenderedRootBlocks(renderedBlocks)
     }
 
     if (this.renderScheduler.queue.length) {
@@ -867,8 +925,7 @@ class ContentState {
     const rawEndOffset = partitionEndIndex >= this.partitionMap.length
       ? this.canonicalMarkdown.length
       : this.partitionMap[partitionEndIndex - 1].endOffset
-    const partitions = this.partitionMap.slice(partitionStartIndex, partitionEndIndex)
-    const estimatedHeight = partitions.reduce((total, partition) => total + partition.estimatedHeight, 0)
+    const estimatedHeight = this._getPartitionEstimatedHeight(partitionStartIndex, partitionEndIndex)
     const placeholder = this.createBlock('pre', {
       functionType: 'partitionPlaceholder',
       editable: false,
@@ -876,8 +933,7 @@ class ContentState {
       rawStartOffset,
       rawEndOffset,
       partitionStartIndex,
-      partitionEndIndex,
-      partitionIds: partitions.map(partition => partition.id)
+      partitionEndIndex
     })
     this.layoutEstimateOverrides.set(placeholder.key, estimatedHeight)
     return placeholder
@@ -891,6 +947,7 @@ class ContentState {
     this.canonicalMarkdown = markdown
     this.layoutEstimateOverrides.clear()
     this.partitionMap = createPartitionMap(markdown, ++this.partitionVersion)
+    this._rebuildPartitionHeightPrefix()
 
     const initialPartitionCount = Math.max(1, options.initialPartitionCount || 120)
     if (this.partitionMap.length <= initialPartitionCount) {
@@ -957,7 +1014,7 @@ class ContentState {
       this.blocks.push(afterPlaceholder)
     }
 
-    this._assignRootEstimates(parsedBlocks, parsedStartIndex)
+    this._assignRootEstimates(parsedBlocks, parsedStartIndex, parsedEndIndex)
 
     if (!this.blocks.length) {
       this.blocks = [this.createBlockP()]
@@ -981,9 +1038,23 @@ class ContentState {
     }
 
     this.layoutEstimateOverrides.delete(oldBlock.key)
+    const previousBlock = index > 0 ? this.blocks[index - 1] : null
+    const nextBlock = index < this.blocks.length - 1 ? this.blocks[index + 1] : null
+    this._removeFromBlockMap(oldBlock)
     this.blocks.splice(index, 1, ...newBlocks)
-    this._linkRootBlocks()
-    this._rebuildBlockMap()
+    for (let i = 0; i < newBlocks.length; i++) {
+      const block = newBlocks[i]
+      block.parent = null
+      block.preSibling = i > 0 ? newBlocks[i - 1].key : (previousBlock ? previousBlock.key : null)
+      block.nextSibling = i < newBlocks.length - 1 ? newBlocks[i + 1].key : (nextBlock ? nextBlock.key : null)
+      this._addToBlockMap(block)
+    }
+    if (previousBlock) {
+      previousBlock.nextSibling = newBlocks.length ? newBlocks[0].key : (nextBlock ? nextBlock.key : null)
+    }
+    if (nextBlock) {
+      nextBlock.preSibling = newBlocks.length ? newBlocks[newBlocks.length - 1].key : (previousBlock ? previousBlock.key : null)
+    }
     this._syncDocumentModels()
     return true
   }
@@ -1035,6 +1106,7 @@ class ContentState {
     const {
       block: placeholder,
       chunkStartIndex,
+      chunkEndIndex,
       chunkStartOffset,
       chunkEndOffset,
       beforePlaceholder,
@@ -1073,7 +1145,7 @@ class ContentState {
       return null
     }
 
-    this._assignRootEstimates(parsedBlocks, chunkStartIndex)
+    this._assignRootEstimates(parsedBlocks, chunkStartIndex, chunkEndIndex)
     this._setRenderState(parsedBlocks, 'rendered')
 
     const replacement = []
@@ -1107,9 +1179,28 @@ class ContentState {
       return null
     }
 
+    const viewportAnchor = this._getViewportAnchor()
     if (this._replaceRootBlockWithBlocks(placeholder, replacement)) {
-      this._applyVirtualizationState()
+      const { changedBlocks } = this._applyVirtualizationState(false, false)
       this._renderPartitionReplacement(placeholder, replacement)
+      const replacementKeys = new Set(replacement.map(block => block.key))
+      const transitionedBlocks = changedBlocks.filter(block => !replacementKeys.has(block.key))
+      if (transitionedBlocks.length) {
+        const { searchMatches: { matches } } = this
+        this.stateRender.renderBlocks(transitionedBlocks, this.getActiveBlocks(), matches)
+        this.postRender()
+      }
+      this._measureRenderedRootBlocks([...parsedBlocks, ...transitionedBlocks])
+      this._restoreViewportAnchor(viewportAnchor)
+      const correctedAnchor = this._getViewportAnchor()
+      const { changedBlocks: correctedBlocks } = this._applyVirtualizationState(false, false)
+      if (correctedBlocks.length) {
+        const { searchMatches: { matches } } = this
+        this.stateRender.renderBlocks(correctedBlocks, this.getActiveBlocks(), matches)
+        this.postRender()
+        this._measureRenderedRootBlocks(correctedBlocks)
+        this._restoreViewportAnchor(correctedAnchor)
+      }
     }
 
     return {
@@ -1119,8 +1210,8 @@ class ContentState {
     }
   }
 
-  _measureRenderedRootBlocks () {
-    for (const block of this.blocks) {
+  _measureRenderedRootBlocks (blocks = this.blocks) {
+    for (const block of blocks) {
       if (this._getRenderState(block) === 'placeholder') {
         continue
       }
@@ -1155,23 +1246,16 @@ class ContentState {
       }
       this.partitionHydrationPendingUrgent = false
       let result = null
-      let hydratedChunks = 0
-      while (hydratedChunks < URGENT_PARTITION_HYDRATION_MAX_CHUNKS) {
-        try {
-          result = await this._hydratePartitionChunk(chunkSize, expectedVersion, expectedRunId)
-        } catch (error) {
-          console.warn('Cannot hydrate partition chunk.', error)
-          break
-        }
-        if (result && result.blockedByInFlight) {
-          this.partitionHydrationPendingUrgent = true
-          this.urgentPartitionHydrationTask = scheduleFrameTask(hydrateNextChunk)
-          return
-        }
-        if (!result || !result.hasMorePlaceholders || !result.hasVisiblePlaceholder) {
-          break
-        }
-        hydratedChunks++
+      try {
+        result = await this._hydratePartitionChunk(chunkSize, expectedVersion, expectedRunId)
+      } catch (error) {
+        console.warn('Cannot hydrate partition chunk.', error)
+        return
+      }
+      if (result && result.blockedByInFlight) {
+        this.partitionHydrationPendingUrgent = true
+        this.urgentPartitionHydrationTask = scheduleFrameTask(hydrateNextChunk)
+        return
       }
       if (!result || !result.hasMorePlaceholders) {
         return
@@ -1179,8 +1263,6 @@ class ContentState {
 
       if (result.hasVisiblePlaceholder || result.viewportDistance === 0) {
         this._scheduleUrgentPartitionHydration(chunkSize)
-      } else {
-        this._scheduleBackgroundPartitionHydration(PARTITION_HYDRATION_CHUNK_SIZE, 0)
       }
     }
 
@@ -1194,17 +1276,10 @@ class ContentState {
 
     const hydrateNextChunk = async () => {
       this.backgroundPartitionHydrationTask = null
-      let result = null
       try {
-        result = await this._hydratePartitionChunk(chunkSize, expectedVersion, expectedRunId)
+        await this._hydratePartitionChunk(chunkSize, expectedVersion, expectedRunId)
       } catch (error) {
         console.warn('Cannot hydrate partition chunk.', error)
-      }
-      if (this.urgentPartitionHydrationTask || this.partitionHydrationPendingUrgent) {
-        return
-      }
-      if (result && result.hasMorePlaceholders) {
-        this.backgroundPartitionHydrationTask = scheduleIdleTask(hydrateNextChunk)
       }
     }
 
@@ -1250,9 +1325,9 @@ class ContentState {
       this._setRenderState(chunk, 'rendered')
       this.stateRender.appendRender(chunk, activeBlocks, matches)
       this.renderRange[1] = chunk[chunk.length - 1].nextSibling
-      this._measureRenderedRootBlocks()
+      this._measureRenderedRootBlocks(chunk)
       if (pendingBlocks.length) {
-        this._applyVirtualizationState()
+        this._applyVirtualizationState(false, false)
         this._scheduleRenderSchedulerDrain()
         this.initialRenderTask = scheduleIdleTask(renderNextChunk)
       } else {
@@ -1284,7 +1359,7 @@ class ContentState {
     matches.forEach((m, i) => {
       m.active = i === index
     })
-    this._applyVirtualizationState()
+    this._applyVirtualizationState(false)
     this.setNextRenderRange()
     this.stateRender.collectLabels(blocks)
     this.stateRender.render(blocks, activeBlocks, matches)
@@ -1308,24 +1383,23 @@ class ContentState {
       m.active = i === index
     })
     const anchor = this._getViewportAnchor()
-    const { changed } = this._applyVirtualizationState()
+    const { changed, changedBlocks, renderedBlocks } = this._applyVirtualizationState(false, false)
     const hasPartitionPlaceholders = blocks.some(block => block.functionType === 'partitionPlaceholder')
     if (!changed && !isRenderCursor) {
       if (hasPartitionPlaceholders) {
         this._scheduleUrgentPartitionHydration(URGENT_PARTITION_HYDRATION_CHUNK_SIZE)
       }
-      this._measureRenderedRootBlocks()
+      this._measureRenderedRootBlocks(renderedBlocks)
       this._scheduleRenderSchedulerDrain(true)
       return
     }
-    this.stateRender.collectLabels(blocks)
-    this.stateRender.render(blocks, activeBlocks, matches)
+    this.stateRender.renderBlocks(changedBlocks, activeBlocks, matches)
     if (isRenderCursor) {
       this.setCursor()
     }
     this.postRender()
     this._restoreViewportAnchor(anchor)
-    this._measureRenderedRootBlocks()
+    this._measureRenderedRootBlocks(changedBlocks)
     if (hasPartitionPlaceholders) {
       this._scheduleUrgentPartitionHydration(URGENT_PARTITION_HYDRATION_CHUNK_SIZE)
     }
@@ -1383,6 +1457,7 @@ class ContentState {
     }
 
     this.postRender()
+    this._measureRenderedRootBlocks(initialBlocks)
 
     if (visibleBlockCount < blocks.length) {
       this._scheduleInitialRenderChunks(blocks.slice(visibleBlockCount), activeBlocks, matches)

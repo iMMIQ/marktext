@@ -11,10 +11,15 @@ export default function renderBlock (parent, block, activeBlocks, matches, useCa
         spellcheck: 'false',
         contenteditable: 'false'
       },
-      style: {}
+      style: {
+        border: '0',
+        margin: '0',
+        padding: '0'
+      }
     }
     const estimatedHeight = this.getEstimatedHeight(block)
     if (typeof estimatedHeight === 'number' && estimatedHeight > 0) {
+      data.style.height = `${estimatedHeight}px`
       data.style['min-height'] = `${estimatedHeight}px`
     }
     return h(`pre#${block.key}.${CLASS_OR_ID.AG_PARAGRAPH}.ag-viewport-placeholder`, data, '')

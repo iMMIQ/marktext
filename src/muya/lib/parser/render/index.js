@@ -214,6 +214,30 @@ class StateRender {
     this.codeCache.clear()
   }
 
+  renderBlocks (blocks, activeBlocks, matches) {
+    if (!blocks.length) {
+      return
+    }
+
+    let patched = false
+    for (const block of blocks) {
+      const rootDom = document.getElementById(block.key)
+      if (!rootDom) {
+        continue
+      }
+      const oldVdom = toVNode(rootDom)
+      const newVdom = this.renderBlock(null, block, activeBlocks, matches, true)
+      patch(oldVdom, newVdom)
+      patched = true
+    }
+
+    if (patched) {
+      this.renderMermaid()
+      this.renderDiagram()
+      this.codeCache.clear()
+    }
+  }
+
   appendRender (blocks, activeBlocks, matches) {
     if (!blocks.length) {
       return

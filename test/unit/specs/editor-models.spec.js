@@ -3,6 +3,32 @@ import DocumentModel from '../../../src/muya/lib/contentState/documentModel'
 import LayoutIndex from '../../../src/muya/lib/contentState/layoutIndex'
 import RenderScheduler, { RenderPriority } from '../../../src/muya/lib/contentState/renderScheduler'
 
+const createContentState = async () => {
+  const { default: ContentState } = await import('../../../src/muya/lib/contentState')
+  const { default: EventCenter } = await import('../../../src/muya/lib/eventHandler/event')
+  const { MUYA_DEFAULT_OPTION } = await import('../../../src/muya/lib/config')
+  const ctx = {
+    blur: vi.fn(),
+    container: document.createElement('div'),
+    options: { ...MUYA_DEFAULT_OPTION }
+  }
+  ctx.eventCenter = new EventCenter()
+  ctx.contentState = new ContentState(ctx, ctx.options)
+  return ctx.contentState
+}
+
+const seedRootParagraphs = (contentState, count) => {
+  contentState.blocks = Array.from({ length: count }, (_, index) => contentState.createBlockP(`paragraph ${index}`))
+  contentState._linkRootBlocks()
+  contentState._rebuildBlockMap()
+  contentState._syncDocumentModels()
+  contentState.cursor = {
+    start: { key: contentState.blocks[0].children[0].key, offset: 0 },
+    end: { key: contentState.blocks[0].children[0].key, offset: 0 },
+    noHistory: true
+  }
+}
+
 describe('editor document model', () => {
   it('indexes block content separately from transient render and layout state', () => {
     const root = {
@@ -82,6 +108,16 @@ describe('editor layout index', () => {
 
     expect(layout.getHeight('b')).toBe(40)
     expect(layout.getTopForIndex(2)).toBe(50)
+  })
+
+  it('uses a measured root height when rendering its viewport placeholder', async () => {
+    const cs = await createContentState()
+    seedRootParagraphs(cs, 3)
+    const block = cs.blocks[1]
+
+    cs.layoutIndex.updateMeasuredHeight(block.key, 52)
+
+    expect(cs._getEstimatedHeight(block)).toBe(52)
   })
 })
 
@@ -236,5 +272,81 @@ describe('content-state model integration', () => {
       window.requestAnimationFrame = originalRequestAnimationFrame
       window.cancelAnimationFrame = originalCancelAnimationFrame
     }
+  })
+
+  it('keeps an offscreen active cursor block without expanding the viewport range back to it', async () => {
+    const cs = await createContentState()
+    seedRootParagraphs(cs, 100)
+    Object.defineProperty(cs.muya.container, 'clientHeight', {
+      configurable: true,
+      value: 240
+    })
+    cs.muya.container.scrollTop = 1800
+
+    const [startIndex, endIndex] = cs._getVirtualRange()
+
+    expect(startIndex).toBeGreaterThan(50)
+    expect(endIndex - startIndex).toBeLessThan(40)
+  })
+
+  it('keeps offscreen blocks as placeholders without queueing full-document prefetch', async () => {
+    const cs = await createContentState()
+    seedRootParagraphs(cs, 100)
+    Object.defineProperty(cs.muya.container, 'clientHeight', {
+      configurable: true,
+      value: 240
+    })
+    cs.muya.container.scrollTop = 1800
+
+    const { startIndex, endIndex } = cs._applyVirtualizationState()
+
+    expect(cs.renderScheduler.queue.filter(task => task.reason === 'prefetch')).toEqual([])
+    expect(cs.renderScheduler.getDomState(cs.blocks[20].key)).toBe('placeholder')
+    expect(cs.renderScheduler.queue.some(task => task.reason === 'cursor' && task.blockId === cs.blocks[0].key)).toBe(true)
+    expect(cs.renderScheduler.queue.some(task => task.reason === 'viewport' && task.blockId === cs.blocks[startIndex].key)).toBe(true)
+    expect(endIndex - startIndex).toBeLessThan(40)
+  })
+
+  it('patches viewport transitions without rendering the full document', async () => {
+    const cs = await createContentState()
+    seedRootParagraphs(cs, 3)
+    const changedBlock = cs.blocks[1]
+    cs.searchMatches = { matches: [], index: -1 }
+    cs._getViewportAnchor = vi.fn(() => null)
+    cs._applyVirtualizationState = vi.fn(() => ({
+      startIndex: 1,
+      endIndex: 2,
+      changed: true,
+      changedBlocks: [changedBlock]
+    }))
+    cs._measureRenderedRootBlocks = vi.fn()
+    cs._scheduleUrgentPartitionHydration = vi.fn()
+    cs.stateRender.collectLabels = vi.fn()
+    cs.stateRender.render = vi.fn()
+    cs.stateRender.renderBlocks = vi.fn()
+    cs.postRender = vi.fn()
+
+    cs.refreshViewport(false)
+
+    expect(cs.stateRender.render).not.toHaveBeenCalled()
+    expect(cs.stateRender.renderBlocks).toHaveBeenCalledWith([changedBlock], expect.any(Array), expect.any(Array))
+  })
+
+  it('resynchronizes document models after an edit replaces a root without changing the root count', async () => {
+    const cs = await createContentState()
+    seedRootParagraphs(cs, 3)
+    const replacement = cs.createBlockP('replacement text')
+    cs.blocks.splice(1, 1, replacement)
+    cs._linkRootBlocks()
+    cs.stateRender.collectLabels = vi.fn()
+    cs.stateRender.partialRender = vi.fn()
+    cs.postRender = vi.fn()
+    cs.setCursor = vi.fn()
+
+    cs.partialRender()
+
+    expect(cs.documentModel.getRootIds()).toEqual(cs.blocks.map(block => block.key))
+    expect(cs.documentModel.getBlock(replacement.children[0].key).text).toBe('replacement text')
+    expect(cs.layoutIndex.nodes.map(node => node.blockId)).toEqual(cs.blocks.map(block => block.key))
   })
 })

@@ -27,6 +27,79 @@ const createPartition = (index, startOffset, endOffset) => ({
 })
 
 describe('partition hydration priority', () => {
+  it('uses partition placeholder DOM geometry when layout estimates are stale', () => {
+    const ctx = createMuyaContext()
+    const contentState = ctx.contentState
+    const placeholder = {
+      key: 'visible-placeholder',
+      functionType: 'partitionPlaceholder',
+      estimatedHeight: 24,
+      partitionStartIndex: 0,
+      partitionEndIndex: 1,
+      rawStartOffset: 0,
+      rawEndOffset: 10
+    }
+    contentState.blocks = [placeholder]
+    contentState.partitionMap = [createPartition(0, 0, 10)]
+    contentState._syncDocumentModels()
+    ctx.container.scrollTop = 1000
+    Object.defineProperty(ctx.container, 'clientHeight', { configurable: true, value: 100 })
+    ctx.container.getBoundingClientRect = vi.fn(() => ({ top: 0, bottom: 100 }))
+    const dom = document.createElement('pre')
+    dom.id = placeholder.key
+    dom.getBoundingClientRect = vi.fn(() => ({ top: 10, bottom: 80, height: 70 }))
+    document.body.appendChild(dom)
+
+    expect(contentState._hasVisiblePartitionPlaceholder()).toBe(true)
+    expect(contentState._selectPartitionHydrationTarget(1).viewportDistance).toBe(0)
+
+    dom.remove()
+  })
+
+  it('returns no viewport anchor when the editor container is unavailable', () => {
+    const ctx = createMuyaContext()
+    const contentState = ctx.contentState
+    ctx.container = null
+
+    expect(contentState._getViewportAnchor()).toBeNull()
+  })
+
+  it('keeps a viewport pinned to the bottom while hydration changes its height', () => {
+    const ctx = createMuyaContext()
+    const contentState = ctx.contentState
+    const container = ctx.container
+    Object.defineProperties(container, {
+      clientHeight: { configurable: true, value: 600 },
+      scrollHeight: { configurable: true, value: 2400 }
+    })
+    container.scrollTop = 1800
+
+    contentState._restoreViewportAnchor({ pinnedToBottom: true })
+
+    expect(container.scrollTop).toBe(1800)
+  })
+
+  it('preserves the scroll ratio when hydration replaces the anchor block', () => {
+    const ctx = createMuyaContext()
+    const contentState = ctx.contentState
+    const container = ctx.container
+    Object.defineProperties(container, {
+      clientHeight: { configurable: true, value: 500 },
+      scrollHeight: { configurable: true, value: 2500 }
+    })
+    container.scrollTop = 750
+
+    contentState._restoreViewportAnchor({
+      key: 'replaced-partition',
+      pinnedToBottom: false,
+      scrollHeight: 1500,
+      scrollTop: 375,
+      top: 0
+    })
+
+    expect(container.scrollTop).toBe(750)
+  })
+
   it('picks the chunk nearest the current viewport instead of the first placeholder', () => {
     const ctx = createMuyaContext()
     const contentState = ctx.contentState
@@ -150,6 +223,66 @@ describe('partition hydration priority', () => {
     }
   })
 
+  it('commits at most one urgent hydration chunk per animation frame', async () => {
+    const ctx = createMuyaContext()
+    const contentState = ctx.contentState
+    const rafCallbacks = []
+    const originalRequestAnimationFrame = window.requestAnimationFrame
+    const originalCancelAnimationFrame = window.cancelAnimationFrame
+
+    try {
+      window.requestAnimationFrame = vi.fn(callback => {
+        rafCallbacks.push(callback)
+        return rafCallbacks.length
+      })
+      window.cancelAnimationFrame = vi.fn()
+      contentState._hydratePartitionChunk = vi.fn(async () => ({
+        hasMorePlaceholders: true,
+        hasVisiblePlaceholder: true,
+        viewportDistance: 0
+      }))
+
+      contentState._scheduleUrgentPartitionHydration(6)
+      await rafCallbacks.shift()()
+
+      expect(contentState._hydratePartitionChunk).toHaveBeenCalledTimes(1)
+      expect(rafCallbacks).toHaveLength(1)
+    } finally {
+      window.requestAnimationFrame = originalRequestAnimationFrame
+      window.cancelAnimationFrame = originalCancelAnimationFrame
+    }
+  })
+
+  it('does not recursively hydrate non-visible partitions in the background', async () => {
+    const ctx = createMuyaContext()
+    const contentState = ctx.contentState
+    const idleCallbacks = []
+    const originalRequestIdleCallback = window.requestIdleCallback
+    const originalCancelIdleCallback = window.cancelIdleCallback
+
+    try {
+      window.requestIdleCallback = vi.fn(callback => {
+        idleCallbacks.push(callback)
+        return idleCallbacks.length
+      })
+      window.cancelIdleCallback = vi.fn()
+      contentState._hydratePartitionChunk = vi.fn(async () => ({
+        hasMorePlaceholders: true,
+        hasVisiblePlaceholder: false,
+        viewportDistance: 1000
+      }))
+
+      contentState._scheduleBackgroundPartitionHydration(6, 0)
+      await idleCallbacks.shift()()
+
+      expect(contentState._hydratePartitionChunk).toHaveBeenCalledTimes(1)
+      expect(idleCallbacks).toHaveLength(0)
+    } finally {
+      window.requestIdleCallback = originalRequestIdleCallback
+      window.cancelIdleCallback = originalCancelIdleCallback
+    }
+  })
+
   it('promotes urgent hydration after the current in-flight chunk finishes', async () => {
     const ctx = createMuyaContext()
     const contentState = ctx.contentState
@@ -244,6 +377,11 @@ describe('partition hydration priority', () => {
       viewportDistance: 0
     }))
     contentState._renderPartitionReplacement = vi.fn()
+    const transitionedBlock = contentState.createBlockP('newly visible')
+    contentState._applyVirtualizationState = vi.fn(() => ({
+      changedBlocks: [transitionedBlock]
+    }))
+    contentState.stateRender.renderBlocks = vi.fn()
 
     const result = await contentState._hydratePartitionChunk(4, 1, 2)
 
@@ -251,6 +389,11 @@ describe('partition hydration priority', () => {
     expect(contentState.blocks.some(block => block.key === placeholder.key)).toBe(false)
     expect(contentState.blocks.map(block => block.type)).toEqual(['p', 'p', 'p', 'p'])
     expect(contentState._renderPartitionReplacement).toHaveBeenCalled()
+    expect(contentState.stateRender.renderBlocks).toHaveBeenCalledWith(
+      [transitionedBlock],
+      expect.any(Array),
+      expect.any(Array)
+    )
   })
 
   it('prefers the cursor partition window instead of forcing a full parse', () => {
