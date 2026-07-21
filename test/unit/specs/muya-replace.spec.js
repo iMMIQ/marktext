@@ -3,6 +3,27 @@ import Muya from '../../../src/muya/lib'
 import { MUYA_DEFAULT_OPTION } from '../../../src/muya/lib/config'
 
 describe('Muya replace', () => {
+  it('disconnects its mutation observer during teardown', () => {
+    const destroy = vi.fn()
+    const disconnect = vi.fn()
+    const muya = Object.create(Muya.prototype)
+    muya._mutationObserver = { disconnect }
+    muya._cancelInitialDispatchTask = vi.fn()
+    muya._cancelMetadataDispatchTask = vi.fn()
+    muya.contentState = { clear: vi.fn() }
+    muya.quickInsert = { destroy }
+    muya.codePicker = { destroy }
+    muya.tablePicker = { destroy }
+    muya.emojiPicker = { destroy }
+    muya.imagePathPicker = { destroy }
+    muya.eventCenter = { detachAllDomEvents: vi.fn() }
+
+    muya.destroy()
+
+    expect(disconnect).toHaveBeenCalledOnce()
+    expect(muya._mutationObserver).toBeNull()
+  })
+
   it('dispatches a document change after replacing search matches', () => {
     const searchMatches = { value: 'before', matches: [], index: -1 }
     const muya = Object.create(Muya.prototype)

@@ -6,6 +6,7 @@ import preferencesApi from '../services/nativeApi/preferences'
 import shell from '../services/nativeApi/shell'
 import nativeWindow from '../services/nativeApi/window'
 import { delay, isOsx } from '@/util'
+import { useListenForMainStore } from '@/stores/listenForMain'
 import { isUpdatable } from './utils'
 import getCommandDescriptionById from './descriptions'
 
@@ -35,6 +36,10 @@ export class RootCommand {
 const focusEditorAndExecute = fn => {
   setTimeout(() => bus.$emit('editor-focus'), 10)
   setTimeout(() => fn(), 150)
+}
+
+const requestExportDialog = type => {
+  useListenForMainStore().requestExportDialog(type)
 }
 
 const commands = [
@@ -75,7 +80,7 @@ const commands = [
     id: 'file.print',
     execute: async () => {
       await delay(50)
-      bus.$emit('showExportDialog', 'print')
+      requestExportDialog('print')
     }
   }, {
     id: 'file.close-tab',
@@ -117,14 +122,14 @@ const commands = [
       description: 'HTML',
       execute: async () => {
         await delay(50)
-        bus.$emit('showExportDialog', 'styledHtml')
+        requestExportDialog('styledHtml')
       }
     }, {
       id: 'file.export-file-pdf',
       description: 'PDF',
       execute: async () => {
         await delay(50)
-        bus.$emit('showExportDialog', 'pdf')
+        requestExportDialog('pdf')
       }
     }]
   },

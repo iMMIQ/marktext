@@ -9,6 +9,8 @@ bun run e2e
 bun run e2e test/e2e/stories/01-document-lifecycle.spec.js
 ```
 
+The suite uses half of the machine's logical CPUs by default. Playwright schedules spec files across those workers while each test keeps its own temporary workspace and Electron user-data directory.
+
 On Linux, including CI, the runner requires `bwrap`, `dbus-run-session`, and `Xvfb`. It hides the host X11, Wayland, and desktop portal sockets, isolates abstract Unix sockets with a private network namespace, and starts Electron on a private display. The suite fails closed when isolation is unavailable; there is no active-desktop or `CI` escape hatch.
 
 Run `bun run e2e:preflight` to validate those boundaries without starting Electron or Playwright.

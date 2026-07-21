@@ -57,6 +57,7 @@ class Muya {
     this.markdown = markdown
     this._initialDispatchTask = null
     this._metadataDispatchTask = null
+    this._mutationObserver = null
     this._didMarkFirstEditable = false
     this.container = getContainer(container, this.options)
     this.eventCenter = new EventCenter()
@@ -177,10 +178,13 @@ class Muya {
     }
 
     // Create an observer instance linked to the callback function
-    const observer = new MutationObserver(callback)
+    if (this._mutationObserver) {
+      this._mutationObserver.disconnect()
+    }
+    this._mutationObserver = new MutationObserver(callback)
 
     // Start observing the target node for configured mutations
-    observer.observe(container, config)
+    this._mutationObserver.observe(container, config)
   }
 
   dispatchChange = (options = {}) => {
@@ -644,6 +648,10 @@ class Muya {
   destroy () {
     this._cancelInitialDispatchTask()
     this._cancelMetadataDispatchTask()
+    if (this._mutationObserver) {
+      this._mutationObserver.disconnect()
+      this._mutationObserver = null
+    }
     this.contentState.clear()
     this.quickInsert.destroy()
     this.codePicker.destroy()

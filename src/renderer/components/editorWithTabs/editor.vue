@@ -216,6 +216,8 @@ export default {
     return {
       selectionChange: null,
       editor: null,
+      editorDocumentId: null,
+      documentActivationRevision: 0,
       deferredContentSyncTask: null,
       deferredContentSyncPayload: null,
       pathname: '',
@@ -589,6 +591,7 @@ export default {
       }
 
       const { container } = this.editor = new Muya(ele, options)
+      this.editorDocumentId = this.currentFile.id || null
       markRendererStartupPhase('editor:muya-created')
       this.editor.eventCenter.attachDOMEvent(container, 'scroll', () => {
         if (this.editor && this.editor.contentState) {
@@ -639,8 +642,11 @@ export default {
       bus.$on('replace-misspelling', this.replaceMisspelling)
 
       this.editor.on('change', changes => {
-        // WORKAROUND: "id: 'muya'"
-        const payload = Object.assign(changes, { id: 'muya' })
+        const id = this.editorDocumentId
+        if (!id) {
+          return
+        }
+        const payload = { ...changes, id }
 
         if (payload.markdown === this.currentFile.markdown) {
           this.scheduleDeferredContentSync(payload)
@@ -738,7 +744,7 @@ export default {
         const nextPayload = this.deferredContentSyncPayload
         this.deferredContentSyncTask = null
         this.deferredContentSyncPayload = null
-        if (!nextPayload || this.currentFile.id !== expectedFileId || nextPayload.markdown !== this.currentFile.markdown) {
+        if (!nextPayload || nextPayload.id !== expectedFileId || this.currentFile.id !== expectedFileId || nextPayload.markdown !== this.currentFile.markdown) {
           return
         }
         this.dispatchEditor('LISTEN_FOR_CONTENT_CHANGE', nextPayload)
@@ -1148,7 +1154,10 @@ export default {
     // listen for `open-single-file` event, it will call this method only when open a new file.
     setMarkdownToEditor ({ id, markdown, cursor }) {
       const { editor } = this
-      if (editor) {
+      if (editor && id === this.currentFile.id) {
+        this.documentActivationRevision++
+        this.cancelDeferredContentSync()
+        this.editorDocumentId = id
         markRendererStartupPhase('editor:file-loaded', {
           id,
           hasCursor: !!cursor,
@@ -1166,8 +1175,14 @@ export default {
     // listen for markdown change form source mode or change tabs etc
     handleFileChange ({ id, markdown, cursor, renderCursor, history }) {
       const { editor } = this
+      if (!editor || !id || id !== this.currentFile.id) {
+        return
+      }
+      const activationRevision = ++this.documentActivationRevision
+      this.cancelDeferredContentSync()
       this.$nextTick(() => {
-        if (editor) {
+        if (editor && activationRevision === this.documentActivationRevision && id === this.currentFile.id) {
+          this.editorDocumentId = id
           if (history) {
             editor.setHistory(history)
           }

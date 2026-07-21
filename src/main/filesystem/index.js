@@ -1,4 +1,6 @@
 import fs from 'fs-extra'
+import fsPromises from 'fs/promises'
+import crypto from 'crypto'
 import path from 'path'
 import { isDirectory, isFile, isSymbolicLink } from 'common/filesystem'
 
@@ -29,4 +31,52 @@ export const writeFile = (pathname, content, extension, options = 'utf-8') => {
   pathname = !extension || pathname.endsWith(extension) ? pathname : `${pathname}${extension}`
 
   return fs.outputFile(pathname, content, options)
+}
+
+export const writeFileAtomic = async (pathname, content, extension, options = 'utf-8') => {
+  if (!pathname) {
+    throw new Error('[ERROR] Cannot save file without path.')
+  }
+
+  pathname = !extension || pathname.endsWith(extension) ? pathname : `${pathname}${extension}`
+  pathname = normalizeAndResolvePath(pathname)
+  if (!pathname) {
+    throw new Error('[ERROR] Cannot resolve file path.')
+  }
+
+  const dirname = path.dirname(pathname)
+  await fs.ensureDir(dirname)
+
+  let mode = 0o666
+  try {
+    const stat = await fsPromises.stat(pathname)
+    mode = stat.mode & 0o777
+  } catch (err) {
+    if (err.code !== 'ENOENT') throw err
+  }
+
+  const temporaryPath = path.join(
+    dirname,
+    `.${path.basename(pathname)}.${process.pid}.${crypto.randomBytes(8).toString('hex')}.tmp`
+  )
+  let handle = null
+
+  try {
+    handle = await fsPromises.open(temporaryPath, 'wx', mode)
+    await handle.writeFile(content, options)
+    await handle.sync()
+    await handle.close()
+    handle = null
+    await fsPromises.rename(temporaryPath, pathname)
+  } catch (err) {
+    if (handle) {
+      await handle.close().catch(() => {})
+    }
+    await fsPromises.unlink(temporaryPath).catch(unlinkError => {
+      if (unlinkError.code !== 'ENOENT') {
+        err.cleanupError = unlinkError
+      }
+    })
+    throw err
+  }
 }

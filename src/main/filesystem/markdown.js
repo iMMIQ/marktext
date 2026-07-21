@@ -5,7 +5,7 @@ import iconv from 'iconv-lite'
 import { LINE_ENDING_REG, LF_LINE_ENDING_REG, CRLF_LINE_ENDING_REG } from '../config'
 import { isDirectory2 } from 'common/filesystem'
 import { isMarkdownFile } from 'common/filesystem/paths'
-import { normalizeAndResolvePath, writeFile } from '../filesystem'
+import { normalizeAndResolvePath, writeFileAtomic } from '../filesystem'
 import { guessEncoding } from './encoding'
 import { markStartupPhase } from '../performance/startupMetrics'
 
@@ -64,8 +64,7 @@ export const writeMarkdownFile = (pathname, content, options) => {
 
   const buffer = iconv.encode(content, encoding, { addBOM: isBom })
 
-  // TODO(@fxha): "safeSaveDocuments" using temporary file and rename syscall.
-  return writeFile(pathname, buffer, extension, undefined)
+  return writeFileAtomic(pathname, buffer, extension, undefined)
 }
 
 /**

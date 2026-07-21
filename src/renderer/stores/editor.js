@@ -207,13 +207,15 @@ export const useEditorStore = defineStore('editor', {
       this.listToc = toc
       this.toc = listToTree(toc)
     },
-    SET_CURRENT_FILE (currentFile) {
+    SET_CURRENT_FILE (currentFile, { notifyEditor = true } = {}) {
       const oldCurrentFile = this.currentFile
       if (!oldCurrentFile.id || oldCurrentFile.id !== currentFile.id) {
         const { id, markdown, cursor, history, pathname } = currentFile
         window.DIRNAME = pathname ? path.dirname(pathname) : ''
         this.currentFile = currentFile
-        bus.$emit('file-changed', { id, markdown, cursor, renderCursor: true, history })
+        if (notifyEditor) {
+          bus.$emit('file-changed', { id, markdown, cursor, renderCursor: true, history })
+        }
       }
     },
     ADD_FILE_TO_TABS (currentFile) {
@@ -221,6 +223,9 @@ export const useEditorStore = defineStore('editor', {
     },
     REMOVE_FILE_WITHIN_TABS (file) {
       const index = this.tabs.indexOf(file)
+      if (index === -1) {
+        return
+      }
       this.tabs.splice(index, 1)
 
       if (file.id && autoSaveTimers.has(file.id)) {
@@ -411,6 +416,9 @@ export const useEditorStore = defineStore('editor', {
       let tabIndex = 0
       tabIdList.forEach(id => {
         const index = this.tabs.findIndex(file => file.id === id)
+        if (index === -1) {
+          return
+        }
         const { pathname } = this.tabs[index]
 
         if (pathname) {
@@ -710,8 +718,8 @@ export const useEditorStore = defineStore('editor', {
         appApi.renameFile({ id, pathname, newPathname })
       }
     },
-    UPDATE_CURRENT_FILE (currentFile) {
-      this.SET_CURRENT_FILE(currentFile)
+    UPDATE_CURRENT_FILE (currentFile, options) {
+      this.SET_CURRENT_FILE(currentFile, options)
       if (!this.tabs.some(file => file.id === currentFile.id)) {
         this.ADD_FILE_TO_TABS(currentFile)
       }
@@ -889,7 +897,7 @@ export const useEditorStore = defineStore('editor', {
 
       if (selected) {
         const { id, markdown } = fileState
-        this.UPDATE_CURRENT_FILE(fileState)
+        this.UPDATE_CURRENT_FILE(fileState, { notifyEditor: false })
         bus.$emit('file-loaded', { id, markdown })
       } else {
         this.ADD_FILE_TO_TABS(fileState)
@@ -931,7 +939,7 @@ export const useEditorStore = defineStore('editor', {
       const { id, cursor } = docState
 
       if (selected) {
-        this.UPDATE_CURRENT_FILE(docState)
+        this.UPDATE_CURRENT_FILE(docState, { notifyEditor: false })
         bus.$emit('file-loaded', { id, markdown, cursor })
       } else {
         this.ADD_FILE_TO_TABS(docState)
@@ -966,7 +974,7 @@ export const useEditorStore = defineStore('editor', {
         throw new Error('Listen for document change but id was not set!')
       } else if (!currentId || this.tabs.length === 0) {
         return
-      } else if (id !== 'muya' && currentId !== id) {
+      } else if (currentId !== id) {
         for (const tab of this.tabs) {
           if (tab.id && tab.id === id) {
             tab.markdown = adjustTrailingNewlines(markdown, tab.trimTrailingNewline)

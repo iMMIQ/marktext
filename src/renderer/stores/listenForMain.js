@@ -8,8 +8,24 @@ let areDialogListenersBound = false
 let areParagraphListenersBound = false
 
 export const useListenForMainStore = defineStore('listenForMain', {
-  state: () => ({}),
+  state: () => ({
+    pendingExportDialogType: null
+  }),
   actions: {
+    requestExportDialog (type) {
+      this.pendingExportDialogType = type
+      bus.$emit('showExportDialog', type)
+    },
+    consumeExportDialogRequest () {
+      const type = this.pendingExportDialogType
+      this.pendingExportDialogType = null
+      return type
+    },
+    acknowledgeExportDialogRequest (type) {
+      if (this.pendingExportDialogType === type) {
+        this.pendingExportDialogType = null
+      }
+    },
     bindEditEvents () {
       if (areEditListenersBound) {
         return
@@ -39,7 +55,7 @@ export const useListenForMainStore = defineStore('listenForMain', {
       })
 
       events.on('mt::show-export-dialog', (event, type) => {
-        bus.$emit('showExportDialog', type)
+        this.requestExportDialog(type)
       })
 
       areDialogListenersBound = true

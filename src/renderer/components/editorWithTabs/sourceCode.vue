@@ -134,6 +134,14 @@ export default {
 
     const { editor } = this
     const { cursor, markdown } = this.getMarkdownAndCursor(editor)
+    if (this.tabId) {
+      this.dispatchEditor('LISTEN_FOR_CONTENT_CHANGE', {
+        id: this.tabId,
+        markdown,
+        wordCount: getWordCount(markdown),
+        cursor
+      })
+    }
     bus.$emit('file-changed', { id: this.tabId, markdown, cursor, renderCursor: true })
   },
   methods: {

@@ -106,7 +106,7 @@ const handleResponseForPrint = e => {
   })
 }
 
-const handleResponseForSave = async (e, { id, filename, markdown, pathname, options, defaultPath }) => {
+export const handleResponseForSave = async (e, { id, filename, markdown, pathname, options, defaultPath }) => {
   const win = BrowserWindow.fromWebContents(e.sender)
   let recommendFilename = getRecommendTitleFromMarkdownString(markdown)
   if (!recommendFilename) {
@@ -132,7 +132,7 @@ const handleResponseForSave = async (e, { id, filename, markdown, pathname, opti
 
   // Save dialog canceled by user - no error.
   if (!filePath) {
-    return Promise.resolve()
+    return null
   }
 
   filePath = path.resolve(filePath)
@@ -153,8 +153,8 @@ const handleResponseForSave = async (e, { id, filename, markdown, pathname, opti
       return id
     })
     .catch(err => {
-      log.error('Error while saving:', err)
       win.webContents.send('mt::tab-save-failure', id, err.message)
+      throw err
     })
 }
 
@@ -281,7 +281,7 @@ ipcMain.on('mt::response-file-save-as', async (e, { id, filename, markdown, path
   }
 })
 
-ipcMain.on('mt::close-window-confirm', async (e, unsavedFiles) => {
+export const handleCloseWindowConfirm = async (e, unsavedFiles) => {
   const win = BrowserWindow.fromWebContents(e.sender)
   const userResult = await showUnsavedFilesMessage(win, unsavedFiles)
   if (!userResult) {
@@ -290,32 +290,35 @@ ipcMain.on('mt::close-window-confirm', async (e, unsavedFiles) => {
 
   const { needSave } = userResult
   if (needSave) {
-    Promise.all(unsavedFiles.map(file => handleResponseForSave(e, file)))
-      .then(() => {
+    try {
+      const savedTabIds = await Promise.all(unsavedFiles.map(file => handleResponseForSave(e, file)))
+      if (savedTabIds.every(id => id != null)) {
         ipcMain.emit('window-close-by-id', win.id)
-      })
-      .catch(err => {
-        log.error('Error while saving before quit:', err)
+      }
+    } catch (err) {
+      log.error('Error while saving before quit:', err)
 
-        // Notify user about the problem.
-        dialog.showMessageBox(win, {
-          type: 'error',
-          buttons: ['Close', 'Keep It Open'],
-          message: 'Failure while saving files',
-          detail: err.message
-        })
-          .then(({ response }) => {
-            if (win.id && response === 0) {
-              ipcMain.emit('window-close-by-id', win.id)
-            }
-          })
+      // Let the user explicitly decide whether to discard changes after a failed save.
+      const { response } = await dialog.showMessageBox(win, {
+        type: 'error',
+        buttons: ['Close', 'Keep It Open'],
+        message: 'Failure while saving files',
+        detail: err.message
       })
+      if (win.id && response === 0) {
+        ipcMain.emit('window-close-by-id', win.id)
+      }
+    }
   } else {
     ipcMain.emit('window-close-by-id', win.id)
   }
-})
+}
 
-ipcMain.on('mt::response-file-save', handleResponseForSave)
+ipcMain.on('mt::close-window-confirm', handleCloseWindowConfirm)
+
+ipcMain.on('mt::response-file-save', (e, payload) => {
+  handleResponseForSave(e, payload).catch(err => log.error('Error while saving:', err))
+})
 
 ipcMain.on('mt::response-export', handleResponseForExport)
 

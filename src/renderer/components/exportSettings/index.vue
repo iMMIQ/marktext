@@ -228,6 +228,7 @@ import Range from '@/prefComponents/common/range'
 import TextBox from '@/prefComponents/common/textBox'
 import filesystem from '@/services/nativeApi/filesystem'
 import { getRuntime } from '@/services/runtime'
+import { useListenForMainStore } from '@/stores/listenForMain'
 import {
   pageSizeList,
   headerFooterTypes,
@@ -288,12 +289,17 @@ export default {
   },
   created () {
     bus.$on('showExportDialog', this.showDialog)
+    const pendingType = useListenForMainStore().consumeExportDialogRequest()
+    if (pendingType) {
+      this.showDialog(pendingType)
+    }
   },
   beforeUnmount () {
     bus.$off('showExportDialog', this.showDialog)
   },
   methods: {
     showDialog (type) {
+      useListenForMainStore().acknowledgeExportDialogRequest(type)
       this.exportType = type
       this.isPrintable = type !== 'styledHtml'
       if (!this.isPrintable && (this.activeName === 'header' || this.activeName === 'page')) {
