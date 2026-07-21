@@ -69,7 +69,10 @@
   },
   "language": {
     "description": "General--The language MarkText use.",
-    "type": "string",
+    "enum": [
+      "en",
+      "zh-CN"
+    ],
     "default": "en"
   },
   "editorFontFamily": {

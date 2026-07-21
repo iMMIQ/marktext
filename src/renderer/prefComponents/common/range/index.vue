@@ -1,7 +1,7 @@
 <template>
   <section class="pref-range-item" :class="{'ag-underdevelop': disable}">
     <div class="description">
-      <span>{{description}}</span> <span class="value" v-if="selectValue !== undefined && selectValue !== null">{{selectValue}}<span v-if="unit"> {{unit}}</span></span>
+      <span>{{ $tr(description) }}</span> <span class="value" v-if="selectValue !== undefined && selectValue !== null">{{selectValue}}<span v-if="unit"> {{unit}}</span></span>
       <info-icon v-if="more"
         @click="handleMoreClick"
       ></info-icon>

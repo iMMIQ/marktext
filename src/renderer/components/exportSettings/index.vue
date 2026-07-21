@@ -9,13 +9,13 @@
       width="680px"
     >
       <template #header>
-        <div class="export-dialog-title">Export Options</div>
+        <div class="export-dialog-title">{{ $tr('Export Options') }}</div>
       </template>
       <el-tabs v-model="activeName">
-        <el-tab-pane label="Info" name="info">
-          <span class="text">Please customize the page appearance and click on "export" to continue.</span>
+        <el-tab-pane :label="$tr('Info')" name="info">
+          <span class="text">{{ $tr('Please customize the page appearance and click on "export" to continue.') }}</span>
         </el-tab-pane>
-        <el-tab-pane label="Page" name="page">
+        <el-tab-pane :label="$tr('Page')" name="page">
           <!-- HTML -->
           <div v-if="!isPrintable">
             <text-box
@@ -37,7 +37,7 @@
                 :onChange="value => onSelectChange('pageSize', value)"
               ></cur-select>
               <div v-if="pageSize === 'custom'" class="row">
-                <div>Width/Height in mm:</div>
+                <div>{{ $tr('Width/Height in mm:') }}</div>
                 <el-input-number v-model="pageSizeWidth" size="small" controls-position="right" :min="100"></el-input-number>
                 <el-input-number v-model="pageSizeHeight" size="small" controls-position="right" :min="100"></el-input-number>
               </div>
@@ -50,21 +50,21 @@
             </div>
 
             <div class="row">
-              <div class="description">Page margin in mm:</div>
+              <div class="description">{{ $tr('Page margin in mm:') }}</div>
               <div>
-                <div class="label">Top/Bottom:</div>
+                <div class="label">{{ $tr('Top/Bottom:') }}</div>
                 <el-input-number v-model="pageMarginTop" size="small" controls-position="right" :min="0" :max="100"></el-input-number>
                 <el-input-number v-model="pageMarginBottom" size="small" controls-position="right" :min="0" :max="100"></el-input-number>
               </div>
               <div>
-                <div class="label">Left/Right:</div>
+                <div class="label">{{ $tr('Left/Right:') }}</div>
                 <el-input-number v-model="pageMarginLeft" size="small" controls-position="right" :min="0" :max="100"></el-input-number>
                 <el-input-number v-model="pageMarginRight" size="small" controls-position="right" :min="0" :max="100"></el-input-number>
               </div>
             </div>
           </div>
         </el-tab-pane>
-        <el-tab-pane label="Style" name="style">
+        <el-tab-pane :label="$tr('Style')" name="style">
           <bool
             description="Overwrite theme font settings:"
             :bool="fontSettingsOverwrite"
@@ -105,8 +105,8 @@
             :onChange="value => onSelectChange('showFrontMatter', value)"
           ></bool>
         </el-tab-pane>
-        <el-tab-pane label="Theme" name="theme">
-          <div class="text">You can change the document appearance by choosing a theme or create a handcrafted one.</div>
+        <el-tab-pane :label="$tr('Theme')" name="theme">
+          <div class="text">{{ $tr('You can change the document appearance by choosing a theme or create a handcrafted one.') }}</div>
           <cur-select
             description="Theme:"
             more="https://github.com/marktext/marktext/blob/develop/docs/EXPORT_THEMES.md"
@@ -115,8 +115,8 @@
             :onChange="value => onSelectChange('theme', value)"
           ></cur-select>
         </el-tab-pane>
-        <el-tab-pane v-if="isPrintable" label="Header & Footer" name="header">
-          <div class="text">The text appear on all pages if header and/or footer is defined.</div>
+        <el-tab-pane v-if="isPrintable" :label="$tr('Header & Footer')" name="header">
+          <div class="text">{{ $tr('The text appear on all pages if header and/or footer is defined.') }}</div>
           <cur-select
             description="Header type:"
             :value="headerType"
@@ -197,7 +197,7 @@
           </div>
         </el-tab-pane>
 
-        <el-tab-pane label="Table of Contents" name="toc">
+        <el-tab-pane :label="$tr('Table of Contents')" name="toc">
           <bool
             description="Include top heading:"
             detailedDescription="Includes the first heading level too."
@@ -214,10 +214,10 @@
       </el-tabs>
       <div class="button-controlls">
         <button type="button" class="button" @click="showExportSettingsDialog = false">
-          Cancel
+          {{ $tr('Cancel') }}
         </button>
         <button type="button" class="button-primary" @click="handleClicked">
-          Export...
+          {{ $tr('Export...') }}
         </button>
       </div>
     </el-dialog>

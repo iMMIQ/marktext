@@ -1,7 +1,7 @@
 <template>
   <section class="pref-select-item" :class="{'ag-underdevelop': disable}">
     <div class="description" v-if="description">
-      <span>{{description}}</span>
+      <span>{{ $tr(description) }}</span>
       <info-icon
         v-if="more"
         @click="handleMoreClick"
@@ -15,12 +15,12 @@
       <el-option
         v-for="item in options"
         :key="item.value"
-        :label="item.label"
+        :label="$tr(item.label)"
         :value="item.value">
       </el-option>
     </el-select>
     <div v-if="notes" class="notes">
-      {{notes}}
+      {{ $tr(notes) }}
     </div>
   </section>
 </template>

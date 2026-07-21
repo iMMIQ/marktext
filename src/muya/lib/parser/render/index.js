@@ -6,6 +6,7 @@ import { patch, toVNode, toHTML, h } from './snabbdom'
 import { beginRules } from '../rules'
 import renderInlines from './renderInlines'
 import renderBlock from './renderBlock'
+import { translateLegacyText } from 'common/i18n'
 
 class StateRender {
   constructor (muya) {
@@ -135,7 +136,14 @@ class StateRender {
           target.innerHTML = purify(svg, PREVIEW_DOMPURIFY_CONFIG)
           if (bindFunctions) bindFunctions(target)
         } catch (err) {
-          target.innerHTML = '<strong>Diagram preview unavailable</strong><span>Check the Mermaid syntax in this block.</span>'
+          const title = translateLegacyText('Diagram preview unavailable', document.documentElement.lang)
+          const hint = translateLegacyText('Check the Mermaid syntax in this block.', document.documentElement.lang)
+          target.replaceChildren()
+          const titleElement = document.createElement('strong')
+          const hintElement = document.createElement('span')
+          titleElement.textContent = title
+          hintElement.textContent = hint
+          target.append(titleElement, hintElement)
           target.classList.add(CLASS_OR_ID.AG_MATH_ERROR)
           target.setAttribute('role', 'alert')
         }

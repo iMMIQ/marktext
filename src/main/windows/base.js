@@ -78,6 +78,7 @@ class BaseWindow extends EventEmitter {
       codeFontFamily,
       codeFontSize,
       hideScrollbar,
+      language,
       theme,
       titleBarStyle
     } = userPreference.getAll()
@@ -99,6 +100,7 @@ class BaseWindow extends EventEmitter {
     url.searchParams.set('cff', codeFontFamily)
     url.searchParams.set('cfs', codeFontSize)
     url.searchParams.set('hsb', hideScrollbar ? '1' : '0')
+    url.searchParams.set('lang', language)
     url.searchParams.set('theme', theme)
     url.searchParams.set('tbs', titleBarStyle)
 

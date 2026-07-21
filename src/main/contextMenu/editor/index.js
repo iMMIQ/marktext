@@ -11,6 +11,7 @@ import {
   INSERT_AFTER
 } from './menuItems'
 import spellcheckMenuBuilder from './spellcheck'
+import { localizeMenuTemplate, translateLegacyText } from 'common/i18n'
 
 const CONTEXT_ITEMS = [INSERT_BEFORE, INSERT_AFTER, SEPARATOR, CUT, COPY, PASTE, SEPARATOR, COPY_AS_MARKDOWN, COPY_AS_HTML, PASTE_AS_PLAIN_TEXT]
 
@@ -20,7 +21,7 @@ const isInsideEditor = params => {
   return isEditable && inputFieldType === 'none' && !!editFlags.canEditRichly
 }
 
-export const showEditorContextMenu = (win, event, params, isSpellcheckerEnabled) => {
+export const showEditorContextMenu = (win, event, params, isSpellcheckerEnabled, locale) => {
   const { isEditable, hasImageContents, selectionText, editFlags, misspelledWord, dictionarySuggestions } = params
 
   // NOTE: We have to get the word suggestions from this event because `webFrame.getWordSuggestions` and
@@ -35,9 +36,9 @@ export const showEditorContextMenu = (win, event, params, isSpellcheckerEnabled)
 
     const menu = new Menu()
     if (isSpellcheckerEnabled) {
-      const spellingSubmenu = spellcheckMenuBuilder(isMisspelled, misspelledWord, dictionarySuggestions)
+      const spellingSubmenu = spellcheckMenuBuilder(isMisspelled, misspelledWord, dictionarySuggestions, locale)
       menu.append(new MenuItem({
-        label: 'Spelling...',
+        label: translateLegacyText('Spelling...', locale),
         submenu: spellingSubmenu
       }))
       menu.append(new MenuItem(SEPARATOR))
@@ -46,7 +47,7 @@ export const showEditorContextMenu = (win, event, params, isSpellcheckerEnabled)
     [CUT, COPY, COPY_AS_HTML, COPY_AS_MARKDOWN].forEach(item => {
       item.enabled = canCopy
     })
-    CONTEXT_ITEMS.forEach(item => {
+    localizeMenuTemplate(CONTEXT_ITEMS, locale).forEach(item => {
       menu.append(new MenuItem(item))
     })
     menu.popup([{ window: win, x: event.clientX, y: event.clientY }])

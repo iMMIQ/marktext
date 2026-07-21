@@ -16,10 +16,10 @@
           @drop="dropHandler"
         >
           <div class="img-wrapper">
-            <img :src="`${importIcon.url}`" alt="import file">
+            <img :src="`${importIcon.url}`" :alt="$tr('Import file')">
           </div>
-          <div>Import or Open</div>
-          <p> Drop here to get you stuff into MarkText</p>
+          <div>{{ $tr('Import or Open') }}</div>
+          <p>{{ $tr('Drop files here to import them into MarkText') }}</p>
         </div>
         <div class="file-list">
           <div>.md</div>

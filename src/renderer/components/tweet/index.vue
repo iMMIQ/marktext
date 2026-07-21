@@ -9,12 +9,12 @@
     >
       <template #header>
         <div class="title">
-          <span>Send us feedback via tweet</span>
+          <span>{{ $tr('Send us feedback via tweet') }}</span>
         </div>
       </template>
       <div class="body">
         <div class="feeling">
-          <div>What's your experience feelings?</div>
+          <div>{{ $tr('How is your experience?') }}</div>
           <ul>
             <li
               :class="{ 'active': selectedFace === 'smile' }"
@@ -35,7 +35,7 @@
           </ul>
         </div>
         <div class="feedback">
-          <div>Tell us your feedback?</div>
+          <div>{{ $tr('Tell us your feedback') }}</div>
           <textarea
             cols="30" rows="10" v-model="value" ref="textarea"
           ></textarea>
@@ -49,7 +49,7 @@
             <svg class="icon" aria-hidden="true">
               <use xlink:href="#icon-github"></use>
             </svg>
-            Report bug or feature request via github
+            {{ $tr('Report a bug or request a feature on GitHub') }}
           </a>
           <a
             href="javascript:;"
@@ -60,7 +60,7 @@
             <svg class="icon" aria-hidden="true">
               <use xlink:href="#icon-twitter"></use>
             </svg>
-            Tweet
+            {{ $tr('Tweet') }}
           </a>
         </div>
       </div>

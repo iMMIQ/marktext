@@ -12,6 +12,7 @@
         <div class="input-wrapper">
           <input
             type="text" v-model="tempName" class="search"
+            :aria-label="$tr('Rename')"
             @keyup.enter="confirm"
             ref="search"
           >

@@ -49,7 +49,9 @@ const clickMenuItemByPath = (app, labels) => {
   return app.evaluate(({ BrowserWindow, Menu }, menuPath) => {
     const windows = BrowserWindow.getAllWindows()
     const win = BrowserWindow.getFocusedWindow() || windows.find(window => window.isVisible()) || windows[0]
-    const normalizeLabel = label => (label || '').replace(/&/g, '')
+    const normalizeLabel = label => (label || '')
+      .replace(/&/g, '')
+      .replace(/\([A-Za-z]\)$/, '')
     let items = Menu.getApplicationMenu().items
     let menuItem
 

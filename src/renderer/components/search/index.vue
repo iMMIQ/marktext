@@ -7,8 +7,8 @@
       class="left-arrow"
       role="button"
       tabindex="0"
-      :aria-label="type === 'search' ? 'Show replace controls' : 'Hide replace controls'"
-      :title="type === 'search' ? 'Show replace controls' : 'Hide replace controls'"
+      :aria-label="$tr(type === 'search' ? 'Show replace controls' : 'Hide replace controls')"
+      :title="$tr(type === 'search' ? 'Show replace controls' : 'Hide replace controls')"
       @click="toggleSearchType"
       @keydown.enter.prevent="toggleSearchType"
       @keydown.space.prevent="toggleSearchType"
@@ -32,14 +32,14 @@
             v-model="searchValue"
             @keyup="search($event)"
             ref="search"
-            placeholder="Search"
-            aria-label="Find in document"
+            :placeholder="$tr('Search')"
+            :aria-label="$tr('Find in document')"
           >
           <div class="controls">
             <span class="search-result">{{`${highlightIndex + 1} / ${highlightCount}`}}</span>
             <span
-              title="Case Sensitive"
-              aria-label="Case sensitive"
+              :title="$tr('Case Sensitive')"
+              :aria-label="$tr('Case sensitive')"
               role="button"
               tabindex="0"
               class="is-case-sensitive"
@@ -53,8 +53,8 @@
               </svg>
             </span>
             <span
-              title="Select whole word"
-              aria-label="Match whole word"
+              :title="$tr('Select whole word')"
+              :aria-label="$tr('Match whole word')"
               role="button"
               tabindex="0"
               class="is-whole-word"
@@ -68,8 +68,8 @@
               </svg>
             </span>
             <span
-              title="Use query as RegEx"
-              aria-label="Use regular expression"
+              :title="$tr('Use query as RegEx')"
+              :aria-label="$tr('Use regular expression')"
               role="button"
               tabindex="0"
               class="is-regex"
@@ -88,12 +88,12 @@
           </div>
         </div>
         <div class="button-group">
-          <button type="button" title="Previous match" aria-label="Previous match" class="button right" @click="find('prev')">
+          <button type="button" :title="$tr('Previous match')" :aria-label="$tr('Previous match')" class="button right" @click="find('prev')">
             <svg class="icon" aria-hidden="true">
               <use xlink:href="#icon-arrow-up"></use>
             </svg>
           </button>
-          <button type="button" title="Next match" aria-label="Next match" class="button" @click="find('next')">
+          <button type="button" :title="$tr('Next match')" :aria-label="$tr('Next match')" class="button" @click="find('next')">
             <svg class="icon" aria-hidden="true">
               <use xlink:href="#icon-arrowdown"></use>
             </svg>
@@ -102,12 +102,12 @@
       </section>
       <section class="replace" v-if="type === 'replace'">
         <div class="input-wrapper replace-input">
-          <input type="text" v-model="replaceValue" placeholder="Replacement" aria-label="Replacement text">
+          <input type="text" v-model="replaceValue" :placeholder="$tr('Replacement')" :aria-label="$tr('Replacement text')">
         </div>
         <div class="button-group">
           <el-tooltip class="item"
             effect="dark"
-            content="Replace All"
+            :content="$tr('Replace All')"
             placement="top"
             :visible-arrow="false"
             :open-delay="1000"
@@ -120,7 +120,7 @@
           </el-tooltip>
           <el-tooltip class="item"
             effect="dark"
-            content="Replace Single"
+            :content="$tr('Replace Single')"
             placement="top"
             :visible-arrow="false"
             :open-delay="1000"
@@ -137,8 +137,8 @@
     <button
       type="button"
       class="close-search"
-      title="Close find"
-      aria-label="Close find"
+      :title="$tr('Close find')"
+      :aria-label="$tr('Close find')"
       @click.stop="emptySearch(true)"
     >
       <svg class="icon" aria-hidden="true">

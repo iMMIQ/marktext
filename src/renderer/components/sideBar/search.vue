@@ -5,14 +5,14 @@
       <div class="search-wrapper">
         <input
           type="text" v-model="keyword"
-          placeholder="Search in folder..."
-          aria-label="Search in folder"
+          :placeholder="$tr('Search in folder...')"
+          :aria-label="$tr('Search in folder')"
           @keyup="queueSearch()"
         >
         <div class="controls">
           <span
-            title="Case Sensitive"
-            aria-label="Case sensitive"
+            :title="$tr('Case Sensitive')"
+            :aria-label="$tr('Case sensitive')"
             role="button"
             tabindex="0"
             class="is-case-sensitive"
@@ -26,8 +26,8 @@
             </svg>
           </span>
           <span
-            title="Select whole word"
-            aria-label="Match whole word"
+            :title="$tr('Select whole word')"
+            :aria-label="$tr('Match whole word')"
             role="button"
             tabindex="0"
             class="is-whole-word"
@@ -41,8 +41,8 @@
             </svg>
           </span>
           <span
-            title="Use query as RegEx"
-            aria-label="Use regular expression"
+            :title="$tr('Use query as RegEx')"
+            :aria-label="$tr('Use regular expression')"
             role="button"
             tabindex="0"
             class="is-regex"
@@ -59,9 +59,9 @@
       </div>
 
       <div class="search-message-section" v-if="showNoFolderOpenedMessage">
-        <span>No folder open</span>
+        <span>{{ $tr('No folder open') }}</span>
       </div>
-      <div class="search-message-section" v-if="showNoResultFoundMessage">No results found.</div>
+      <div class="search-message-section" v-if="showNoResultFoundMessage">{{ $tr('No results found.') }}</div>
       <div class="search-message-section" v-if="searchErrorString">{{ searchErrorString }}</div>
 
       <div
@@ -73,7 +73,7 @@
           size="small"
           @click="cancelSearcher"
         >
-          Cancel
+          {{ $tr('Cancel') }}
         </el-button>
       </div>
       <div v-if="searchResult.length" class="search-result-info">{{searchResultInfo}}</div>
@@ -94,7 +94,7 @@
             v-if="showNoFolderOpenedMessage"
             @click="openFolder"
           >
-            Open Folder
+            {{ $tr('Open Folder') }}
           </button>
         </div>
       </div>
@@ -177,7 +177,7 @@ export default {
         return acc + item.matches.length
       }, 0)
 
-      return `${matchCount} ${matchCount > 1 ? 'matches' : 'match'} in ${fileCount} ${fileCount > 1 ? 'files' : 'file'}`
+      return this.$t('search.folderResult', { matches: matchCount, files: fileCount }, fileCount)
     },
     showNoFolderOpenedMessage () {
       return !this.projectTree || !this.projectTree.pathname
@@ -259,7 +259,7 @@ export default {
           }
 
           if (searchResult.length > 100) {
-            this.searchErrorString = 'Search was limited to 100 files.'
+            this.searchErrorString = this.$tr('Search was limited to 100 files.')
             this.searchResult = searchResult.slice(0, 100)
           } else {
             this.searchResult = searchResult

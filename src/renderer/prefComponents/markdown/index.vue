@@ -1,9 +1,9 @@
 <template>
   <div class="pref-markdown">
-    <h4>Markdown</h4>
+    <h4>{{ $tr('Markdown') }}</h4>
     <compound>
       <template #head>
-        <h6 class="title">Lists:</h6>
+        <h6 class="title">{{ $tr('Lists:') }}</h6>
       </template>
       <template #children>
         <bool
@@ -37,7 +37,7 @@
 
     <compound>
       <template #head>
-        <h6 class="title">Markdown extensions:</h6>
+        <h6 class="title">{{ $tr('Markdown extensions:') }}</h6>
       </template>
       <template #children>
         <cur-select
@@ -64,7 +64,7 @@
 
     <compound>
       <template #head>
-        <h6 class="title">Compatibility:</h6>
+        <h6 class="title">{{ $tr('Compatibility:') }}</h6>
       </template>
       <template #children>
         <bool
@@ -82,7 +82,7 @@
 
     <compound>
       <template #head>
-        <h6 class="title">Diagrams:</h6>
+        <h6 class="title">{{ $tr('Diagrams:') }}</h6>
       </template>
       <template #children>
         <cur-select
@@ -97,7 +97,7 @@
 
     <compound>
       <template #head>
-        <h6 class="title">Misc:</h6>
+        <h6 class="title">{{ $tr('Misc:') }}</h6>
       </template>
       <template #children>
         <cur-select

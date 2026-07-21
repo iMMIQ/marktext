@@ -1,6 +1,7 @@
 import template from './index.html?raw'
 import { getUniqueId } from '../../util'
 import { sanitize, EXPORT_DOMPURIFY_CONFIG } from '../../util/dompurify'
+import { translateLegacyText } from 'common/i18n'
 import './index.css'
 
 const INON_HASH = {
@@ -38,6 +39,9 @@ const notification = {
     type = 'primary', // primary, error, warning or info
     showConfirm = false
   }) {
+    const locale = document.documentElement.lang
+    title = translateLegacyText(title, locale)
+    message = translateLegacyText(message, locale)
     let rs
     let rj
     let timer = null

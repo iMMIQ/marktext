@@ -3,6 +3,7 @@ import log from 'electron-log'
 import { isOsx } from '../../config'
 import { addToDictionary } from '../../spellchecker'
 import { SEPARATOR } from './menuItems'
+import { translateLegacyText } from 'common/i18n'
 
 /**
  * Build the spell checker menu depending on input.
@@ -12,11 +13,11 @@ import { SEPARATOR } from './menuItems'
  * @param {[string[]]} wordSuggestions Suggestions for `selectedWord`.
  * @returns {MenuItem[]}
  */
-export default (isMisspelled, misspelledWord, wordSuggestions) => {
+export default (isMisspelled, misspelledWord, wordSuggestions, locale) => {
   const spellingSubmenu = []
 
   spellingSubmenu.push(new MenuItem({
-    label: 'Change Language...',
+    label: translateLegacyText('Change Language...', locale),
     // NB: On macOS the OS spell checker is used and will detect the language automatically.
     visible: !isOsx,
     click (menuItem, targetWindow) {
@@ -27,7 +28,7 @@ export default (isMisspelled, misspelledWord, wordSuggestions) => {
   // Handle misspelled word if wordSuggestions is set, otherwise word is correct.
   if (isMisspelled && misspelledWord && wordSuggestions) {
     spellingSubmenu.push({
-      label: 'Add to Dictionary',
+      label: translateLegacyText('Add to Dictionary', locale),
       click (menuItem, targetWindow) {
         if (!addToDictionary(targetWindow, misspelledWord)) {
           log.error(`Error while adding "${misspelledWord}" to dictionary.`)
@@ -54,7 +55,7 @@ export default (isMisspelled, misspelledWord, wordSuggestions) => {
     }
   } else {
     spellingSubmenu.push({
-      label: 'Edit Dictionary...',
+      label: translateLegacyText('Edit Dictionary...', locale),
       click (menuItem, targetWindow) {
         ipcMain.emit('app-create-settings-window', 'spelling')
       }

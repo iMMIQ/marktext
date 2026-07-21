@@ -3,6 +3,7 @@ import bus from '@/bus'
 import events from '@/services/nativeApi/events'
 import preferencesApi from '@/services/nativeApi/preferences'
 import { getRuntime } from '@/services/runtime'
+import { setRendererLocale } from '@/i18n'
 
 let isUserPreferenceListenerBound = false
 let isViewListenerBound = false
@@ -114,6 +115,7 @@ export const usePreferencesStore = defineStore('preferences', {
           this[key] = preference[key]
         }
       }
+      setRendererLocale(this.language)
     },
     setMode ({ type, checked }) {
       if (Object.prototype.hasOwnProperty.call(this.$state, type)) {
@@ -137,6 +139,9 @@ export const usePreferencesStore = defineStore('preferences', {
     setSinglePreference ({ type, value }) {
       if (Object.prototype.hasOwnProperty.call(this.$state, type)) {
         this[type] = value
+      }
+      if (type === 'language') {
+        setRendererLocale(value)
       }
       preferencesApi.setUserPreference({ [type]: value })
     },

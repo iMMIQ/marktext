@@ -1,6 +1,7 @@
 import BaseFloat from '../baseFloat'
 import { patch, h } from '../../parser/render/snabbdom'
 import icons from './config'
+import { translateLegacyText } from 'common/i18n'
 
 import './index.css'
 
@@ -68,6 +69,7 @@ class LinkTools extends BaseFloat {
   render () {
     const { icons, oldVnode, linkContainer } = this
     const children = icons.map(i => {
+      const label = translateLegacyText(i.label, document.documentElement.lang)
       let icon
       let iconWrapperSelector
       if (i.icon) {
@@ -87,8 +89,8 @@ class LinkTools extends BaseFloat {
         attrs: {
           role: 'button',
           tabindex: '0',
-          title: i.label,
-          'aria-label': i.label
+          title: label,
+          'aria-label': label
         },
         on: {
           click: event => {

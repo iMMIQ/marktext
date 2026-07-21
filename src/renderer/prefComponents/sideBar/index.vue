@@ -1,12 +1,12 @@
 <template>
   <div class="pref-sidebar">
-    <h3 class="title">Preferences</h3>
+    <h3 class="title">{{ $tr('Preferences') }}</h3>
     <section class="search-wrapper">
       <el-autocomplete
         popper-class="pref-autocomplete"
         v-model="state"
         :fetch-suggestions="querySearch"
-        placeholder="Search preferences"
+        :placeholder="$tr('Search preferences')"
         :trigger-on-focus="false"
         @select="handleSelect">
         <template #suffix>
@@ -15,8 +15,8 @@
           </svg>
         </template>
         <template #default="{ item }">
-          <div class="name">{{ item.category }}</div>
-          <span class="addr">{{ item.preference }}</span>
+          <div class="name">{{ $tr(item.category) }}</div>
+          <span class="addr">{{ $tr(item.preference) }}</span>
         </template>
       </el-autocomplete>
     </section>
@@ -28,14 +28,14 @@
         :class="{active: c.label === currentCategory}"
         role="button"
         tabindex="0"
-        :title="c.name"
+        :title="$tr(c.name)"
         :aria-current="c.label === currentCategory ? 'page' : undefined"
       >
         <svg :viewBox="c.icon.viewBox">
           <use :xlink:href="c.icon.url"></use>
         </svg>
-        <span class="item-label">{{c.name}}</span>
-        <span class="compact-label" aria-hidden="true">{{c.shortName}}</span>
+        <span class="item-label">{{ $tr(c.name) }}</span>
+        <span class="compact-label" aria-hidden="true">{{ $tr(c.shortName) }}</span>
       </div>
     </section>
   </div>
@@ -71,8 +71,11 @@ export default {
     },
     createFilter (queryString) {
       return (restaurant) => {
-        return (restaurant.preference.toLowerCase().indexOf(queryString.toLowerCase()) >= 0) ||
-            (restaurant.category.toLowerCase().indexOf(queryString.toLowerCase()) >= 0)
+        const query = queryString.toLowerCase()
+        return restaurant.preference.toLowerCase().includes(query) ||
+          restaurant.category.toLowerCase().includes(query) ||
+          this.$tr(restaurant.preference).toLowerCase().includes(query) ||
+          this.$tr(restaurant.category).toLowerCase().includes(query)
       }
     },
     loadAll () {

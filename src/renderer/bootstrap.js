@@ -19,6 +19,7 @@ const parseUrlArgs = () => {
   const codeFontFamily = params.get('cff')
   const codeFontSize = params.get('cfs')
   const hideScrollbar = params.get('hsb') === '1'
+  const language = params.get('lang')
   const theme = params.get('theme')
   const titleBarStyle = params.get('tbs')
 
@@ -27,6 +28,7 @@ const parseUrlArgs = () => {
       codeFontFamily,
       codeFontSize,
       hideScrollbar,
+      language,
       theme,
       titleBarStyle
     }

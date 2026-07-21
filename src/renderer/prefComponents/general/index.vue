@@ -1,9 +1,9 @@
 <template>
   <div class="pref-general">
-    <h4>General</h4>
+    <h4>{{ $tr('General') }}</h4>
     <compound>
       <template #head>
-        <h6 class="title">Auto Save:</h6>
+        <h6 class="title">{{ $tr('Auto Save:') }}</h6>
       </template>
       <template #children>
         <bool
@@ -25,7 +25,7 @@
 
     <compound>
       <template #head>
-        <h6 class="title">Window:</h6>
+        <h6 class="title">{{ $tr('Window:') }}</h6>
       </template>
       <template #children>
         <cur-select
@@ -62,7 +62,7 @@
 
     <compound>
       <template #head>
-        <h6 class="title">Sidebar:</h6>
+        <h6 class="title">{{ $tr('Sidebar:') }}</h6>
       </template>
       <template #children>
         <bool
@@ -84,7 +84,7 @@
 
     <compound>
       <template #head>
-        <h6 class="title">Action on startup:</h6>
+        <h6 class="title">{{ $tr('Action on startup:') }}</h6>
       </template>
       <template #children>
         <section class="startup-action-ctrl">
@@ -93,9 +93,9 @@
               Hide "lastState" for now (#2064).
             <el-radio class="ag-underdevelop" label="lastState">Restore last editor session</el-radio>
             -->
-            <el-radio label="folder" style="margin-bottom: 10px;">Open the default directory<span>: {{defaultDirectoryToOpen}}</span></el-radio>
-            <el-button size="small" @click="selectDefaultDirectoryToOpen">Select Folder</el-button>
-            <el-radio label="blank">Open a blank page</el-radio>
+            <el-radio label="folder" style="margin-bottom: 10px;">{{ $tr('Open the default directory') }}<span>: {{defaultDirectoryToOpen}}</span></el-radio>
+            <el-button size="small" @click="selectDefaultDirectoryToOpen">{{ $tr('Select Folder') }}</el-button>
+            <el-radio label="blank">{{ $tr('Open a blank page') }}</el-radio>
           </el-radio-group>
         </section>
       </template>
@@ -103,7 +103,7 @@
 
     <compound>
       <template #head>
-        <h6 class="title">Misc:</h6>
+        <h6 class="title">{{ $tr('Misc:') }}</h6>
       </template>
       <template #children>
         <cur-select
@@ -111,7 +111,6 @@
           :value="language"
           :options="languageOptions"
           :onChange="value => onSelectChange('language', value)"
-          :disable="true"
         ></cur-select>
       </template>
     </compound>

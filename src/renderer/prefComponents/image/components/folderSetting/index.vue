@@ -1,12 +1,12 @@
 <template>
   <section class="image-folder">
-    <h5>Global or relative image folder</h5>
+    <h5>{{ $tr('Global or relative image folder') }}</h5>
     <text-box description="Global image folder" :input="imageFolderPath"
       :regexValidator="/^(?:$|([a-zA-Z]:)?[\/\\].*$)/" :defaultValue="folderPathPlaceholder"
       :onChange="value => modifyImageFolderPath(value)"></text-box>
     <div>
-      <el-button size="small" @click="modifyImageFolderPath(undefined)">Open...</el-button>
-      <el-button size="small" @click="openImageFolder">Show in Folder</el-button>
+      <el-button size="small" @click="modifyImageFolderPath(undefined)">{{ $tr('Open...') }}</el-button>
+      <el-button size="small" @click="openImageFolder">{{ $tr('Show in Folder') }}</el-button>
     </div>
     <compound>
       <template #head>
@@ -21,7 +21,7 @@
           :defaultValue="relativeDirectoryNamePlaceholder"
           :onChange="value => onSelectChange('imageRelativeDirectoryName', value)"></text-box>
         <div class="footnote">
-          Include <code>${filename}</code> in the text-box above to automatically insert the document file name.
+          {{ $tr('Include') }} <code>${filename}</code> {{ $tr('in the text box above to automatically insert the document file name.') }}
         </div>
       </template>
     </compound>

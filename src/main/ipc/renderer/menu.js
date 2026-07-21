@@ -3,8 +3,8 @@ import { BrowserWindow, ipcMain, Menu } from 'electron'
 const TABS_MENU_CHANNEL = 'mt::menu-tabs-command'
 const SIDEBAR_MENU_CHANNEL = 'mt::menu-sidebar-command'
 
-const popupRendererMenu = (win, template, x, y) => {
-  Menu.buildFromTemplate(template).popup({
+const popupRendererMenu = (win, template, x, y, menu) => {
+  Menu.buildFromTemplate(menu.localizeTemplate(template)).popup({
     window: win,
     x,
     y
@@ -115,13 +115,13 @@ const registerMenuHandlers = menu => {
 
     if (payload.scope === 'tabs') {
       const { position = {} } = payload
-      popupRendererMenu(win, getTabsMenuTemplate(event.sender, payload), position.x, position.y)
+      popupRendererMenu(win, getTabsMenuTemplate(event.sender, payload), position.x, position.y, menu)
       return
     }
 
     if (payload.scope === 'sidebar') {
       const { position = {} } = payload
-      popupRendererMenu(win, getSidebarMenuTemplate(event.sender, payload), position.x, position.y)
+      popupRendererMenu(win, getSidebarMenuTemplate(event.sender, payload), position.x, position.y, menu)
       return
     }
 

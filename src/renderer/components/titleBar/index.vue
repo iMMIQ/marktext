@@ -31,7 +31,7 @@
           <span
             class="save-dot"
             :class="{'show': !isSaved}"
-            :title="isSaved ? 'Saved' : 'Unsaved changes'"
+            :title="$tr(isSaved ? 'Saved' : 'Unsaved changes')"
           ></span>
         </span>
       </div>
@@ -51,13 +51,13 @@
         >
           <template #content>
             <div class="title-item">
-              <span class="front">Words:</span><span class="text">{{wordCount['word']}}</span>
+              <span class="front">{{ $tr('Words:') }}</span><span class="text">{{wordCount['word']}}</span>
             </div>
             <div class="title-item">
-              <span class="front">Characters:</span><span class="text">{{wordCount['character']}}</span>
+              <span class="front">{{ $tr('Characters:') }}</span><span class="text">{{wordCount['character']}}</span>
             </div>
             <div class="title-item">
-              <span class="front">Paragraphs:</span><span class="text">{{wordCount['paragraph']}}</span>
+              <span class="front">{{ $tr('Paragraphs:') }}</span><span class="text">{{wordCount['paragraph']}}</span>
             </div>
           </template>
           <div
@@ -172,11 +172,8 @@ export default {
     counterLabel () {
       if (!this.wordCount) return ''
       const count = this.wordCount[this.show]
-      if (this.show === 'all') {
-        return `${count} chars + spaces`
-      }
-      const label = this.HASH[this.show].full
-      return `${count} ${label}${count === 1 ? '' : 's'}`
+      const messageKey = this.show === 'all' ? 'characterWithSpaces' : this.show
+      return this.$t(`titleBar.${messageKey}`, count)
     },
     showCustomTitleBar () {
       return this.titleBarStyle === 'custom' && !this.isOsx

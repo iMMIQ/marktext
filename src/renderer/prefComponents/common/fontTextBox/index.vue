@@ -1,7 +1,7 @@
 <template>
   <section class="pref-font-input-item" :class="{'ag-underdevelop': disable}">
     <div class="description">
-      <span>{{description}}:</span>
+      <span>{{ $tr(description) }}:</span>
       <svg
         v-if="more"
         class="font-textbox-info"
@@ -19,7 +19,7 @@
       popper-class="font-autocomplete-popper"
       v-model="selectValue"
       :fetch-suggestions="querySearch"
-      placeholder="Select font..."
+      :placeholder="$tr('Select font...')"
       @select="handleSelect"
     >
       <template #suffix>

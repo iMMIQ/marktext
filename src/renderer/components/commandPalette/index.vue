@@ -18,7 +18,7 @@
             class="search"
             @keydown="handleBeforeInput"
             @input="handleInput"
-            :placeholder="placeholderText"
+            :placeholder="$tr(placeholderText || 'Type a command to execute')"
           >
         </div>
         <loading v-if="searcherBusy"></loading>
@@ -31,7 +31,7 @@
               @click="search(item.id)"
               :class="{'active': index === selectedCommandIndex}"
             >
-              <span class="title" :title="item.title">{{item.description}}</span>
+              <span class="title" :title="$tr(item.title)">{{ $tr(item.description) }}</span>
               <span class="shortcut">
                 <span
                   class="shortcut"
@@ -66,10 +66,9 @@ export default {
   },
   data () {
     this.currentCommand = null
-    this.defaultPlaceholderText = 'Type a command to execute'
     return {
       showCommandPalette: false,
-      placeholderText: this.defaultPlaceholderText,
+      placeholderText: '',
       query: '',
       selectedCommandIndex: -1,
       availableCommands: [],
@@ -91,7 +90,7 @@ export default {
         .then(() => {
           this.availableCommands = this.currentCommand.subcommands
           this.selectedCommandIndex = this.currentCommand.subcommandSelectedIndex
-          this.placeholderText = this.currentCommand.placeholder || this.defaultPlaceholderText
+          this.placeholderText = this.currentCommand.placeholder || 'Type a command to execute'
           this.query = ''
           this.showCommandPalette = true
           bus.$emit('editor-blur')
@@ -218,7 +217,12 @@ export default {
         this.availableCommands = currentCommand.subcommands
       } else {
         this.availableCommands = currentCommand.subcommands
-          .filter(c => c.description.toLowerCase().indexOf(queryString.toLowerCase()) !== -1)
+          .filter(c => {
+            const source = c.description.toLowerCase()
+            const localized = this.$tr(c.description).toLowerCase()
+            const query = queryString.toLowerCase()
+            return source.includes(query) || localized.includes(query)
+          })
       }
       this.selectedCommandIndex = this.availableCommands.length ? 0 : -1
     },

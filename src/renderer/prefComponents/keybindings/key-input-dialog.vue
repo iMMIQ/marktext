@@ -24,12 +24,12 @@
           >
         </div>
         <div class="footer">
-          <div class="descriptions">Press Enter to continue or ESC to exit.</div>
+          <div class="descriptions">{{ $tr('Press Enter to continue or ESC to exit.') }}</div>
           <div
             v-show="!isKeybindingValid"
             class="invalid-keybinding"
           >
-            Current key combination cannot be bound!
+            {{ $tr('Current key combination cannot be bound!') }}
           </div>
         </div>
         </div>
@@ -82,6 +82,7 @@ export default {
     handleShow () {
       this.needCommitOnClose = true
       this.showKeyInputDialog = true
+      this.placeholderText = this.$tr(this.defaultPlaceholderText)
       this.$nextTick(() => {
         this.$refs.intputTextbox.focus()
       })

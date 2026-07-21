@@ -1,7 +1,7 @@
 <template>
   <section class="pref-text-box-item" :class="{'ag-underdevelop': disable}">
     <div class="description">
-      <span>{{description}}:</span>
+      <span>{{ $tr(description) }}:</span>
       <info-icon v-if="more"
         @click="handleMoreClick"
       ></info-icon>
@@ -16,7 +16,7 @@
       clearable>
     </el-input>
     <div v-if="notes" class="notes">
-      {{notes}}
+      {{ $tr(notes) }}
     </div>
   </section>
 </template>

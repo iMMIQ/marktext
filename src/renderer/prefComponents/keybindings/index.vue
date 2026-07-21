@@ -1,29 +1,32 @@
 <template>
   <div class="pref-keybindings">
-    <h4>Key Bindings</h4>
+    <h4>{{ $tr('Key Bindings') }}</h4>
     <section class="keybindings">
       <div class="text">
-        Customize MarkText shortcuts and click on the save button below to apply all changes (requires a restart).
-        All available and default key binding can be found <a class="link" @click="openKeybindingWiki">online</a>.
+        {{ $tr('Customize MarkText shortcuts and click on the save button below to apply all changes (requires a restart).') }}
+        {{ $tr('All available and default key binding can be found') }} <a class="link" @click="openKeybindingWiki">{{ $tr('online') }}</a>.
       </div>
       <el-table
         :data="keybindingList"
         style="width: 100%"
       >
-        <el-table-column prop="description" label="Description">
-        </el-table-column>
-        <el-table-column prop="accelerator" label="Key Combination" width="220">
-        </el-table-column>
-        <el-table-column fixed="right" label="Options" width="160">
+        <el-table-column prop="description" :label="$tr('Description')">
           <template #default="scope">
-            <el-button @click="handleEditClick(scope.$index, scope.row)" type="text" size="small" title="Edit">
-              Edit
+            {{ $tr(scope.row.description) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="accelerator" :label="$tr('Key Combination')" width="220">
+        </el-table-column>
+        <el-table-column fixed="right" :label="$tr('Options')" width="160">
+          <template #default="scope">
+            <el-button @click="handleEditClick(scope.$index, scope.row)" type="text" size="small" :title="$tr('Edit')">
+              {{ $tr('Edit') }}
             </el-button>
-            <el-button @click="handleResetClick(scope.$index, scope.row)" type="text" size="small" title="Reset">
-              Reset
+            <el-button @click="handleResetClick(scope.$index, scope.row)" type="text" size="small" :title="$tr('Reset')">
+              {{ $tr('Reset') }}
             </el-button>
-            <el-button @click="handleUnbindClick(scope.$index, scope.row)" type="text" size="small" title="Unbind">
-              Clear
+            <el-button @click="handleUnbindClick(scope.$index, scope.row)" type="text" size="small" :title="$tr('Unbind')">
+              {{ $tr('Clear') }}
             </el-button>
           </template>
         </el-table-column>
@@ -31,13 +34,13 @@
     </section>
     <section class="footer">
       <separator></separator>
-      <el-button size="default" @click="saveKeybindings">Save</el-button>
-      <el-button size="default" @click="restoreDefaults">Restore default key bindings</el-button>
+      <el-button size="default" @click="saveKeybindings">{{ $tr('Save') }}</el-button>
+      <el-button size="default" @click="restoreDefaults">{{ $tr('Restore default key bindings') }}</el-button>
     </section>
     <section v-if="showDebugTools" class="keyboard-debug">
       <separator></separator>
-      <div><strong>Debug options:</strong></div>
-      <el-button size="default" @click="dumpKeyboardInformation">Dump keyboard information</el-button>
+      <div><strong>{{ $tr('Debug options:') }}</strong></div>
+      <el-button size="default" @click="dumpKeyboardInformation">{{ $tr('Dump keyboard information') }}</el-button>
     </section>
     <key-input-dialog
       :showWithId="selectedShortcutId"
@@ -106,9 +109,9 @@ export default {
           .then(success => {
             if (!success) {
               notice.notify({
-                title: 'Failed to save',
+                title: this.$tr('Failed to save'),
                 type: 'error',
-                message: 'An unexpected error occurred while saving.'
+                message: this.$tr('An unexpected error occurred while saving.')
               })
             }
           })
@@ -120,9 +123,9 @@ export default {
         .then(success => {
           if (!success) {
             notice.notify({
-              title: 'Failed to save',
+              title: this.$tr('Failed to save'),
               type: 'error',
-              message: 'An unexpected error occurred while saving.'
+              message: this.$tr('An unexpected error occurred while saving.')
             })
           }
         })
@@ -156,9 +159,10 @@ export default {
     },
     handleDuplicateShortcut (id, accelerator) {
       notice.notify({
-        title: 'Shortcut already in use',
+        title: this.$tr('Shortcut already in use'),
         type: 'warning',
-        message: `The shortcut "${accelerator}" is already in use. Please unset the shortcut and try again.`
+        message: this.$tr('The shortcut "{shortcut}" is already in use. Please unset the shortcut and try again.')
+          .replace('{shortcut}', accelerator)
       })
     },
     dumpKeyboardInformation () {

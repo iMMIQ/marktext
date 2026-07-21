@@ -9,6 +9,7 @@ import { updateFormatMenu } from '../menu/actions/format'
 import { updateSelectionMenus } from '../menu/actions/paragraph'
 import { viewLayoutChanged } from '../menu/actions/view'
 import configureMenu, { configSettingMenu } from '../menu/templates'
+import { localizeMenuTemplate } from 'common/i18n'
 
 const RECENTLY_USED_DOCUMENTS_FILE_NAME = 'recently-used-documents.json'
 const MAX_RECENTLY_USED_DOCUMENTS = 12
@@ -210,6 +211,10 @@ class AppMenu {
     return this.windowMenus.has(windowId)
   }
 
+  localizeTemplate (template) {
+    return localizeMenuTemplate(template, this._preferences.getItem('language'))
+  }
+
   /**
    * Set the given window as last active.
    *
@@ -242,6 +247,14 @@ class AppMenu {
     // rebuild all window menus
     this.windowMenus.forEach((value, key) => {
       const { menu: oldMenu, type } = value
+      if (type === MenuType.SETTINGS) {
+        const { menu: newMenu } = this._buildSettingMenu()
+        value.menu = newMenu
+        if (this.activeWindowId === key) {
+          this._setApplicationMenu(newMenu)
+        }
+        return
+      }
       if (type !== MenuType.EDITOR) return
 
       const { menu: newMenu } = this._buildEditorMenu(recentUsedDocuments)
@@ -348,7 +361,7 @@ class AppMenu {
 
   _buildSettingMenu () {
     if (isOsx) {
-      const menuTemplate = configSettingMenu(this._keybindings)
+      const menuTemplate = configSettingMenu(this._keybindings, this._preferences)
       const menu = Menu.buildFromTemplate(menuTemplate)
       return { menu, type: MenuType.SETTINGS }
     }
@@ -409,6 +422,9 @@ class AppMenu {
     })
 
     ipcMain.on('broadcast-preferences-changed', prefs => {
+      if (prefs.language !== undefined) {
+        this.updateAppMenu()
+      }
       if (prefs.theme !== undefined) {
         this.updateThemeMenu(prefs.theme)
       }

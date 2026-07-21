@@ -1,6 +1,6 @@
 <template>
   <div class="pref-theme">
-    <h4>Theme</h4>
+    <h4>{{ $tr('Theme') }}</h4>
     <section class="offcial-themes">
       <div v-for="t of themes" :key="t.name" class="theme"
         :class="[t.name, { 'active': t.name === theme }]"
@@ -19,13 +19,13 @@
     <separator v-show="false"></separator>
     <section v-show="false" class="import-themes ag-underdevelop">
       <div>
-        <span>Open the themes folder</span>
-        <el-button size="small">Open Folder</el-button>
+        <span>{{ $tr('Open the themes folder') }}</span>
+        <el-button size="small">{{ $tr('Open Folder') }}</el-button>
       </div>
 
       <div>
-        <span>Import custom themes</span>
-        <el-button size="small">Import Theme</el-button>
+        <span>{{ $tr('Import custom themes') }}</span>
+        <el-button size="small">{{ $tr('Import Theme') }}</el-button>
       </div>
     </section>
   </div>

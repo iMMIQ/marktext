@@ -9,6 +9,7 @@ import paragraph from './paragraph'
 import format from './format'
 import theme from './theme'
 import dockMenu from './dock'
+import { localizeMenuTemplate } from 'common/i18n'
 
 export { dockMenu }
 
@@ -17,12 +18,13 @@ export { dockMenu }
  *
  * @param {Keybindings} keybindings The keybindings instance
  */
-export const configSettingMenu = (keybindings) => {
-  return [
+export const configSettingMenu = (keybindings, preferences) => {
+  const template = [
     ...(process.platform === 'darwin' ? [marktext(keybindings)] : []),
     prefEdit(keybindings),
     help()
   ]
+  return localizeMenuTemplate(template, preferences.getItem('language'))
 }
 
 /**
@@ -33,7 +35,7 @@ export const configSettingMenu = (keybindings) => {
  * @param {string[]} recentlyUsedFiles The recently used files.
  */
 export default function (keybindings, preferences, recentlyUsedFiles) {
-  return [
+  const template = [
     ...(process.platform === 'darwin' ? [marktext(keybindings)] : []),
     file(keybindings, preferences, recentlyUsedFiles),
     edit(keybindings),
@@ -44,4 +46,5 @@ export default function (keybindings, preferences, recentlyUsedFiles) {
     view(keybindings),
     help()
   ]
+  return localizeMenuTemplate(template, preferences.getItem('language'))
 }

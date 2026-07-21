@@ -35,11 +35,11 @@
     >
       <template #header>
         <div class="dialog-title">
-          Insert Table
+          {{ $tr('Insert Table') }}
         </div>
       </template>
       <el-form :model="tableChecker" :inline="true">
-        <el-form-item label="Rows">
+        <el-form-item :label="$tr('Rows')">
           <el-input-number
             ref="rowInput"
             size="small"
@@ -49,7 +49,7 @@
             :max="30"
           ></el-input-number>
         </el-form-item>
-        <el-form-item label="Columns">
+        <el-form-item :label="$tr('Columns')">
           <el-input-number
             size="small"
             v-model="tableChecker.columns"
@@ -62,10 +62,10 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="dialogTableVisible = false">
-            Cancel
+            {{ $tr('Cancel') }}
           </el-button>
           <el-button type="primary" @click="handleDialogTableConfirm">
-            OK
+            {{ $tr('OK') }}
           </el-button>
         </div>
       </template>

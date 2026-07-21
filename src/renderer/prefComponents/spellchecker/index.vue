@@ -1,6 +1,6 @@
 <template>
   <div class="pref-spellchecker">
-    <h4>Spelling</h4>
+    <h4>{{ $tr('Spelling') }}</h4>
     <compound>
       <template #head>
         <bool
@@ -34,24 +34,24 @@
     </compound>
 
     <div v-if="isOsx && spellcheckerEnabled" class="description">
-      The used language will be detected automatically while typing. Additional languages may be added through "Language & Region" in your system preferences pane.
+      {{ $tr('The used language will be detected automatically while typing. Additional languages may be added through "Language & Region" in your system preferences pane.') }}
     </div>
 
     <div v-if="!isOsx && spellcheckerEnabled">
-      <h6 class="title">Custom dictionary:</h6>
-      <div class="description">Edit words in custom dictionary.</div>
+      <h6 class="title">{{ $tr('Custom dictionary:') }}</h6>
+      <div class="description">{{ $tr('Edit words in custom dictionary.') }}</div>
       <el-table
         :data="wordsInCustomDictionary"
-        empty-text="No words available"
+        :empty-text="$tr('No words available')"
         style="width: 100%"
       >
-        <el-table-column prop="word" label="Word">
+        <el-table-column prop="word" :label="$tr('Word')">
         </el-table-column>
 
-        <el-table-column fixed="right" label="Options" width="90">
+        <el-table-column fixed="right" :label="$tr('Options')" width="90">
           <template #default="scope">
-            <el-button @click="handleDeleteClick(scope.row)" type="text" size="small" title="Delete">
-              Delete
+            <el-button @click="handleDeleteClick(scope.row)" type="text" size="small" :title="$tr('Delete')">
+              {{ $tr('Delete') }}
             </el-button>
           </template>
         </el-table-column>

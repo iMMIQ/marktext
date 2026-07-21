@@ -2,7 +2,7 @@ import { createApp, h } from 'vue'
 import { createPinia } from 'pinia'
 import appApi from './services/nativeApi/app'
 import bootstrapRenderer from './bootstrap'
-import { RouterView } from 'vue-router'
+import LocaleProvider from './components/localeProvider.vue'
 import './assets/symbolIcon'
 import { getInitialState, getRuntime } from './services/runtime'
 import { addElementStyle } from '@/util/theme'
@@ -25,7 +25,7 @@ markRendererStartupPhase('renderer:module-evaluated')
 
 const RootShell = {
   name: 'RendererRootShell',
-  render: () => h(RouterView, { class: 'view' })
+  render: () => h(LocaleProvider)
 }
 
 const initializeStores = pinia => {
@@ -93,10 +93,12 @@ const start = async () => {
 
   const [
     { default: createRendererRouter },
+    { createRendererI18n, installLegacyTranslator },
     { installElementPlus },
     { installServices }
   ] = await Promise.all([
     import('./router'),
+    import('./i18n'),
     import('./plugins/elementPlus'),
     import('./plugins/services')
   ])
@@ -105,9 +107,12 @@ const start = async () => {
   const app = createApp(RootShell)
   const pinia = createPinia()
   const router = createRendererRouter(getRuntime().env.type)
+  const i18n = createRendererI18n(getInitialState()?.language)
 
   installElementPlus(app)
   installServices(app)
+  installLegacyTranslator(app)
+  app.use(i18n)
   app.use(pinia)
   markRendererStartupPhase('renderer:stores-init-start')
   initializeStores(pinia)

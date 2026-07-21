@@ -53,7 +53,7 @@
             class="button tiny"
             @click="handleShowMoreMatches"
           >
-            Show more matches
+            {{ $tr('Show more matches') }}
           </div>
         </div>
       </div>

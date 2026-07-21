@@ -1,13 +1,13 @@
 <template>
   <section class="pref-switch-item" :class="{'ag-underdevelop': disable}">
     <div class="description">
-      <span>{{description}}</span>
+      <span>{{ $tr(description) }}</span>
       <info-icon v-if="more"
         @click="handleMoreClick"
       ></info-icon>
       <el-tooltip
         v-else-if="detailedDescription"
-        :content="detailedDescription"
+        :content="$tr(detailedDescription)"
         class="item"
         effect="dark"
         placement="top-start"
@@ -15,7 +15,7 @@
         <info-icon></info-icon>
       </el-tooltip>
       <span v-if="notes" class="notes">
-        {{notes}}
+        {{ $tr(notes) }}
       </span>
     </div>
     <el-switch

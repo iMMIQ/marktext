@@ -4,6 +4,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { describe, expect, it } from 'vitest'
 import { installElementPlus } from '@/plugins/elementPlus'
 import { installServices } from '@/plugins/services'
+import { createRendererI18n, installLegacyTranslator } from '@/i18n'
 
 describe('preferences shell', () => {
   it('renders the general preference route with pinia-backed state', async () => {
@@ -38,6 +39,8 @@ describe('preferences shell', () => {
             install (app) {
               installElementPlus(app)
               installServices(app)
+              installLegacyTranslator(app)
+              app.use(createRendererI18n('en'))
             }
           }
         ]
