@@ -236,7 +236,7 @@ jobs:
           bun run pack
 
       - name: Package Windows x64 artifacts
-        run: bun run package:win --x64
+        run: bun run package:win --x64 -c.compression=normal
 
       - name: Generate artifact checksums
         run: bun run release:checksums

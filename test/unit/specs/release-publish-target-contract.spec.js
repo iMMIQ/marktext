@@ -54,7 +54,7 @@ describe('CI and release workflow contract', () => {
     expect(windowsJob).toContain('needs: stage-linux')
     expect(windowsJob).toContain('runs-on: windows-2025')
     expect(windowsJob).toContain('bun run verify:native --platform win32')
-    expect(windowsJob).toContain('bun run package:win --x64')
+    expect(windowsJob).toContain('bun run package:win --x64 -c.compression=normal')
     expect(windowsJob).toContain('build/SHA256SUMS.txt')
     expect(windowsJob).not.toMatch(/bun run (?:check|unit|e2e(?::runtime)?)\s*$/m)
     expect(builderConfig).not.toContain('ia32')
