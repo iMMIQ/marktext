@@ -37,6 +37,8 @@ describe('CI and release workflow contract', () => {
     expect(releaseWorkflow).not.toMatch(/runs-on:\s*(?:windows|macos)-/)
     expect(releaseWorkflow).not.toContain('@latest')
     expect(releaseWorkflow).not.toContain('--publish always')
+    expect(JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).scripts['package:linux'])
+      .toContain('--publish never')
     expect(releaseWorkflow).toContain('bun run verify:native --platform linux')
     expect(releaseWorkflow).toContain('git describe --tags --abbrev=0 HEAD^')
     expect(releaseWorkflow).toContain('bun run doctor:release')
