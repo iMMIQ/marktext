@@ -1,3 +1,34 @@
+## 0.18.3-beta.3
+
+**:butterfly:Optimization**
+
+- Added preemptive viewport rendering and worker-based Markdown parsing for large documents.
+- Added transactional document storage and incremental layout indexing to reduce editing latency.
+- Improved hydration scheduling, urgent render drains, and large-document navigation responsiveness.
+
+**:beetle:Bug fix**
+
+- Fixed undo restoration across virtualized document state.
+- Fixed blank tabs and stale editor state after opening large documents or creating another window.
+- Fixed link tool positioning and editor lifecycle cleanup during tab and window changes.
+
+**:microscope:Quality**
+
+- Rebuilt E2E coverage around seven user stories, generated temporary fixtures, and desktop-isolated execution.
+- Parallelized E2E with half of the available CPUs and added large-document safety and scale coverage.
+- Added target-aware development rebuilds, environment diagnostics, release gates, native binary validation, and staged Linux release artifacts.
+- Pinned Bun 1.3.14 and GitHub Actions under the seven-day supply-chain waiting policy.
+
+## 0.18.3-beta.2
+
+**:beetle:Bug fix**
+
+- Fixed Windows packaged startup by resolving the preload script from the bundled application path.
+
+**:microscope:Quality**
+
+- Added unit coverage for packaged and development preload path resolution.
+
 ## 0.18.3-beta.1
 
 **:butterfly:Optimization**
