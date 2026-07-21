@@ -92,7 +92,7 @@ test.describe('US-07 safety and scale', () => {
     expectNoRendererErrors(session)
   })
 
-  test('[US-07.AC-02, US-07.AC-03, US-07.AC-04, US-07.AC-05] keeps a generated large document responsive through top, middle, bottom, edit, and undo', async ({ captureStory, launchApp, workspace }) => {
+  test('[US-07.AC-02, US-07.AC-03, US-07.AC-04, US-07.AC-05, US-07.AC-06] keeps a generated large document responsive through navigation, editing, and tab changes', async ({ captureStory, launchApp, workspace }) => {
     test.slow()
     const paragraphCount = 6500
     const topToken = 'scale paragraph 00000'
@@ -119,6 +119,27 @@ test.describe('US-07 safety and scale', () => {
     expect(topState.partitionPlaceholderCount).toBeGreaterThan(0)
     expect(topState.mountedRootCount).toBeLessThan(250)
     await captureStory(page, 'US-07 long document top')
+
+    const newTabToken = `new-tab-${Date.now()}`
+    const newTabAccelerator = await app.evaluate(({ Menu }) => {
+      const fileMenu = Menu.getApplicationMenu().items.find(item => item.label.replace(/&/g, '') === 'File')
+      return fileMenu.submenu.items.find(item => item.label === 'New Tab').accelerator
+    })
+    expect(newTabAccelerator).toBe(process.platform === 'darwin' ? 'Command+T' : 'Ctrl+T')
+    await clickMenuItemByPath(app, ['File', 'New Tab'])
+    await expect(page.locator('.tabs-container li')).toHaveCount(2)
+    await expect(page.locator('.tabs-container li.active')).toContainText('Untitled-1')
+    const blankEditor = page.locator('.ag-paragraph-content').first()
+    await blankEditor.click()
+    await page.keyboard.type(newTabToken)
+    await expect(page.locator('.editor-component')).toContainText(newTabToken)
+    await captureStory(page, 'US-07 blank tab after long document')
+
+    await page.locator('.tabs-container li').filter({ hasText: 'generated-large.md' }).click()
+    await expect(page.locator('.editor-component')).toContainText(topToken)
+    await expect(page.locator('.editor-component')).not.toContainText(newTabToken)
+    await expect.poll(async () => (await getScaleState(page)).visiblePlaceholderCount).toBe(0)
+    expectNoRendererErrors(session)
 
     const middleStartedAt = await scrollToRatio(page, 0.5)
     let middleAnchor = null

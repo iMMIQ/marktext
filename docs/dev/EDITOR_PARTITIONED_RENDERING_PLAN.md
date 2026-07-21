@@ -39,6 +39,9 @@ not complete either migration stage:
 - Deferred first-editable anchors now have a single model/DOM lifetime: idle
   hydration removes both, while a focused or edited anchor is retained as a
   real paragraph. Stale browser selections are ignored rather than dereferenced.
+- Switching from a partitioned document to a blank tab now rebuilds the block
+  tree, partition index, and cursor together instead of clearing only the text
+  store and leaving stale partition ranges behind.
 
 Still pending are transaction-first command mutation, transaction history,
 anchor-based DOM selection, incremental semantic indexes, parser checkpoints,
@@ -50,10 +53,10 @@ Verification for this slice:
 
 | Gate | Result |
 | --- | --- |
-| Unit suite | 38 files / 888 tests passed |
+| Unit suite | 38 files / 889 tests passed |
 | Production pack | passed |
 | Isolated Linux desktop preflight | passed on a private Xvfb display |
-| `US-07` E2E | 2 tests passed; hostile, top, middle, bottom, edited, and undo screenshots reviewed |
+| `US-07` E2E | 2 tests passed; hostile, top, blank-tab transition, middle, bottom, edited, and undo screenshots reviewed |
 | 128 MiB `DocumentStore` microbenchmark | build about 275 ms; tail edit about 2 ms; bounded tail slice about 0.03 ms; renderer-process RSS about 202 MiB in the standalone run |
 | 128 MiB isolated application run | first editable 4.415 s; input ready 5.043 s; measured change dispatch 1.6 ms; no renderer crash |
 

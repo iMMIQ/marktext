@@ -322,36 +322,19 @@ class Muya {
   }
 
   setMarkdown (markdown, cursor, isRenderCursor = true) {
-    let newMarkdown = markdown
+    const documentMarkdown = typeof markdown === 'string' ? markdown : ''
+    let newMarkdown = documentMarkdown
     let isValid = false
     let cursorTargetLines = null
-    const shouldUseBlankDocument = !markdown && !cursor
+    const shouldUseBlankDocument = documentMarkdown.length === 0 && !cursor
     this._markPerformancePhase('muya:set-markdown-start', {
       hasCursor: !!cursor,
       isRenderCursor,
       isBlankDocument: shouldUseBlankDocument
     })
 
-    if (shouldUseBlankDocument) {
-      this.contentState.renderInitial(isRenderCursor, this.options.initialRenderBlockCount || 120)
-      this._markPerformancePhase('muya:render-end', {
-        isRenderCursor,
-        isBlankDocument: true
-      })
-      if (!this._didMarkFirstEditable) {
-        this._didMarkFirstEditable = true
-        this._markPerformancePhase('editor:first-editable', {
-          isBlankDocument: true
-        })
-      }
-      this.contentState.replaceDocumentText('')
-      this.markdown = ''
-      this._scheduleInitialDispatchChange('')
-      return
-    }
-
     if (cursor && cursor.anchor && cursor.focus) {
-      const cursorInfo = this.contentState.addCursorToMarkdown(markdown, cursor)
+      const cursorInfo = this.contentState.addCursorToMarkdown(documentMarkdown, cursor)
       newMarkdown = cursorInfo.markdown
       isValid = cursorInfo.isValid
       if (isValid) {
@@ -388,9 +371,9 @@ class Muya {
         markdownLength: newMarkdown.length
       })
     }
-    this.contentState.replaceDocumentText(markdown, newMarkdown, 'cursor-normalization')
-    this.markdown = markdown
-    this._scheduleInitialDispatchChange(markdown)
+    this.contentState.replaceDocumentText(documentMarkdown, newMarkdown, 'cursor-normalization')
+    this.markdown = documentMarkdown
+    this._scheduleInitialDispatchChange(documentMarkdown)
   }
 
   setCursor (cursor) {

@@ -97,4 +97,31 @@ describe('Muya replace', () => {
     muya.eventCenter.detachAllDomEvents()
     muya.container.remove()
   })
+
+  it('fully resets partitioned state when switching to a blank document', () => {
+    const markdown = Array.from({ length: 12 }, (_, index) => `paragraph ${index}`).join('\n\n')
+    const origin = document.createElement('div')
+    document.body.appendChild(origin)
+    const muya = new Muya(origin, { ...MUYA_DEFAULT_OPTION, markdown, initialRenderBlockCount: 3 })
+
+    expect(muya.contentState.blocks.some(block => block.functionType === 'partitionPlaceholder')).toBe(true)
+
+    muya.setMarkdown('')
+    muya._cancelInitialDispatchTask()
+    muya._cancelMetadataDispatchTask()
+
+    const cs = muya.contentState
+    expect(cs.documentStore.length).toBe(0)
+    expect(cs.partitionMap).toHaveLength(0)
+    expect(cs.blocks).toHaveLength(1)
+    expect(cs.blocks[0].functionType).not.toBe('partitionPlaceholder')
+    expect(cs.getIncrementalEditRange()).toBeNull()
+    expect(muya.markdown).toBe('')
+    expect(cs.documentStore.toString()).toBe('')
+    expect(() => muya.dispatchChange()).not.toThrow()
+    expect(cs.documentStore.toString()).toBe(muya.markdown)
+    muya.contentState.clear()
+    muya.eventCenter.detachAllDomEvents()
+    muya.container.remove()
+  })
 })
