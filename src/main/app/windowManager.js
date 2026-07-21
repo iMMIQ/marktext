@@ -371,12 +371,24 @@ class WindowManager extends EventEmitter {
 
     ipcMain.on('mt::renderer-ready', e => {
       const win = BrowserWindow.fromWebContents(e.sender)
-      markStartupPhase('window:renderer-ready-ipc', { windowId: win ? win.id : null })
+      if (!win) {
+        log.error('Cannot find browser window to bootstrap renderer.')
+        return
+      }
+
       const editor = this.get(win.id)
       if (!editor) {
         log.error(`Cannot find window id "${win.id}" to bootstrap renderer.`)
         return
       }
+
+      // Renderer readiness bootstraps editor tabs. Other window types share the
+      // renderer entry point but do not implement the editor lifecycle.
+      if (editor.type !== WindowType.EDITOR) {
+        return
+      }
+
+      markStartupPhase('window:renderer-ready-ipc', { windowId: win.id })
       editor.notifyRendererReady()
     })
 

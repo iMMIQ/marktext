@@ -1,3 +1,19 @@
+## 0.18.3-beta.6
+
+**:butterfly:Optimization**
+
+- Unified preference inputs, selects, tables, sliders, and disabled states with the active light or dark application theme.
+
+**:beetle:Bug fix**
+
+- Fixed opening Preferences reporting a main-process error after treating the settings renderer as an editor window.
+- Fixed light-themed controls and table headers appearing inside dark preference pages.
+
+**:microscope:Quality**
+
+- Changed preference E2E coverage to open the real settings window from the application menu and track errors from every renderer window.
+- Added light, dark, and compact preference screenshots with computed-style assertions for themed controls.
+
 ## 0.18.3-beta.5
 
 **:butterfly:Optimization**

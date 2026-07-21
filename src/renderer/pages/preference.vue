@@ -126,12 +126,14 @@ export default {
     padding-top: 0;
   }
 
-  & .el-input__wrapper {
-    background: transparent;
+  & .el-input__wrapper,
+  & .el-select__wrapper {
+    background: var(--inputBgColor);
     box-shadow: 0 0 0 1px var(--editorColor10) inset;
   }
 
-  & .el-input__wrapper.is-focus {
+  & .el-input__wrapper.is-focus,
+  & .el-select__wrapper.is-focused {
     box-shadow: 0 0 0 1px var(--themeColor) inset;
   }
 

@@ -239,10 +239,14 @@ const launchElectron = async userArgs => {
   await blockNativeDialogs(app)
   const page = await app.firstWindow()
   const rendererErrors = []
-  page.on('pageerror', error => rendererErrors.push(error.stack || error.message))
+  const trackPageErrors = targetPage => {
+    targetPage.on('pageerror', error => rendererErrors.push(error.stack || error.message))
+    return targetPage
+  }
+  trackPageErrors(page)
   await page.waitForLoadState('domcontentloaded')
   await page.locator('.editor-container').waitFor({ state: 'visible', timeout: 30000 })
-  return { app, page, rendererErrors, userDataDir }
+  return { app, page, rendererErrors, trackPageErrors, userDataDir }
 }
 
 module.exports = {

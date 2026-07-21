@@ -117,8 +117,10 @@ const start = async () => {
   markRendererStartupPhase('renderer:stores-init-start')
   initializeStores(pinia)
   markRendererStartupPhase('renderer:stores-init-complete')
-  appApi.notifyRendererReady()
-  markRendererStartupPhase('renderer:notify-ready')
+  if (getRuntime().env.type === 'editor') {
+    appApi.notifyRendererReady()
+    markRendererStartupPhase('renderer:notify-ready')
+  }
   app.use(router)
 
   markRendererStartupPhase('renderer:router-ready-start')

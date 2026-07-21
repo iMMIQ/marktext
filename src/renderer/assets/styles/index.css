@@ -14,6 +14,33 @@
   --icon-button-size: 34px;
   --focus-ring: 0 0 0 2px var(--editorBgColor), 0 0 0 4px var(--focusColor);
 
+  /* Keep Element Plus surfaces and typography on the active MarkText theme. */
+  --el-bg-color: var(--editorBgColor);
+  --el-bg-color-overlay: var(--floatBgColor);
+  --el-fill-color: var(--editorColor10);
+  --el-fill-color-light: var(--editorColor04);
+  --el-fill-color-lighter: var(--editorColor04);
+  --el-fill-color-extra-light: transparent;
+  --el-fill-color-dark: var(--editorColor10);
+  --el-fill-color-darker: var(--editorColor30);
+  --el-fill-color-blank: var(--editorBgColor);
+  --el-text-color-primary: var(--editorColor80);
+  --el-text-color-regular: var(--editorColor);
+  --el-text-color-secondary: var(--editorColor60);
+  --el-text-color-placeholder: var(--editorColor40);
+  --el-text-color-disabled: var(--editorColor30);
+  --el-border-color: var(--editorColor30);
+  --el-border-color-hover: var(--editorColor40);
+  --el-border-color-light: var(--editorColor10);
+  --el-border-color-lighter: var(--editorColor10);
+  --el-border-color-extra-light: var(--editorColor04);
+  --el-border-color-dark: var(--editorColor40);
+  --el-border-color-darker: var(--editorColor50);
+  --el-disabled-bg-color: var(--editorColor04);
+  --el-disabled-text-color: var(--editorColor30);
+  --el-disabled-border-color: var(--editorColor10);
+  --el-mask-color: var(--maskColor);
+
   /*editor*/
   /*Theme color cluster*/
   --themeColor: rgba(33, 181, 111, 1);

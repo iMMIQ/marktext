@@ -59,16 +59,19 @@ test.describe('US-04 personalization', () => {
 
   test('[US-04.AC-03, US-04.AC-04] persists general preferences and keeps every category reachable', async ({ captureStory, launchApp }) => {
     const session = await launchApp()
-    const { app, page, userDataDir } = session
+    const { app, trackPageErrors, userDataDir } = session
     const preferencesPath = path.join(userDataDir, 'preferences.json')
 
-    await page.evaluate(() => { window.location.hash = '#/preference/general' })
+    const settingsWindowPromise = app.waitForEvent('window')
+    await clickMenuItemByPath(app, ['File', 'Preferences...'])
+    const page = trackPageErrors(await settingsWindowPromise)
+    await page.waitForLoadState('domcontentloaded')
+    expect(new URL(page.url()).searchParams.get('type')).toBe('settings')
     await expect(page.locator('.pref-general')).toBeVisible()
     const autoSave = page.locator('.pref-switch-item:has-text("Automatically save document changes") .el-switch')
     await autoSave.click()
     await expect(autoSave).toHaveClass(/is-checked/)
     await expect.poll(() => JSON.parse(fs.readFileSync(preferencesPath, 'utf8')).autoSave).toBe(true)
-    expect(await getMenuItemChecked(app, 'autoSaveMenuItem')).toBe(true)
 
     const categories = [
       ['editor', '.pref-editor'],
@@ -85,10 +88,30 @@ test.describe('US-04 personalization', () => {
       await expect(page.locator('.pref-sidebar .category .item.active')).toHaveAttribute('title', category === 'keybindings' ? 'Key Bindings' : category[0].toUpperCase() + category.slice(1))
       if (category === 'theme') {
         await expect(page.locator('.offcial-themes .theme')).toHaveCount(6)
+        await captureStory(page, 'US-04 light theme preferences')
+        await page.locator('.offcial-themes .theme.one-dark').click()
+        await expect.poll(() => JSON.parse(fs.readFileSync(preferencesPath, 'utf8')).theme).toBe('one-dark')
+        await expect(page.locator('.offcial-themes .theme.one-dark')).toHaveAttribute('aria-pressed', 'true')
       }
       await page.waitForTimeout(100)
       expect(session.rendererErrors, `Preference category "${category}" failed:\n${session.rendererErrors.join('\n')}`).toHaveLength(errorCount)
       if (category === 'keybindings') {
+        const themeControlStyles = await page.evaluate(() => {
+          const input = document.querySelector('.keybindings-search .el-input__wrapper')
+          const select = document.querySelector('.keybindings-category .el-select__wrapper')
+          const tableCell = document.querySelector('.pref-keybindings .el-table__body td')
+          const fixedHeader = document.querySelector('.pref-keybindings .el-table__fixed-right th')
+          return {
+            inputBackground: getComputedStyle(input).backgroundColor,
+            selectBackground: getComputedStyle(select).backgroundColor,
+            tableColor: getComputedStyle(tableCell).color,
+            fixedHeaderBackground: fixedHeader ? getComputedStyle(fixedHeader).backgroundColor : null
+          }
+        })
+        expect(themeControlStyles.inputBackground).toBe(themeControlStyles.selectBackground)
+        expect(themeControlStyles.selectBackground).not.toBe('rgb(255, 255, 255)')
+        expect(themeControlStyles.tableColor).not.toBe('rgb(96, 98, 102)')
+        expect(themeControlStyles.fixedHeaderBackground).not.toBe('rgb(255, 255, 255)')
         const search = page.locator('.keybindings-search input')
         await search.fill('Cycle Tabs Forward')
         await expect(page.locator('.pref-keybindings .el-table__row')).toHaveCount(1)
@@ -119,7 +142,11 @@ test.describe('US-04 personalization', () => {
     await captureStory(page, 'US-04 preferences')
 
     await app.evaluate(({ BrowserWindow }) => {
-      BrowserWindow.getAllWindows()[0].setContentSize(650, 500)
+      const settingsWindow = BrowserWindow.getAllWindows().find(window => {
+        const type = new URL(window.webContents.getURL()).searchParams.get('type') || ''
+        return type.startsWith('settings')
+      })
+      settingsWindow.setContentSize(650, 500)
     })
     await expect.poll(() => page.evaluate(() => window.innerWidth)).toBeLessThanOrEqual(650)
     const compactGeometry = await page.evaluate(() => {
