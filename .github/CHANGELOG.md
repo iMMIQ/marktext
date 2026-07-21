@@ -1,3 +1,22 @@
+## 0.18.3-beta.5
+
+**:butterfly:Optimization**
+
+- Reworked preference layouts, theme selection, image settings, and key binding management for clearer scanning and faster repeated use.
+- Kept localized word and character counts on one line in compact title bars without overlapping window controls.
+
+**:beetle:Bug fix**
+
+- Fixed the Key Bindings preference page failing to render in the sandboxed renderer.
+- Fixed shortcut platform detection depending on an unavailable Node.js `process` global in the sandboxed renderer.
+- Fixed the image folder action using the wrong shell operation and remaining enabled without a configured folder.
+- Fixed preference controls overflowing, clipping actions, or presenting inconsistent translated labels at compact window sizes.
+
+**:microscope:Quality**
+
+- Added isolated E2E coverage for every preference category, key binding search, Chinese counter modes, compact layouts, and screenshot review.
+- Patched the existing Electron-localshortcut integration without upgrading its dependency version.
+
 ## 0.18.3-beta.4
 
 **:cactus:Feature**

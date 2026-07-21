@@ -2,12 +2,14 @@
   <div class="pref-theme">
     <h4>{{ $tr('Theme') }}</h4>
     <section class="offcial-themes">
-      <div v-for="t of themes" :key="t.name" class="theme"
+      <button v-for="t of themes" :key="t.name" class="theme" type="button"
         :class="[t.name, { 'active': t.name === theme }]"
+        :aria-label="$tr(t.name)"
+        :aria-pressed="t.name === theme"
         @click="onSelectChange('theme', t.name)"
       >
         <div v-html="t.html"></div>
-      </div>
+      </button>
     </section>
     <separator></separator>
     <cur-select
@@ -80,13 +82,18 @@ export default {
 <style>
   .offcial-themes {
     margin-top: 12px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(248px, 100%), 1fr));
+    gap: var(--space-4);
     & .theme {
       cursor: pointer;
-      width: 248px;
+      width: 100%;
       height: 100px;
-      margin: 0px 20px 10px 20px;
+      margin: 0;
+      border: 0;
       padding-left: 30px;
       padding-top: 20px;
+      text-align: left;
       overflow: hidden;
       display: inline-block;
       background: var(--editorBgColor);
@@ -138,7 +145,11 @@ export default {
       }
     }
     & .theme.active {
-      box-shadow: var(--floatShadow);
+      box-shadow: 0 0 0 3px var(--highlightThemeColor), var(--floatShadow);
+    }
+    & .theme:focus-visible {
+      outline: 2px solid var(--focusColor);
+      outline-offset: 3px;
     }
     & h3 {
       margin: 0;

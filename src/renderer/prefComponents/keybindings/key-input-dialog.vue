@@ -159,7 +159,7 @@ export default {
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 500px;
+    width: min(500px, calc(100vw - 96px));
     height: auto;
     top: 0;
     left: 50%;
@@ -185,7 +185,9 @@ export default {
   input.input-textbox {
     width: 100%;
     height: 30px;
-    margin: 0 10px;
+    margin: 0;
+    padding: 0 10px;
+    box-sizing: border-box;
     font-size: 14px;
     color: var(--editorColor);
     background: transparent;

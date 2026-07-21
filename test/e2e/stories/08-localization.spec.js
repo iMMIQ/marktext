@@ -63,11 +63,64 @@ test.describe('US-08 localization', () => {
     expect(compactLayout.documentWidth).toBeLessThanOrEqual(compactLayout.viewportWidth + 1)
     expect(compactLayout.contentLeft).toBeGreaterThanOrEqual(compactLayout.sidebarRight - 1)
 
+    await page.locator('.pref-sidebar .category .item[title="快捷键"]').click()
+    await expect(page.locator('.pref-keybindings')).toBeVisible()
+    const shortcutSearch = page.locator('.keybindings-search input')
+    await shortcutSearch.fill('向前切换标签页')
+    await expect(page.locator('.pref-keybindings .el-table__row')).toHaveCount(1)
+    await expect(page.locator('.pref-keybindings .el-table__row')).toContainText('其他：向前切换标签页')
+    await captureStory(page, 'US-08 Chinese keybindings')
+
     await app.evaluate(({ BrowserWindow }) => {
       BrowserWindow.getAllWindows()[0].setContentSize(1100, 720)
     })
     await page.evaluate(() => { window.location.hash = '#/editor' })
     await expect(page.locator('.editor-container')).toBeVisible()
+
+    await app.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0].setContentSize(550, 500)
+    })
+    const wordCounter = page.locator('.title-bar .word-count')
+    const counterLabels = [
+      /^\d+ 个单词$/,
+      /^\d+ 个段落$/,
+      /^\d+ 个字符$/,
+      /^\d+ 个字符（含空格）$/
+    ]
+    for (const label of counterLabels) {
+      await expect(wordCounter).toHaveText(label)
+      const layout = await wordCounter.evaluate(element => {
+        const text = element.querySelector('.text-center-vertical')
+        const titleBar = element.closest('.title-bar')
+        const documentTitle = titleBar.querySelector('.document-title')
+        const windowControls = titleBar.querySelector(':scope > .right-toolbar')
+        const counterRect = element.getBoundingClientRect()
+        const textRect = text.getBoundingClientRect()
+        const titleRect = documentTitle.getBoundingClientRect()
+        const controlsRect = windowControls.getBoundingClientRect()
+        return {
+          whiteSpace: getComputedStyle(text).whiteSpace,
+          textHeight: textRect.height,
+          titleBarHeight: titleBar.getBoundingClientRect().height,
+          counterRight: counterRect.right,
+          titleLeft: titleRect.left,
+          titleRight: titleRect.right,
+          controlsLeft: controlsRect.left
+        }
+      })
+      expect(layout.whiteSpace).toBe('nowrap')
+      expect(layout.textHeight).toBeLessThanOrEqual(layout.titleBarHeight)
+      expect(layout.counterRight).toBeLessThanOrEqual(layout.titleLeft)
+      expect(layout.titleRight).toBeLessThanOrEqual(layout.controlsLeft)
+      await wordCounter.click()
+    }
+    await wordCounter.click({ clickCount: 3 })
+    await expect(wordCounter).toHaveText(counterLabels[3])
+    await captureStory(page, 'US-08 compact Chinese word counter')
+
+    await app.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0].setContentSize(1100, 720)
+    })
     await clickMenuItemByPath(app, ['编辑', '查找'])
     const searchBar = page.locator('.search-bar')
     await expect(searchBar.locator('input[placeholder="查找"]')).toBeVisible()

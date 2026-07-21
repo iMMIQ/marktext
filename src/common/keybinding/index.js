@@ -1,4 +1,19 @@
-const isOsx = process.platform === 'darwin'
+const getPlatform = () => {
+  if (typeof process !== 'undefined' && typeof process.platform === 'string') {
+    return process.platform
+  }
+  if (typeof navigator === 'undefined') {
+    return ''
+  }
+
+  const value = String(navigator.userAgentData?.platform || navigator.platform || navigator.userAgent).toLowerCase()
+  if (value.includes('mac')) return 'darwin'
+  if (value.includes('win')) return 'win32'
+  if (value.includes('linux')) return 'linux'
+  return ''
+}
+
+const isOsx = getPlatform() === 'darwin'
 
 const _normalizeAccelerator = accelerator => {
   return accelerator.toLowerCase()

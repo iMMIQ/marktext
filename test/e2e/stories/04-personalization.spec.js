@@ -70,11 +70,32 @@ test.describe('US-04 personalization', () => {
     await expect.poll(() => JSON.parse(fs.readFileSync(preferencesPath, 'utf8')).autoSave).toBe(true)
     expect(await getMenuItemChecked(app, 'autoSaveMenuItem')).toBe(true)
 
-    for (const category of ['editor', 'markdown', 'spelling', 'theme', 'image', 'keybindings']) {
+    const categories = [
+      ['editor', '.pref-editor'],
+      ['markdown', '.pref-markdown'],
+      ['spelling', '.pref-spellchecker'],
+      ['theme', '.pref-theme'],
+      ['image', '.pref-image'],
+      ['keybindings', '.pref-keybindings']
+    ]
+    for (const [category, selector] of categories) {
       const errorCount = session.rendererErrors.length
-      await page.evaluate(value => { window.location.hash = `#/preference/${value}` }, category)
-      await expect(page.locator('.pref-setting')).toBeVisible()
+      await page.locator(`.pref-sidebar .category .item[title="${category === 'keybindings' ? 'Key Bindings' : category[0].toUpperCase() + category.slice(1)}"]`).click()
+      await expect(page.locator(selector)).toBeVisible()
+      await expect(page.locator('.pref-sidebar .category .item.active')).toHaveAttribute('title', category === 'keybindings' ? 'Key Bindings' : category[0].toUpperCase() + category.slice(1))
+      if (category === 'theme') {
+        await expect(page.locator('.offcial-themes .theme')).toHaveCount(6)
+      }
+      await page.waitForTimeout(100)
       expect(session.rendererErrors, `Preference category "${category}" failed:\n${session.rendererErrors.join('\n')}`).toHaveLength(errorCount)
+      if (category === 'keybindings') {
+        const search = page.locator('.keybindings-search input')
+        await search.fill('Cycle Tabs Forward')
+        await expect(page.locator('.pref-keybindings .el-table__row')).toHaveCount(1)
+        await expect(page.locator('.pref-keybindings .el-table__row')).toContainText('Misc: Cycle Tabs Forward')
+        await search.clear()
+      }
+      await captureStory(page, `US-04 ${category} preferences`)
     }
     await page.evaluate(() => { window.location.hash = '#/preference/general' })
     await expect(page.locator('.pref-general')).toBeVisible()

@@ -125,6 +125,19 @@ export default {
     margin-top: var(--titleBarHeight);
     padding-top: 0;
   }
+
+  & .el-input__wrapper {
+    background: transparent;
+    box-shadow: 0 0 0 1px var(--editorColor10) inset;
+  }
+
+  & .el-input__wrapper.is-focus {
+    box-shadow: 0 0 0 1px var(--themeColor) inset;
+  }
+
+  & .el-input__inner {
+    border: 0 !important;
+  }
 }
 
 @media (max-width: 720px) {

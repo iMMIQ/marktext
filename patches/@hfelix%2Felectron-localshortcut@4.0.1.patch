@@ -1,0 +1,34 @@
+diff --git a/src/utils.js b/src/utils.js
+index 73bd514..3254858 100644
+--- a/src/utils.js
++++ b/src/utils.js
+@@ -1,6 +1,26 @@
+-const isLinux = process.platform === 'linux';
+-const isOsx = process.platform === 'darwin';
+-const isWindows = process.platform === 'win32';
++const getPlatform = () => {
++  if (typeof process !== 'undefined' && typeof process.platform === 'string') {
++    return process.platform;
++  }
++  if (typeof navigator === 'undefined') {
++    return '';
++  }
++
++  const value = String(
++    (navigator.userAgentData && navigator.userAgentData.platform) ||
++    navigator.platform ||
++    navigator.userAgent
++  ).toLowerCase();
++  if (value.includes('mac')) return 'darwin';
++  if (value.includes('win')) return 'win32';
++  if (value.includes('linux')) return 'linux';
++  return '';
++};
++
++const platform = getPlatform();
++const isLinux = platform === 'linux';
++const isOsx = platform === 'darwin';
++const isWindows = platform === 'win32';
+ 
+ module.exports = {
+   isLinux,

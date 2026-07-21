@@ -1,6 +1,6 @@
 {
   "name": "marktext",
-  "version": "0.18.3-beta.4",
+  "version": "0.18.3-beta.5",
   "homepage": "https://github.com/marktext/marktext/",
   "description": "Next generation markdown editor",
   "license": "MIT",
@@ -211,6 +211,7 @@
     }
   ],
   "patchedDependencies": {
+    "@hfelix/electron-localshortcut@4.0.1": "patches/@hfelix%2Felectron-localshortcut@4.0.1.patch",
     "fontmanager-redux@1.1.0": "patches/fontmanager-redux@1.1.0.patch"
   },
   "overrides": {

@@ -31,13 +31,16 @@ export const translateLegacyText = (text, locale) => {
   if (direct) return direct
 
   if (text.includes(': ')) {
-    let translated = false
-    const segments = text.split(': ').map(segment => {
-      const value = legacy[segment] || lookup[segment.toLowerCase()]
-      translated ||= !!value
-      return value || segment
+    const segments = text.split(': ')
+    const prefix = segments.shift()
+    const translatedPrefix = legacy[prefix] || legacy[`${prefix}:`] ||
+      lookup[prefix.toLowerCase()] || lookup[`${prefix}:`.toLowerCase()]
+    if (!translatedPrefix) return text
+
+    const translatedSegments = segments.map(segment => {
+      return legacy[segment] || lookup[segment.toLowerCase()] || segment
     })
-    if (translated) return segments.join('：')
+    return [translatedPrefix.replace(/[：:]$/, ''), ...translatedSegments].join('：')
   }
   return text
 }

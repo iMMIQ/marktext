@@ -6,7 +6,7 @@
       :onChange="value => modifyImageFolderPath(value)"></text-box>
     <div>
       <el-button size="small" @click="modifyImageFolderPath(undefined)">{{ $tr('Open...') }}</el-button>
-      <el-button size="small" @click="openImageFolder">{{ $tr('Show in Folder') }}</el-button>
+      <el-button size="small" :disabled="!imageFolderPath" @click="openImageFolder">{{ $tr('Show in Folder') }}</el-button>
     </div>
     <compound>
       <template #head>
@@ -61,7 +61,7 @@ export default {
   methods: {
     ...mapActions(usePreferencesStore, ['setImageFolderPath', 'setSinglePreference']),
     openImageFolder () {
-      this.$nativeApi.shell.openPath(this.imageFolderPath)
+      this.$nativeApi.shell.showItemInFolder(this.imageFolderPath)
     },
     modifyImageFolderPath (value) {
       return this.setImageFolderPath(value)

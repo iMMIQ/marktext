@@ -16,6 +16,7 @@ describe('internationalization', () => {
   it('translates direct labels and composed command descriptions', () => {
     expect(translateLegacyText('Save', 'zh-CN')).toBe('保存')
     expect(translateLegacyText('File: New Window', 'zh-CN')).toBe('文件：新建窗口')
+    expect(translateLegacyText('Misc: Switch tab to the 2nd', 'zh-CN')).toBe('其他：切换到第 2 个标签页')
     expect(translateLegacyText('/tmp/File: New Window', 'en')).toBe('/tmp/File: New Window')
   })
 

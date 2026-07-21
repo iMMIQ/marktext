@@ -355,6 +355,8 @@ export default {
     width: 118px; /* + 2*10px padding*/
     display: flex;
     flex-direction: row;
+    align-items: center;
+    overflow: hidden;
   }
   .right-toolbar {
     height: 100%;
@@ -371,6 +373,11 @@ export default {
   }
 
   .word-count {
+    min-width: 0;
+    max-width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
     cursor: pointer;
     font-size: 14px;
     color: var(--editorColor60);
@@ -380,6 +387,11 @@ export default {
     box-sizing: border-box;
     transition: all .25s ease-in-out;
     & > .text-center-vertical {
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
       padding: 2px 5px;
       border-radius: var(--radius-sm);
     }

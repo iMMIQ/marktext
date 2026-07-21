@@ -1,12 +1,18 @@
 <template>
   <div class="title-bar">
-    <div class="frameless-titlebar-button frameless-titlebar-close" @click.stop="handleCloseClick">
+    <button
+      type="button"
+      class="frameless-titlebar-button frameless-titlebar-close"
+      :aria-label="$tr('Close')"
+      :title="$tr('Close')"
+      @click.stop="handleCloseClick"
+    >
       <div>
         <svg width="10" height="10">
           <path :d="windowIconClose" />
         </svg>
       </div>
-    </div>
+    </button>
   </div>
 </template>
 
@@ -50,6 +56,10 @@ export default {
     right: 0;
     width: 46px;
     height: var(--titleBarHeight);
+    padding: 0;
+    border: 0;
+    color: inherit;
+    background: transparent;
     -webkit-app-region: no-drag;
   }
 

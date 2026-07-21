@@ -70,15 +70,6 @@
           :bool="wordWrapInToc"
           :onChange="value => onSelectChange('wordWrapInToc', value)"
         ></bool>
-
-        <!-- TODO: The description is very bad and the entry isn't used by the editor. -->
-        <cur-select
-          description="Sort field for files in open folders"
-          :value="fileSortBy"
-          :options="fileSortByOptions"
-          :onChange="value => onSelectChange('fileSortBy', value)"
-          :disable="true"
-        ></cur-select>
       </template>
     </compound>
 
@@ -88,13 +79,17 @@
       </template>
       <template #children>
         <section class="startup-action-ctrl">
-          <el-radio-group v-model="startUpAction">
-            <!--
-              Hide "lastState" for now (#2064).
-            <el-radio class="ag-underdevelop" label="lastState">Restore last editor session</el-radio>
-            -->
-            <el-radio label="folder" style="margin-bottom: 10px;">{{ $tr('Open the default directory') }}<span>: {{defaultDirectoryToOpen}}</span></el-radio>
-            <el-button size="small" @click="selectDefaultDirectoryToOpen">{{ $tr('Select Folder') }}</el-button>
+          <el-radio-group v-model="startUpAction" class="startup-options">
+            <el-radio label="lastState">{{ $tr('Restore last editor session') }}</el-radio>
+            <div class="startup-folder-option">
+              <el-radio label="folder">{{ $tr('Open the default directory') }}</el-radio>
+              <div class="startup-folder-control">
+                <el-button size="small" :disabled="startUpAction !== 'folder'" @click="selectDefaultDirectoryToOpen">{{ $tr('Select Folder') }}</el-button>
+                <span class="startup-folder-path" :title="defaultDirectoryToOpen">
+                  {{ defaultDirectoryToOpen || $tr('No folder selected') }}
+                </span>
+              </div>
+            </div>
             <el-radio label="blank">{{ $tr('Open a blank page') }}</el-radio>
           </el-radio-group>
         </section>
@@ -123,14 +118,12 @@ import Compound from '../common/compound/index.vue'
 import Range from '../common/range/index.vue'
 import CurSelect from '../common/select/index.vue'
 import Bool from '../common/bool/index.vue'
-import Separator from '../common/separator/index.vue'
 import { isOsx } from '@/util'
 import { usePreferencesStore } from '@/stores/preferences'
 
 import {
   titleBarStyleOptions,
   zoomOptions,
-  fileSortByOptions,
   languageOptions
 } from './config'
 
@@ -139,13 +132,11 @@ export default {
     Compound,
     Bool,
     Range,
-    CurSelect,
-    Separator
+    CurSelect
   },
   data () {
     this.titleBarStyleOptions = titleBarStyleOptions
     this.zoomOptions = zoomOptions
-    this.fileSortByOptions = fileSortByOptions
     this.languageOptions = languageOptions
     this.isOsx = isOsx
     return {}
@@ -161,7 +152,6 @@ export default {
       'zoom',
       'hideScrollbar',
       'wordWrapInToc',
-      'fileSortBy',
       'language'
     ]),
     startUpAction: {
@@ -194,12 +184,35 @@ export default {
       font-size: 14px;
       user-select: none;
       color: var(--editorColor);
-      & .el-button--small {
-        margin-left: 25px;
+      & .startup-options {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--space-3);
       }
-      & label {
-        display: block;
-        margin: 20px 0;
+      & .el-radio {
+        margin: 0;
+      }
+      & .startup-folder-option {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+      }
+      & .startup-folder-control {
+        min-width: 0;
+        margin-left: 24px;
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+      }
+      & .startup-folder-path {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--editorColor60);
+        font-size: 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
     }
   }

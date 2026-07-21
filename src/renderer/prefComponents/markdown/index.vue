@@ -95,33 +95,17 @@
       </template>
     </compound>
 
-    <compound>
-      <template #head>
-        <h6 class="title">{{ $tr('Misc:') }}</h6>
-      </template>
-      <template #children>
-        <cur-select
-          description="Preferred heading style"
-          :value="preferHeadingStyle"
-          :options="preferHeadingStyleOptions"
-          :onChange="value => onSelectChange('preferHeadingStyle', value)"
-          :disable="true"
-        ></cur-select>
-      </template>
-    </compound>
   </div>
 </template>
 
 <script>
 import { mapActions, mapState } from 'pinia'
 import Compound from '../common/compound/index.vue'
-import Separator from '../common/separator/index.vue'
 import Bool from '../common/bool/index.vue'
 import CurSelect from '../common/select/index.vue'
 import {
   bulletListMarkerOptions,
   orderListDelimiterOptions,
-  preferHeadingStyleOptions,
   listIndentationOptions,
   frontmatterTypeOptions,
   sequenceThemeOptions
@@ -131,14 +115,12 @@ import { usePreferencesStore } from '@/stores/preferences'
 export default {
   components: {
     Compound,
-    Separator,
     Bool,
     CurSelect
   },
   data () {
     this.bulletListMarkerOptions = bulletListMarkerOptions
     this.orderListDelimiterOptions = orderListDelimiterOptions
-    this.preferHeadingStyleOptions = preferHeadingStyleOptions
     this.listIndentationOptions = listIndentationOptions
     this.frontmatterTypeOptions = frontmatterTypeOptions
     this.sequenceThemeOptions = sequenceThemeOptions
@@ -149,7 +131,6 @@ export default {
       'preferLooseListItem',
       'bulletListMarker',
       'orderListDelimiter',
-      'preferHeadingStyle',
       'listIndentation',
       'frontmatterType',
       'superSubScript',

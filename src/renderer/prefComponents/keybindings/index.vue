@@ -1,13 +1,44 @@
 <template>
   <div class="pref-keybindings">
     <h4>{{ $tr('Key Bindings') }}</h4>
-    <section class="keybindings">
-      <div class="text">
-        {{ $tr('Customize MarkText shortcuts and click on the save button below to apply all changes (requires a restart).') }}
-        {{ $tr('All available and default key binding can be found') }} <a class="link" @click="openKeybindingWiki">{{ $tr('online') }}</a>.
+    <section class="keybindings-toolbar">
+      <el-input
+        v-model="searchQuery"
+        class="keybindings-search"
+        clearable
+        :placeholder="$tr('Search shortcuts')"
+        :aria-label="$tr('Search shortcuts')"
+      >
+        <template #suffix>
+          <svg class="keybindings-search-icon" :viewBox="SearchIcon.viewBox" aria-hidden="true">
+            <use :xlink:href="SearchIcon.url"></use>
+          </svg>
+        </template>
+      </el-input>
+      <el-select
+        v-model="selectedCategory"
+        class="keybindings-category"
+        :aria-label="$tr('Category')"
+      >
+        <el-option :label="$tr('All categories')" value="all"></el-option>
+        <el-option
+          v-for="category in categoryOptions"
+          :key="category"
+          :label="$tr(category)"
+          :value="category"
+        ></el-option>
+      </el-select>
+      <div class="keybindings-primary-actions">
+        <el-button size="default" type="primary" :disabled="!hasChanges" @click="saveKeybindings">{{ $tr('Save') }}</el-button>
+        <el-button size="default" :disabled="!keybindingConfigurator" @click="restoreDefaults">{{ $tr('Restore Defaults') }}</el-button>
       </div>
+    </section>
+    <section class="keybindings-table">
       <el-table
-        :data="keybindingList"
+        :data="filteredKeybindings"
+        :empty-text="$tr('No matching shortcuts')"
+        height="100%"
+        row-key="id"
         style="width: 100%"
       >
         <el-table-column prop="description" :label="$tr('Description')">
@@ -22,24 +53,17 @@
             <el-button @click="handleEditClick(scope.$index, scope.row)" type="text" size="small" :title="$tr('Edit')">
               {{ $tr('Edit') }}
             </el-button>
-            <el-button @click="handleResetClick(scope.$index, scope.row)" type="text" size="small" :title="$tr('Reset')">
+            <el-button :disabled="scope.row.type === 0" @click="handleResetClick(scope.$index, scope.row)" type="text" size="small" :title="$tr('Reset')">
               {{ $tr('Reset') }}
             </el-button>
-            <el-button @click="handleUnbindClick(scope.$index, scope.row)" type="text" size="small" :title="$tr('Unbind')">
+            <el-button :disabled="!scope.row.accelerator" @click="handleUnbindClick(scope.$index, scope.row)" type="text" size="small" :title="$tr('Unbind')">
               {{ $tr('Clear') }}
             </el-button>
           </template>
         </el-table-column>
       </el-table>
     </section>
-    <section class="footer">
-      <separator></separator>
-      <el-button size="default" @click="saveKeybindings">{{ $tr('Save') }}</el-button>
-      <el-button size="default" @click="restoreDefaults">{{ $tr('Restore default key bindings') }}</el-button>
-    </section>
     <section v-if="showDebugTools" class="keyboard-debug">
-      <separator></separator>
-      <div><strong>{{ $tr('Debug options:') }}</strong></div>
       <el-button size="default" @click="dumpKeyboardInformation">{{ $tr('Dump keyboard information') }}</el-button>
     </section>
     <key-input-dialog
@@ -52,25 +76,45 @@
 <script>
 import log from 'electron-log'
 import { setKeyboardLayout } from '@hfelix/electron-localshortcut'
-import Compound from '../common/compound'
-import Separator from '../common/separator'
 import KeyInputDialog from './key-input-dialog.vue'
 import KeybindingConfigurator from './KeybindingConfigurator'
+import SearchIcon from '@/assets/icons/search.svg'
 import notice from '@/services/notification'
 import { getRuntime } from '@/services/runtime'
 
 export default {
   components: {
-    Compound,
-    Separator,
     KeyInputDialog
   },
   data () {
+    this.SearchIcon = SearchIcon
     return {
       showDebugTools: false,
       keybindingConfigurator: null,
       selectedShortcutId: null,
-      keybindingList: []
+      keybindingList: [],
+      searchQuery: '',
+      selectedCategory: 'all'
+    }
+  },
+
+  computed: {
+    categoryOptions () {
+      return [...new Set(this.keybindingList.map(entry => this.getCategory(entry.description)))]
+        .sort((a, b) => this.$tr(a).localeCompare(this.$tr(b)))
+    },
+    filteredKeybindings () {
+      const query = this.searchQuery.trim().toLocaleLowerCase()
+      return this.keybindingList.filter(entry => {
+        const category = this.getCategory(entry.description)
+        if (this.selectedCategory !== 'all' && category !== this.selectedCategory) return false
+        if (!query) return true
+        return [entry.description, this.$tr(entry.description), entry.accelerator, entry.id]
+          .some(value => String(value || '').toLocaleLowerCase().includes(query))
+      })
+    },
+    hasChanges () {
+      return Boolean(this.keybindingConfigurator?.isDirty)
     }
   },
 
@@ -100,6 +144,10 @@ export default {
   },
 
   methods: {
+    getCategory (description) {
+      const separator = description.indexOf(':')
+      return separator === -1 ? 'Other' : description.slice(0, separator)
+    },
     openKeybindingWiki () {
       this.$nativeApi.shell.openExternal('https://github.com/marktext/marktext/blob/master/docs/KEYBINDINGS.md')
     },
@@ -174,21 +222,53 @@ export default {
 
 <style scoped>
 .pref-keybindings {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  & > h4 {
+    flex: 0 0 auto;
+  }
   & .keyboard-debug,
-  & .keybindings {
+  & .keybindings-table {
     font-size: 14px;
-    margin: 20px 0;
     color: var(--editorColor);
-    & .link {
-      cursor: pointer;
+  }
+  & .keybindings-toolbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+  }
+  & .keybindings-search {
+    min-width: 180px;
+    flex: 1 1 280px;
+  }
+  & .keybindings-search-icon {
+    width: 16px;
+    height: 16px;
+    color: var(--iconColor);
+    fill: currentColor;
+  }
+  & .keybindings-category {
+    width: 170px;
+    flex: 0 0 170px;
+  }
+  & .keybindings-primary-actions {
+    display: flex;
+    flex: 0 0 auto;
+    gap: var(--space-2);
+    & .el-button + .el-button {
+      margin-left: 0;
     }
   }
-  & .keybindings > div.text {
-    margin-bottom: 10px;
-  }
-  & .link {
-    color: var(--themeColor);
-    cursor: pointer;
+  & .keybindings-table {
+    min-height: 180px;
+    flex: 1 1 auto;
+    overflow: hidden;
   }
   & button.el-button {
     font-size: 13px;
@@ -211,6 +291,20 @@ export default {
 .el-table button:active {
   opacity: 0.9;
   background: none;
+}
+
+@media (max-width: 720px) {
+  .pref-keybindings {
+    & .keybindings-toolbar {
+      flex-wrap: wrap;
+    }
+    & .keybindings-search {
+      flex-basis: calc(100% - 178px);
+    }
+    & .keybindings-primary-actions {
+      width: 100%;
+    }
+  }
 }
 </style>
 <style>
