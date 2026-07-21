@@ -1,3 +1,26 @@
+## 0.18.3-beta.4
+
+**:cactus:Feature**
+
+- Added runtime interface language switching between English and Simplified Chinese.
+- Localized application menus, context menus, preferences, editor controls, command search, export settings, and notifications.
+
+**:butterfly:Optimization**
+
+- Improved editor control accessibility, hit targets, focus states, and responsive preference layouts.
+- Improved find, command palette, title bar, tab, and link-tool presentation across compact and desktop windows.
+
+**:beetle:Bug fix**
+
+- Fixed native menus reading stale preferences while rebuilding after a language change.
+- Fixed compact preference layouts and editor controls that could overflow or overlap at smaller window sizes.
+
+**:microscope:Quality**
+
+- Added a localized user story with isolated E2E coverage, Chinese command queries, new-window inheritance, and screenshot review.
+- Added Linux-gated Windows x64 release packaging, native binary validation, artifact checks, and staged checksums.
+- Enforced the seven-day dependency waiting policy for the new localization dependency.
+
 ## 0.18.3-beta.3
 
 **:butterfly:Optimization**
