@@ -84,9 +84,20 @@ class LinkTools extends BaseFloat {
       let itemSelector = `li.item.${i.type}`
 
       return h(itemSelector, {
+        attrs: {
+          role: 'button',
+          tabindex: '0',
+          title: i.label,
+          'aria-label': i.label
+        },
         on: {
           click: event => {
             this.selectItem(event, i)
+          },
+          keydown: event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              this.selectItem(event, i)
+            }
           }
         }
       }, iconWrapper)

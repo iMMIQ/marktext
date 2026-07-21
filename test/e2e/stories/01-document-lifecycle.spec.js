@@ -20,6 +20,7 @@ test.describe('US-01 document lifecycle', () => {
 
     await expect(page.locator('.editor-component')).toContainText('Initial paragraph')
     await expect(page.locator('.title-bar .filename')).toContainText('draft.md')
+    await expect(page.locator('.title-bar .word-count')).toContainText(/\d+ words?/)
 
     const paragraph = page.locator('.ag-paragraph-content').filter({ hasText: 'Initial paragraph' })
     await paragraph.click()

@@ -27,7 +27,10 @@ test.describe('US-06 publish', () => {
     await expect(page.locator('.editor-component')).toContainText(token)
     await stubSaveDialog(app, htmlPath, '__htmlExportCalls')
     await clickMenuItemByPath(app, ['File', 'Export', 'HTML'])
-    await expect(page.locator('.print-settings-dialog .el-dialog')).toBeVisible()
+    const exportDialog = page.locator('.print-settings-dialog .el-dialog')
+    await expect(exportDialog).toBeVisible()
+    await expect(exportDialog.getByRole('button', { name: 'Cancel' })).toBeVisible()
+    await expect(exportDialog.locator('.el-dialog__close')).toBeVisible()
     await captureStory(page, 'US-06 export settings')
     await confirmExport(page)
 

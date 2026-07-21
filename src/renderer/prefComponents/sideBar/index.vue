@@ -23,12 +23,19 @@
     <section class="category">
       <div v-for="c of category" :key="c.name" class="item"
         @click="handleCategoryItemClick(c)"
+        @keydown.enter.prevent="handleCategoryItemClick(c)"
+        @keydown.space.prevent="handleCategoryItemClick(c)"
         :class="{active: c.label === currentCategory}"
+        role="button"
+        tabindex="0"
+        :title="c.name"
+        :aria-current="c.label === currentCategory ? 'page' : undefined"
       >
         <svg :viewBox="c.icon.viewBox">
           <use :xlink:href="c.icon.url"></use>
         </svg>
-        <span>{{c.name}}</span>
+        <span class="item-label">{{c.name}}</span>
+        <span class="compact-label" aria-hidden="true">{{c.shortName}}</span>
       </div>
     </section>
   </div>
@@ -121,26 +128,37 @@ export default {
     background: var(--sideBarBgColor);
     width: var(--prefSideBarWidth);
     height: 100vh;
-    padding-top: 30px;
+    padding-top: var(--space-5);
     box-sizing: border-box;
     & h3 {
       margin: 0;
       font-weight: normal;
-      text-align: center;
+      padding: 0 var(--space-4);
+      text-align: left;
       color: var(--sideBarColor);
+      font-size: 18px;
     }
   }
-  .search-wrapper {
+  .pref-sidebar .search-wrapper {
     -webkit-app-region: no-drag;
-    padding: 0 20px;
-    margin: 30px 0;
+    height: var(--control-height);
+    padding: 0 var(--space-4);
+    margin: var(--space-4) 0 var(--space-3);
+    border: 0;
+    background: transparent;
+    box-sizing: content-box;
   }
-  .el-autocomplete {
+  .pref-sidebar .el-autocomplete,
+  .pref-sidebar .el-input {
     width: 100%;
+    height: var(--control-height);
+  }
+  .pref-sidebar .el-autocomplete {
     & .el-input__inner {
       background: transparent;
-      height: 35px;
-      line-height: 35px;
+      height: var(--control-height);
+      line-height: var(--control-height);
+      border-radius: var(--radius-md);
     }
   }
   .pref-sidebar-search-icon {
@@ -184,10 +202,10 @@ export default {
     overflow-y: auto;
     & .item {
       width: 100%;
-      height: 50px;
-      font-size: 18px;
+      height: 42px;
+      font-size: 14px;
       color: var(--sideBarColor);
-      padding-left: 20px;
+      padding-left: var(--space-4);
       box-sizing: border-box;
       display: flex;
       flex-direction: row;
@@ -196,10 +214,13 @@ export default {
       position: relative;
       user-select: none;
       & > svg {
-        width: 28px;
-        height: 28px;
+        width: 18px;
+        height: 18px;
         fill: var(--iconColor);
-        margin-right: 15px;
+        margin-right: var(--space-3);
+      }
+      & > .compact-label {
+        display: none;
       }
       &:hover {
         background: var(--sideBarItemHoverBgColor);
@@ -219,10 +240,39 @@ export default {
       }
       &.active {
         color: var(--sideBarTitleColor);
+        background: var(--sideBarItemHoverBgColor);
       }
       &.active::before {
         height: 100%;
       }
+      &:focus-visible {
+        box-shadow: inset 0 0 0 2px var(--focusColor);
+      }
+    }
+  }
+
+  @media (max-width: 720px) {
+    .pref-sidebar {
+      padding-top: 42px;
+    }
+    .pref-sidebar .title,
+    .pref-sidebar .search-wrapper,
+    .pref-sidebar .category .item > .item-label,
+    .pref-sidebar .category .item > svg {
+      display: none;
+    }
+    .pref-sidebar .category .item {
+      width: 72px;
+      height: 46px;
+      padding: 0;
+      justify-content: center;
+    }
+    .pref-sidebar .category .item > .compact-label {
+      display: inline;
+      margin: 0;
+      color: var(--sideBarColor);
+      font-size: 11px;
+      font-weight: 600;
     }
   }
 </style>

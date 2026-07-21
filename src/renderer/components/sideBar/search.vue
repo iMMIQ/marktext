@@ -6,14 +6,20 @@
         <input
           type="text" v-model="keyword"
           placeholder="Search in folder..."
+          aria-label="Search in folder"
           @keyup="queueSearch()"
         >
         <div class="controls">
           <span
             title="Case Sensitive"
+            aria-label="Case sensitive"
+            role="button"
+            tabindex="0"
             class="is-case-sensitive"
             :class="{'active': isCaseSensitive}"
             @click.stop="caseSensitiveClicked()"
+            @keydown.enter.prevent="caseSensitiveClicked()"
+            @keydown.space.prevent="caseSensitiveClicked()"
           >
             <svg :viewBox="FindCaseIcon.viewBox" aria-hidden="true">
               <use :xlink:href="FindCaseIcon.url" />
@@ -21,9 +27,14 @@
           </span>
           <span
             title="Select whole word"
+            aria-label="Match whole word"
+            role="button"
+            tabindex="0"
             class="is-whole-word"
             :class="{'active': isWholeWord}"
             @click.stop="wholeWordClicked()"
+            @keydown.enter.prevent="wholeWordClicked()"
+            @keydown.space.prevent="wholeWordClicked()"
           >
             <svg :viewBox="FindWordIcon.viewBox" aria-hidden="true">
               <use :xlink:href="FindWordIcon.url" />
@@ -31,9 +42,14 @@
           </span>
           <span
             title="Use query as RegEx"
+            aria-label="Use regular expression"
+            role="button"
+            tabindex="0"
             class="is-regex"
             :class="{'active': isRegexp}"
             @click.stop="regexpClicked()"
+            @keydown.enter.prevent="regexpClicked()"
+            @keydown.space.prevent="regexpClicked()"
           >
             <svg :viewBox="FindRegexIcon.viewBox" aria-hidden="true">
               <use :xlink:href="FindRegexIcon.url" />
@@ -340,9 +356,9 @@ export default {
   .search-wrapper {
     display: flex;
     margin: 37px 15px 10px 15px;
-    padding: 0 6px;
-    border-radius: 14px;
-    height: 28px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-md);
+    height: var(--control-height);
     border: 1px solid var(--floatBorderColor);
     background: var(--inputBgColor);
     box-sizing: border-box;
@@ -379,6 +395,10 @@ export default {
         }
         &.active svg {
             fill: var(--highlightThemeColor);
+        }
+        &:focus-visible {
+          border-radius: var(--radius-sm);
+          box-shadow: 0 0 0 2px var(--focusColor);
         }
       }
     }

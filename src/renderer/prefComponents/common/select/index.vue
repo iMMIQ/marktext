@@ -1,7 +1,7 @@
 <template>
   <section class="pref-select-item" :class="{'ag-underdevelop': disable}">
     <div class="description" v-if="description">
-      <span>{{description}}:</span>
+      <span>{{description}}</span>
       <info-icon
         v-if="more"
         @click="handleMoreClick"
@@ -71,7 +71,7 @@ export default {
 
 <style>
 .pref-select-item {
-  margin: 20px 0;
+  margin: var(--space-3) 0 var(--space-4);
   font-size: 14px;
   color: var(--editorColor);
   & .notes {
@@ -80,17 +80,17 @@ export default {
     font-size: 12px;
   }
   & .el-select {
-    width: 100%;
+    width: min(100%, 520px);
   }
   & input.el-input__inner {
-    height: 30px;
+    height: var(--control-height);
     background: transparent;
     color: var(--editorColor);
     border-color: var(--editorColor10);
   }
   & .el-input__icon,
   & .el-input__inner {
-    line-height: 30px;
+    line-height: var(--control-height);
   }
 }
 .pref-select-item .description {

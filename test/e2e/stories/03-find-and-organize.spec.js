@@ -30,6 +30,14 @@ test.describe('US-03 find and organize', () => {
     await expect(page.locator('.editor-component')).toContainText(target)
     await clickMenuItemByPath(app, ['Edit', 'Find'])
     const searchBar = page.locator('.search-bar')
+    await expect(searchBar.getByRole('button', { name: 'Close find' })).toBeVisible()
+    const searchControlSizes = await searchBar.locator('section.search button').evaluateAll(buttons => {
+      return buttons.map(button => {
+        const rect = button.getBoundingClientRect()
+        return { width: rect.width, height: rect.height }
+      })
+    })
+    expect(searchControlSizes.every(({ width, height }) => width >= 32 && height >= 32)).toBe(true)
     await searchBar.locator('input[placeholder="Search"]').click()
     await page.keyboard.type(target)
     await expect(searchBar.locator('.search-result')).toHaveText('1 / 2')
@@ -111,6 +119,21 @@ test.describe('US-03 find and organize', () => {
     await expect(searchPanel.locator('.search-result-info')).toHaveText('1 match in 1 file', { timeout: 15000 })
     await expect(searchPanel.locator('.search-result-item')).toContainText('alpha')
     await expect(searchPanel.locator('.search-result-item')).toContainText(token)
+    const matchGeometry = await searchPanel.locator('.match-row').first().evaluate(element => {
+      const row = element.getBoundingClientRect()
+      const lineNumber = element.querySelector('.line-number').getBoundingClientRect()
+      const text = element.querySelector('.match-text').getBoundingClientRect()
+      return {
+        lineNumberTop: lineNumber.top,
+        rowRight: row.right,
+        textRight: text.right,
+        textTop: text.top,
+        textWidth: text.width
+      }
+    })
+    expect(Math.abs(matchGeometry.lineNumberTop - matchGeometry.textTop)).toBeLessThanOrEqual(4)
+    expect(matchGeometry.textWidth).toBeGreaterThan(40)
+    expect(matchGeometry.textRight).toBeLessThanOrEqual(matchGeometry.rowRight)
 
     await captureStory(page, 'US-03 folder search')
     expectNoRendererErrors(session)

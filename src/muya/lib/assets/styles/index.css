@@ -311,8 +311,28 @@ div.ag-math-error,
 span.ag-math > .ag-math-render.ag-math-error {
   color: var(--deleteColor);
   font-size: 14px;
-  font-style: italic;
-  font-family: monospace;
+}
+
+div.ag-math-error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--deleteColor) 8%, transparent);
+  font-style: normal;
+  font-family: inherit;
+  text-align: left;
+}
+
+div.ag-math-error > strong {
+  font-weight: 600;
+}
+
+div.ag-math-error > span {
+  color: var(--editorColor60);
+  font-size: 13px;
 }
 
 /* (Preview) math block */
@@ -1112,7 +1132,8 @@ span.ag-reference-link {
 .ag-focus-mode th.ag-paragraph,
 .ag-focus-mode td.ag-paragraph,
 .ag-focus-mode pre.ag-paragraph {
-  opacity: .25;
+  opacity: .6;
+  transition: opacity 120ms ease-out;
 }
 
 .ag-focus-mode p.ag-active,

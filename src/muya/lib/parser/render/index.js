@@ -135,8 +135,9 @@ class StateRender {
           target.innerHTML = purify(svg, PREVIEW_DOMPURIFY_CONFIG)
           if (bindFunctions) bindFunctions(target)
         } catch (err) {
-          target.innerHTML = '< Invalid Mermaid Codes >'
+          target.innerHTML = '<strong>Diagram preview unavailable</strong><span>Check the Mermaid syntax in this block.</span>'
           target.classList.add(CLASS_OR_ID.AG_MATH_ERROR)
+          target.setAttribute('role', 'alert')
         }
       }
 

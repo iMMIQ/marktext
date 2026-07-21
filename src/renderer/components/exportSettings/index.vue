@@ -2,12 +2,15 @@
   <div class="print-settings-dialog">
     <el-dialog
       v-model="showExportSettingsDialog"
-      :show-close="false"
+      :show-close="true"
       :modal="true"
+      :close-on-click-modal="false"
       custom-class="ag-dialog-table"
-      width="500px"
+      width="680px"
     >
-      <h3>Export Options</h3>
+      <template #header>
+        <div class="export-dialog-title">Export Options</div>
+      </template>
       <el-tabs v-model="activeName">
         <el-tab-pane label="Info" name="info">
           <span class="text">Please customize the page appearance and click on "export" to continue.</span>
@@ -210,7 +213,10 @@
          </el-tab-pane>
       </el-tabs>
       <div class="button-controlls">
-        <button class="button-primary" @click="handleClicked">
+        <button type="button" class="button" @click="showExportSettingsDialog = false">
+          Cancel
+        </button>
+        <button type="button" class="button-primary" @click="handleClicked">
           Export...
         </button>
       </div>
@@ -470,12 +476,23 @@ export default {
   }
 
   .button-controlls {
-    margin-top: 8px;
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    margin: var(--space-4) -20px -20px;
+    padding: var(--space-3) 20px;
+    border-top: 1px solid var(--editorColor10);
     text-align: right;
   }
 
   .button-controlls .button-primary {
     font-size: 14px;
+  }
+
+  .export-dialog-title {
+    color: var(--editorColor80);
+    font-size: 18px;
+    font-weight: 600;
   }
 
   .el-tab-pane section:first-child {
@@ -490,11 +507,26 @@ export default {
   .print-settings-dialog .el-dialog__body {
     padding: 0 20px 20px 20px;
   }
+  .print-settings-dialog .el-dialog {
+    width: min(680px, calc(100vw - 32px)) !important;
+    margin-top: clamp(32px, 10vh, 96px) !important;
+  }
+  .print-settings-dialog .el-dialog__header {
+    margin: 0;
+    padding: 20px 20px var(--space-2);
+  }
+  .print-settings-dialog .el-dialog__headerbtn {
+    width: 40px;
+    height: 40px;
+    top: 9px;
+    right: 8px;
+  }
   .print-settings-dialog .pref-select-item .el-select {
     width: 240px;
   }
   .print-settings-dialog .el-tabs__content {
-    max-height: 350px;
+    min-height: 96px;
+    max-height: min(420px, calc(100vh - 250px));
     overflow-x: hidden;
     overflow-y: auto;
   }

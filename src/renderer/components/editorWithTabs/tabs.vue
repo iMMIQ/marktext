@@ -14,7 +14,12 @@
           v-for="file of tabs"
           :key="file.id"
           :data-id="file.id"
+          role="tab"
+          tabindex="0"
+          :aria-selected="currentFile.id === file.id"
           @click.stop="selectFile(file)"
+          @keydown.enter.prevent="selectFile(file)"
+          @keydown.space.prevent="selectFile(file)"
           @click.middle="closeTab(file.id)"
           @contextmenu.prevent="handleContextMenu($event, file)"
         >
@@ -30,10 +35,15 @@
     </div>
     <div
       class="new-file"
+      role="button"
+      tabindex="0"
+      title="New tab"
+      aria-label="New tab"
+      @click.stop="newFile()"
+      @keydown.enter.prevent="newFile()"
+      @keydown.space.prevent="newFile()"
     >
-      <svg class="icon" aria-hidden="true"
-        @click.stop="newFile()"
-      >
+      <svg class="icon" aria-hidden="true">
         <use xlink:href="#icon-plus"></use>
       </svg>
     </div>
@@ -253,6 +263,9 @@ export default {
       &:focus {
         outline: none;
       }
+      &:focus-visible {
+        box-shadow: inset 0 0 0 2px var(--focusColor);
+      }
       &:hover > svg {
         opacity: 1;
       }
@@ -311,7 +324,15 @@ export default {
     justify-content: space-around;
     cursor: pointer;
     color: var(--editorColor50);
-    opacity: 0;
+    opacity: 1;
+    border-radius: var(--radius-sm);
+    &:hover {
+      color: var(--editorColor80);
+      background: var(--floatHoverColor);
+    }
+    &:focus-visible {
+      box-shadow: inset 0 0 0 2px var(--focusColor);
+    }
     &.always-visible {
       opacity: 1;
     }

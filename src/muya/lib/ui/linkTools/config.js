@@ -4,9 +4,11 @@ import linkJumpIcon from '../../assets/pngicon/link_jump/2.png'
 const icons = [
   {
     type: 'unlink',
+    label: 'Remove link',
     icon: unlinkIcon
   }, {
     type: 'jump',
+    label: 'Open link',
     icon: linkJumpIcon
   }
 ]

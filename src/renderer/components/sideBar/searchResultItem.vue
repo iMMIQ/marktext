@@ -22,9 +22,9 @@
             </span>
             <span class="match-count">{{ matchCount }}</span>
           </div>
-          <!-- <div class="folder-path">
-            <span>{{ dirname }}</span>
-          </div> -->
+          <div class="folder-path">
+            <span>{{ parentFolder }}</span>
+          </div>
         </div>
       </div>
       <div
@@ -33,17 +33,19 @@
       >
         <ul>
           <li
-            class="text-overflow"
+            class="match-row"
             v-for="(searchMatch, index) of getMatches"
             :key="index"
             :searchMatch="searchMatch"
             :title="searchMatch.lineText"
             @click="handleSearchResultClick(searchMatch)"
           >
-            <!-- <span class="line-number">{{ searchMatch.range[0][0] }}</span> -->
-            <span>{{ ellipsisText(searchMatch.lineText.substring(0, searchMatch.range[0][1])) }}</span>
-            <span class="highlight">{{ searchMatch.lineText.substring(searchMatch.range[0][1], searchMatch.range[1][1]) }}</span>
-            <span>{{ searchMatch.lineText.substring(searchMatch.range[1][1]) }}</span>
+            <span class="line-number">{{ searchMatch.range[0][0] + 1 }}</span>
+            <span class="match-text">
+              <span>{{ ellipsisText(searchMatch.lineText.substring(0, searchMatch.range[0][1])) }}</span>
+              <span class="highlight">{{ searchMatch.lineText.substring(searchMatch.range[0][1], searchMatch.range[1][1]) }}</span>
+              <span>{{ searchMatch.lineText.substring(searchMatch.range[1][1]) }}</span>
+            </span>
           </li>
         </ul>
         <div v-if="!allMatchesShown">
@@ -62,7 +64,6 @@
 import path from 'path'
 import { mapState } from 'pinia'
 import { fileMixins } from '../../mixins'
-import { PATH_SEPARATOR } from '../../config'
 import { useEditorStore } from '@/stores/editor'
 
 export default {
@@ -104,9 +105,8 @@ export default {
       return path.extname(this.searchResult.filePath)
     },
 
-    // Return the parent directory with trailing path separator.
-    dirname () {
-      return path.join(path.dirname(this.searchResult.filePath), PATH_SEPARATOR)
+    parentFolder () {
+      return path.basename(path.dirname(this.searchResult.filePath))
     }
   },
   methods: {
@@ -135,7 +135,7 @@ export default {
   .search-result-item {
     position: relative;
     user-select: none;
-    padding: 0 10px 8px 10px;
+    padding: 0 var(--space-2) var(--space-3);
     color: var(--sideBarColor);
     font-size: 14px;
     & > .search-result {
@@ -147,6 +147,7 @@ export default {
       & > .file-info {
         flex: 1;
         overflow: hidden;
+        padding: var(--space-1) var(--space-1);
       }
     }
     & .title .filename {
@@ -161,12 +162,11 @@ export default {
         padding-left: 0;
         list-style-type: none;
         & li {
-          display: block;
-          padding: 2px 16px;
-          padding-right: 0;
+          display: flex;
+          align-items: baseline;
+          min-width: 0;
+          padding: 5px var(--space-2);
           cursor: pointer;
-          /* Hide space between inline spans */
-          font-size: 0;
           & .highlight {
             background: var(--highlightColor);
             line-height: 16px;
@@ -178,8 +178,25 @@ export default {
           &:hover {
             background: var(--sideBarItemHoverBgColor);
           }
-          & span {
+          & .line-number {
+            width: 24px;
+            flex: 0 0 24px;
+            color: var(--sideBarTextColor);
+            font-size: 11px;
+            font-variant-numeric: tabular-nums;
+          }
+          & .match-text {
+            display: flex;
+            align-items: baseline;
+            flex: 1 1 auto;
+            min-width: 0;
+            overflow: hidden;
+            color: var(--sideBarColor);
+            white-space: nowrap;
             font-size: 13px;
+          }
+          & .match-text > span {
+            flex: 0 0 auto;
             white-space: pre;
           }
         }
@@ -229,6 +246,7 @@ export default {
 
   .folder-path {
     font-size: 12px;
+    color: var(--sideBarTextColor);
   }
 
   .folder-path > span,

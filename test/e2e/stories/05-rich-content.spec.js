@@ -78,12 +78,13 @@ test.describe('US-05 rich Markdown', () => {
     await expect(mermaidPreviews.first().locator('svg text').filter({ hasText: 'Draft' })).toBeVisible()
     await expect(mermaidPreviews.first().locator('svg text').filter({ hasText: 'Review' })).toBeVisible()
     await expect(page.locator('figure[data-role="VEGA-LITE"] svg')).toBeVisible({ timeout: 15000 })
-    await expect(mermaidPreviews.filter({ has: page.locator('.ag-math-error') })).toContainText('Invalid Mermaid Codes')
+    const invalidMermaid = mermaidPreviews.filter({ has: page.locator('.ag-math-error') })
+    await expect(invalidMermaid).toContainText('Diagram preview unavailable')
+    await expect(invalidMermaid.locator('[role="alert"]')).toContainText('Check the Mermaid syntax')
     await expect(page.locator('.editor-component')).toContainText('Content after the invalid diagram remains readable.')
 
     await page.locator('figure[data-role="VEGA-LITE"]').scrollIntoViewIfNeeded()
     await captureStory(page, 'US-05 diagrams')
-    const invalidMermaid = mermaidPreviews.filter({ has: page.locator('.ag-math-error') })
     await invalidMermaid.scrollIntoViewIfNeeded()
     await captureStory(page, 'US-05 invalid diagram isolation')
     expectNoRendererErrors(session)
@@ -114,6 +115,15 @@ test.describe('US-05 rich Markdown', () => {
     expect(box.y).toBeGreaterThanOrEqual(0)
     expect(box.x + box.width).toBeLessThanOrEqual(viewport.width)
     expect(box.y + box.height).toBeLessThanOrEqual(viewport.height)
+    const linkActions = tools.locator('[role="button"]')
+    await expect(linkActions).toHaveCount(2)
+    await expect(linkActions.nth(0)).toHaveAttribute('aria-label', 'Remove link')
+    await expect(linkActions.nth(1)).toHaveAttribute('aria-label', 'Open link')
+    const linkActionSizes = await linkActions.evaluateAll(items => items.map(item => {
+      const rect = item.getBoundingClientRect()
+      return { width: rect.width, height: rect.height }
+    }))
+    expect(linkActionSizes.every(({ width, height }) => width >= 36 && height >= 36)).toBe(true)
 
     await captureStory(page, 'US-05 link tools')
     expectNoRendererErrors(session)

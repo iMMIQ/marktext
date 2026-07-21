@@ -5,7 +5,13 @@
   >
     <div
       class="left-arrow"
+      role="button"
+      tabindex="0"
+      :aria-label="type === 'search' ? 'Show replace controls' : 'Hide replace controls'"
+      :title="type === 'search' ? 'Show replace controls' : 'Hide replace controls'"
       @click="toggleSearchType"
+      @keydown.enter.prevent="toggleSearchType"
+      @keydown.space.prevent="toggleSearchType"
     >
       <svg
         class="icon"
@@ -27,14 +33,20 @@
             @keyup="search($event)"
             ref="search"
             placeholder="Search"
+            aria-label="Find in document"
           >
           <div class="controls">
             <span class="search-result">{{`${highlightIndex + 1} / ${highlightCount}`}}</span>
             <span
               title="Case Sensitive"
+              aria-label="Case sensitive"
+              role="button"
+              tabindex="0"
               class="is-case-sensitive"
               :class="{'active': isCaseSensitive}"
               @click.stop="toggleCtrl('isCaseSensitive')"
+              @keydown.enter.prevent="toggleCtrl('isCaseSensitive')"
+              @keydown.space.prevent="toggleCtrl('isCaseSensitive')"
             >
               <svg :viewBox="FindCaseIcon.viewBox" aria-hidden="true">
                 <use :xlink:href="FindCaseIcon.url" />
@@ -42,9 +54,14 @@
             </span>
             <span
               title="Select whole word"
+              aria-label="Match whole word"
+              role="button"
+              tabindex="0"
               class="is-whole-word"
               :class="{'active': isWholeWord}"
               @click.stop="toggleCtrl('isWholeWord')"
+              @keydown.enter.prevent="toggleCtrl('isWholeWord')"
+              @keydown.space.prevent="toggleCtrl('isWholeWord')"
             >
               <svg :viewBox="FindWordIcon.viewBox" aria-hidden="true">
                 <use :xlink:href="FindWordIcon.url" />
@@ -52,9 +69,14 @@
             </span>
             <span
               title="Use query as RegEx"
+              aria-label="Use regular expression"
+              role="button"
+              tabindex="0"
               class="is-regex"
               :class="{'active': isRegexp}"
               @click.stop="toggleCtrl('isRegexp')"
+              @keydown.enter.prevent="toggleCtrl('isRegexp')"
+              @keydown.space.prevent="toggleCtrl('isRegexp')"
             >
               <svg :viewBox="FindRegexIcon.viewBox" aria-hidden="true">
                 <use :xlink:href="FindRegexIcon.url" />
@@ -66,12 +88,12 @@
           </div>
         </div>
         <div class="button-group">
-          <button class="button right" @click="find('prev')">
+          <button type="button" title="Previous match" aria-label="Previous match" class="button right" @click="find('prev')">
             <svg class="icon" aria-hidden="true">
               <use xlink:href="#icon-arrow-up"></use>
             </svg>
           </button>
-          <button class="button" @click="find('next')">
+          <button type="button" title="Next match" aria-label="Next match" class="button" @click="find('next')">
             <svg class="icon" aria-hidden="true">
               <use xlink:href="#icon-arrowdown"></use>
             </svg>
@@ -80,7 +102,7 @@
       </section>
       <section class="replace" v-if="type === 'replace'">
         <div class="input-wrapper replace-input">
-          <input type="text" v-model="replaceValue" placeholder="Replacement">
+          <input type="text" v-model="replaceValue" placeholder="Replacement" aria-label="Replacement text">
         </div>
         <div class="button-group">
           <el-tooltip class="item"
@@ -90,7 +112,7 @@
             :visible-arrow="false"
             :open-delay="1000"
           >
-            <button class="button right" @click="replace(false)">
+            <button type="button" class="button right" @click="replace(false)">
               <svg class="icon" aria-hidden="true">
                 <use xlink:href="#icon-all-inclusive"></use>
               </svg>
@@ -103,7 +125,7 @@
             :visible-arrow="false"
             :open-delay="1000"
           >
-            <button class="button" @click="replace(true)">
+            <button type="button" class="button" @click="replace(true)">
               <svg class="icon" aria-hidden="true">
                 <use xlink:href="#icon-replace"></use>
               </svg>
@@ -112,6 +134,17 @@
         </div>
       </section>
     </div>
+    <button
+      type="button"
+      class="close-search"
+      title="Close find"
+      aria-label="Close find"
+      @click.stop="emptySearch(true)"
+    >
+      <svg class="icon" aria-hidden="true">
+        <use xlink:href="#icon-close-small"></use>
+      </svg>
+    </button>
   </div>
 </template>
 
@@ -305,18 +338,19 @@ export default {
 <style scoped>
   .search-bar {
     position: absolute;
-    width: 400px;
+    width: min(520px, calc(100vw - 32px));
     padding: 0;
-    top: 0;
-    right: 20px;
-    border-radius: 3px;
+    top: var(--space-2);
+    right: var(--space-4);
+    border: 1px solid var(--floatBorderColor);
+    border-radius: var(--radius-md);
     box-shadow: var(--floatShadow);
     background: var(--floatBgColor);
     display: flex;
     flex-direction: row;
   }
   .search-bar .left-arrow {
-    width: 20px;
+    width: var(--icon-button-size);
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -325,6 +359,9 @@ export default {
   }
   .search-bar .left-arrow:hover {
     background: var(--floatHoverColor);
+  }
+  .search-bar .left-arrow:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--focusColor);
   }
   .search-bar .left-arrow svg {
     height: 12px;
@@ -339,18 +376,19 @@ export default {
     min-width: 0;
   }
   .search, .replace {
-    height: 28px;
+    min-height: var(--control-height);
     display: flex;
-    padding: 4px 10px 0 4px;
-    margin-bottom: 5px;
+    padding: 4px 4px 4px 0;
+    margin: 0;
   }
 
   .search-bar .button {
     outline: none;
     cursor: pointer;
     box-sizing: border-box;
-    height: 28px;
-    width: 28px;
+    height: var(--icon-button-size);
+    width: var(--icon-button-size);
+    min-height: var(--icon-button-size);
     text-align: center;
     padding: 5px;
     display: inline-block;
@@ -380,7 +418,7 @@ export default {
     position: relative;
     border: 1px solid var(--inputBgColor);
     background: var(--inputBgColor);
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
     overflow: visible;
   }
   .input-wrapper.error {
@@ -418,6 +456,10 @@ export default {
         &.active svg {
             fill: var(--highlightThemeColor);
         }
+        &:focus-visible {
+          border-radius: var(--radius-sm);
+          box-shadow: 0 0 0 2px var(--focusColor);
+        }
       }
   }
   .input-wrapper .controls > span:not(.search-result) > svg {
@@ -446,18 +488,51 @@ export default {
   .input-wrapper input {
     flex: 1;
     min-width: 0;
-    padding: 0 8px;
-    height: 26px;
+    height: 32px;
     outline: none;
     border: none;
     box-sizing: border-box;
     font-size: 14px;
     color: var(--editorColor);
-    padding: 0 8px;
+    padding: 0 152px 0 10px;
     background: transparent;
   }
   .button-group {
     display: flex;
     flex: 0 0 auto;
+  }
+  .close-search {
+    width: var(--icon-button-size);
+    height: var(--icon-button-size);
+    flex: 0 0 var(--icon-button-size);
+    align-self: center;
+    margin-right: 4px;
+    padding: 8px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    color: var(--sideBarIconColor);
+    background: transparent;
+    cursor: pointer;
+  }
+  .close-search:hover {
+    color: var(--editorColor80);
+    background: var(--floatHoverColor);
+  }
+  .close-search:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--focusColor);
+  }
+
+  @media (max-width: 680px) {
+    .search-bar {
+      left: var(--space-2);
+      right: var(--space-2);
+      width: auto;
+    }
+    .input-wrapper input {
+      padding-right: 118px;
+    }
+    .input-wrapper .controls > span:not(.search-result) {
+      display: none;
+    }
   }
 </style>

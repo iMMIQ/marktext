@@ -315,10 +315,11 @@ export default {
     height: calc(100vh - var(--titleBarHeight));
     box-sizing: border-box;
     overflow: auto;
+    padding: var(--space-6) clamp(var(--space-4), 6vw, 72px);
   }
   .source-code .marktext-source-editor {
     height: auto;
-    margin: 50px auto;
+    margin: 0 auto;
     max-width: var(--editorAreaWidth);
     background: transparent;
   }

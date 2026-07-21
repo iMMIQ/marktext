@@ -1,6 +1,6 @@
 .ag-link-tools {
-  height: 34px;
-  width: 100px;
+  height: 42px;
+  width: 96px;
   position: relative;
 }
 
@@ -19,16 +19,21 @@
 }
 
 .ag-link-tools li.item {
-  margin: 0 11px;
+  margin: 0 6px;
   position: relative;
   list-style: none;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
   display: flex;
   justify-content: space-around;
   align-items: center;
   cursor: pointer;
+}
+
+.ag-link-tools li.item:focus-visible {
+  outline: 2px solid var(--focusColor);
+  outline-offset: -2px;
 }
 
 .ag-link-tools li.item:hover {
@@ -41,8 +46,8 @@
   position: absolute;
   height: 18px;
   background: var(--editorColor10);
-  left: -12px;
-  top: 6px;
+  left: -7px;
+  top: 9px;
 }
 
 .ag-link-tools li.item .icon-wrapper {

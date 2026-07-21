@@ -10,36 +10,43 @@ import preferences from '../../../main/preferences/schema'
 
 export const category = [{
   name: 'General',
+  shortName: 'GEN',
   label: 'general',
   icon: GeneralIcon,
   path: '/preference/general'
 }, {
   name: 'Editor',
+  shortName: 'EDIT',
   label: 'editor',
   icon: EditorIcon,
   path: '/preference/editor'
 }, {
   name: 'Markdown',
+  shortName: 'MD',
   label: 'markdown',
   icon: MarkdownIcon,
   path: '/preference/markdown'
 }, {
   name: 'Spelling',
+  shortName: 'SPELL',
   label: 'spelling',
   icon: SpellIcon,
   path: '/preference/spelling'
 }, {
   name: 'Theme',
+  shortName: 'THEME',
   label: 'theme',
   icon: ThemeIcon,
   path: '/preference/theme'
 }, {
   name: 'Image',
+  shortName: 'IMG',
   label: 'image',
   icon: ImageIcon,
   path: '/preference/image'
 }, {
   name: 'Key Bindings',
+  shortName: 'KEYS',
   label: 'keybindings',
   icon: KeyBindingIcon,
   path: '/preference/keybindings'

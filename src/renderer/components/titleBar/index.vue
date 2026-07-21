@@ -10,10 +10,11 @@
     >
       <div class="title" @dblclick.stop="toggleMaxmizeOnMacOS">
         <span v-if="!filename">MarkText</span>
-        <span v-else>
+        <span v-else class="document-title">
           <span
             v-for="(path, index) of paths"
             :key="index"
+            class="path-segment"
           >
             {{ path }}
             <svg class="icon" aria-hidden="true">
@@ -27,7 +28,11 @@
           >
             {{ filename }}
           </span>
-          <span class="save-dot" :class="{'show': !isSaved}"></span>
+          <span
+            class="save-dot"
+            :class="{'show': !isSaved}"
+            :title="isSaved ? 'Saved' : 'Unsaved changes'"
+          ></span>
         </span>
       </div>
       <div :class="showCustomTitleBar ? 'left-toolbar title-no-drag' : 'right-toolbar'">
@@ -41,7 +46,7 @@
         <el-tooltip
           v-if="wordCount"
           class="item"
-          :content="`${wordCount[show]} ${HASH[show].full + (wordCount[show] > 1 ? 's' : '')}`"
+          :content="counterLabel"
           placement="bottom-end"
         >
           <template #content>
@@ -61,7 +66,7 @@
             :class="[{ 'title-no-drag': platform !== 'darwin' }]"
             @click.stop="handleWordClick"
           >
-            <span class="text-center-vertical">{{ `${HASH[show].short} ${wordCount[show]}` }}</span>
+            <span class="text-center-vertical">{{ counterLabel }}</span>
           </div>
         </el-tooltip>
       </div>
@@ -124,7 +129,7 @@ export default {
       },
       all: {
         short: 'A',
-        full: '(with space)character'
+        full: 'character including spaces'
       }
     }
     this.windowIconMinimize = minimizePath
@@ -163,6 +168,15 @@ export default {
       if (!this.pathname) return []
       const pathnameToken = this.pathname.split(PATH_SEPARATOR).filter(i => i)
       return pathnameToken.slice(0, pathnameToken.length - 1).slice(-3)
+    },
+    counterLabel () {
+      if (!this.wordCount) return ''
+      const count = this.wordCount[this.show]
+      if (this.show === 'all') {
+        return `${count} chars + spaces`
+      }
+      const label = this.HASH[this.show].full
+      return `${count} ${label}${count === 1 ? '' : 's'}`
     },
     showCustomTitleBar () {
       return this.titleBarStyle === 'custom' && !this.isOsx
@@ -289,6 +303,11 @@ export default {
     transition: all .25s ease-in-out;
     & .filename {
       transition: all .25s ease-in-out;
+      color: var(--editorColor80);
+      font-weight: 500;
+    }
+    & .path-segment {
+      color: var(--editorColor40);
     }
     &::after {
       content: '';
@@ -327,7 +346,7 @@ export default {
     visibility: visible;
   }
   .title:hover {
-    color: var(sideBarTitleColor);
+    color: var(--sideBarTitleColor);
   }
 
   .left-toolbar {
@@ -357,7 +376,7 @@ export default {
   .word-count {
     cursor: pointer;
     font-size: 14px;
-    color: var(--editorColor30);
+    color: var(--editorColor60);
     text-align: center;
     line-height: 24px;
     padding: 0 5px;
@@ -365,7 +384,7 @@ export default {
     transition: all .25s ease-in-out;
     & > .text-center-vertical {
       padding: 2px 5px;
-      border-radius: 3px;
+      border-radius: var(--radius-sm);
     }
     &:hover > span {
       background: var(--sideBarBgColor);

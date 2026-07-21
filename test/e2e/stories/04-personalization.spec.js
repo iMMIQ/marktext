@@ -48,6 +48,10 @@ test.describe('US-04 personalization', () => {
     expect(geometry.editorMiddleLeft).toBeGreaterThanOrEqual(geometry.sidebarRight - 1)
     expect(geometry.editorRight).toBeLessThanOrEqual(geometry.viewportWidth)
     expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth)
+    const inactiveOpacity = await page.locator('.editor-component h1').evaluate(element => {
+      return Number.parseFloat(getComputedStyle(element).opacity)
+    })
+    expect(inactiveOpacity).toBeGreaterThanOrEqual(0.55)
 
     await captureStory(page, 'US-04 dark workspace')
     expectNoRendererErrors(session)
@@ -80,7 +84,39 @@ test.describe('US-04 personalization', () => {
       return container.scrollWidth > container.clientWidth + 1
     })
     expect(hasHorizontalOverflow).toBe(false)
+    const sidebarGeometry = await page.evaluate(() => {
+      const search = document.querySelector('.pref-sidebar .search-wrapper').getBoundingClientRect()
+      const firstCategory = document.querySelector('.pref-sidebar .category .item').getBoundingClientRect()
+      return {
+        searchBottom: search.bottom,
+        searchHeight: search.height,
+        firstCategoryTop: firstCategory.top
+      }
+    })
+    expect(sidebarGeometry.searchHeight).toBeLessThanOrEqual(36)
+    expect(sidebarGeometry.firstCategoryTop).toBeGreaterThanOrEqual(sidebarGeometry.searchBottom)
     await captureStory(page, 'US-04 preferences')
+
+    await app.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0].setContentSize(650, 500)
+    })
+    await expect.poll(() => page.evaluate(() => window.innerWidth)).toBeLessThanOrEqual(650)
+    const compactGeometry = await page.evaluate(() => {
+      const sidebar = document.querySelector('.pref-sidebar').getBoundingClientRect()
+      const content = document.querySelector('.pref-content').getBoundingClientRect()
+      return {
+        sidebarWidth: sidebar.width,
+        sidebarRight: sidebar.right,
+        contentLeft: content.left,
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: window.innerWidth
+      }
+    })
+    expect(compactGeometry.sidebarWidth).toBeLessThanOrEqual(73)
+    expect(compactGeometry.contentLeft).toBeGreaterThanOrEqual(compactGeometry.sidebarRight - 1)
+    expect(compactGeometry.documentWidth).toBeLessThanOrEqual(compactGeometry.viewportWidth + 1)
+    await expect(page.locator('.pref-sidebar .compact-label').first()).toBeVisible()
+    await captureStory(page, 'US-04 compact preferences')
     expectNoRendererErrors(session)
   })
 })

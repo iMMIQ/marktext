@@ -1,7 +1,7 @@
 <template>
   <section class="pref-switch-item" :class="{'ag-underdevelop': disable}">
     <div class="description">
-      <span>{{description}}:</span>
+      <span>{{description}}</span>
       <info-icon v-if="more"
         @click="handleMoreClick"
       ></info-icon>
@@ -73,7 +73,8 @@ export default {
   .pref-switch-item {
     font-size: 14px;
     user-select: none;
-    margin: 20px 0;
+    min-height: var(--control-height);
+    margin: var(--space-2) 0;
     color: var(--editorColor);
     display: flex;
     align-items: center;

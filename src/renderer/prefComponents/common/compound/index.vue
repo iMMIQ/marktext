@@ -25,20 +25,21 @@ export default {
   .pref-compound-item {
     font-size: 14px;
     user-select: none;
-    margin: 20px 0;
+    margin: 0 0 var(--space-6);
     color: var(--editorColor);
 
     & .pref-compound-head h6.title {
-      font-weight: 400;
-      font-size: 1.1em;
-      padding-bottom: 6px;
+      margin: 0;
+      padding-bottom: var(--space-2);
+      color: var(--editorColor80);
+      font-weight: 600;
+      font-size: 15px;
     }
 
     & .pref-compound-body {
-      padding: 8px 16px 8px 16px;
-      margin-top: -12px;
-      background: rgba(0, 0, 0, .04);
-      border: 1px solid rgba(255, 255, 255, .03);
+      padding: var(--space-1) 0 var(--space-2);
+      border-top: 1px solid var(--editorColor10);
+      background: transparent;
     }
 
     & .description {

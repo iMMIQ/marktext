@@ -2,6 +2,17 @@
 :root {
   --titleBarHeight: 32px;
   --editorAreaWidth: 750px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --control-height: 34px;
+  --icon-button-size: 34px;
+  --focus-ring: 0 0 0 2px var(--editorBgColor), 0 0 0 4px var(--focusColor);
 
   /*editor*/
   /*Theme color cluster*/
@@ -107,6 +118,16 @@
 }
 
 :focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focusColor);
+  outline-offset: 2px;
+}
+
+[contenteditable="true"]:focus-visible,
+.cm-content:focus-visible {
   outline: none;
 }
 
@@ -248,9 +269,11 @@ div.el-tab-pane {
   color: var(--buttonFontColor);
   background: var(--buttonBgColor);
   border: var(--buttonBorder);
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   box-shadow: var(--buttonShadow);
   padding: 7px 14px;
+  min-height: var(--control-height);
+  box-sizing: border-box;
 }
 .button:hover,
 .muya-button:hover,
@@ -272,6 +295,11 @@ div.el-tab-pane {
   outline: none;
   border: var(--buttonFocusBorder);
 }
+.button:focus-visible,
+.muya-button:focus-visible,
+.el-button:focus-visible {
+  box-shadow: var(--focus-ring);
+}
 
 .button-primary,
 .muya-button-primary,
@@ -281,9 +309,11 @@ div.el-tab-pane {
   color: var(--buttonPrimaryFontColor);
   background: var(--buttonPrimaryBgColor);
   border: var(--buttonPrimaryBorder);
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   box-shadow: var(--buttonPrimaryShadow);
   padding: 7px 14px;
+  min-height: var(--control-height);
+  box-sizing: border-box;
 }
 .button-primary:hover,
 .muya-button-primary:hover,
@@ -306,6 +336,12 @@ button.button-primary:not(.custom):focus,
   outline: none;
   border: var(--buttonPrimaryFocusBorder);
   box-shadow: var(--buttonPrimaryFocusShadow);
+}
+button.button-primary:not(.custom):focus-visible,
+.button-primary:focus-visible,
+.muya-button-primary:focus-visible,
+.el-button--primary:focus-visible {
+  box-shadow: var(--buttonPrimaryFocusShadow), var(--focus-ring);
 }
 
 .button.disabled,

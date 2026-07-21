@@ -63,7 +63,7 @@ export default {
 
 <style>
 .pref-container {
-  --prefSideBarWidth: 280px;
+  --prefSideBarWidth: 220px;
 
   width: 100vw;
   height: 100vh;
@@ -99,11 +99,21 @@ export default {
       -webkit-app-region: drag;
     }
     & .pref-setting {
-      padding: 50px 20px;
+      width: 100%;
+      max-width: 860px;
+      box-sizing: border-box;
+      align-self: center;
+      padding: var(--space-6) clamp(var(--space-4), 4vw, 48px);
       padding-top: var(--titleBarHeight);
       flex: 1;
       height: calc(100vh - var(--titleBarHeight));
       overflow: auto;
+    }
+    & .pref-setting > h4 {
+      margin: var(--space-2) 0 var(--space-5);
+      color: var(--editorColor80);
+      font-size: 22px;
+      font-weight: 600;
     }
     & span, & div,
     & h1, & h2, & h3, & h4, & h5 {
@@ -114,6 +124,17 @@ export default {
     /* Move the scrollbar below the titlebar */
     margin-top: var(--titleBarHeight);
     padding-top: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .pref-container {
+    --prefSideBarWidth: 72px;
+  }
+
+  .pref-container .pref-content .pref-setting {
+    padding-right: var(--space-4);
+    padding-left: var(--space-4);
   }
 }
 </style>
