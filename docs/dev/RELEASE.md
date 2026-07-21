@@ -4,9 +4,9 @@ The release process is staged. CI validates one revision, produces reviewable ar
 
 ## Release boundary
 
-Linux is the primary CI environment. It runs the complete quality gate and produces AppImage, Debian, RPM, and tar.gz artifacts. The bundled native modules are verified by executable format before packaging, so an ELF module cannot accidentally be shipped in a Windows or macOS application.
+Linux is the primary CI environment. It runs the complete quality gate and produces AppImage, Debian, RPM, and tar.gz artifacts. After that gate passes, a short Windows job rebuilds target-native modules and produces x64 NSIS and ZIP artifacts. The bundled native modules are verified by executable format before packaging, so an ELF module cannot accidentally be shipped in a Windows application.
 
-The current native dependencies (`keytar`, `native-keymap`, `fontmanager-redux`, and `ced`) are rebuilt for the host Electron ABI. Linux must not be presented as a working Windows or macOS cross-builder until target-native PE and Mach-O modules are staged and verified. macOS code signing and notarization also require Apple tooling and remain a short macOS or controlled signing-service step. This boundary is deliberate: an unsigned or wrong-architecture package is not a release artifact.
+The current native dependencies (`keytar`, `native-keymap`, `fontmanager-redux`, and `ced`) are rebuilt for the host Electron ABI. Windows x64 therefore uses a Windows runner but does not repeat lint, unit, specification, or E2E tests. The project no longer emits Windows ia32 packages because one x64 rebuild cannot provide valid ia32 modules. macOS code signing and notarization remain outside CI until a controlled signing path exists.
 
 ## Prepare a candidate
 
@@ -19,13 +19,14 @@ The current native dependencies (`keytar`, `native-keymap`, `fontmanager-redux`,
 7. Run `bun run rebuild`, `bun run verify:native`, `bun run pack`, `bun run check`, and `bun run e2e:runtime`.
 8. Tag the exact candidate revision as `v<package-version>`.
 
-Pushing the tag starts `.github/workflows/release.yml`. A manual run is useful for rehearsal; enable its `stable` input only when the package version has no prerelease suffix.
+Pushing the tag starts `.github/workflows/release.yml`. A manual run is useful for rehearsal; enable its `stable` input only when the package version has no prerelease suffix. `release_ref` can package an existing tag, and `windows_only` can supplement a tag that has already passed the Linux gate.
 
 ## CI candidate output
 
 The Linux release job installs from the frozen lockfile, validates the release environment, compares dependency versions with the previous Git tag, repeats release metadata checks, builds native modules and application bundles once, runs the non-UI and isolated E2E suites, and packages Linux artifacts. It uploads:
 
 - `marktext-linux-<tag>` with packages and `SHA256SUMS.txt`
+- `marktext-windows-<tag>` with the x64 installer, ZIP, update metadata, and checksums
 - `marktext-source-maps-<tag>` with source maps excluded from end-user packages
 - E2E traces and screenshots when the release gate fails
 
@@ -33,7 +34,7 @@ Artifacts are retained for review and are not sent to a GitHub Release automatic
 
 ## Complete platform artifacts
 
-Build Windows and macOS packages from the same tag in controlled target environments until target-native dependency staging exists on Linux. Run `bun run verify:native --platform win32` or `--platform darwin` before the corresponding package command. Sign Windows packages as required. On macOS, sign, notarize, staple, and validate the application before accepting the DMG and ZIP.
+The Windows job checks out the exact release tag, installs from the frozen lockfile, rebuilds native modules, verifies PE format, and packages only x64 artifacts. It runs after the Linux gate or through the explicit `windows_only` recovery input. Sign Windows packages as required before treating them as stable artifacts. macOS remains unpublished until signing and notarization are available.
 
 Do not reuse `node_modules` between platforms. Install from `bun.lock`, rebuild native modules for the target Electron runtime, and preserve the exact toolchain versions recorded by `bun run doctor:release`.
 
