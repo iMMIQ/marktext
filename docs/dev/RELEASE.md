@@ -34,7 +34,7 @@ Artifacts are retained for review and are not sent to a GitHub Release automatic
 
 ## Complete platform artifacts
 
-The Windows job checks out the exact release tag, installs from the frozen lockfile, rebuilds native modules, verifies PE format, and packages only x64 artifacts. It uses normal compression to minimize scarce Windows runner time, while Linux and local release commands retain maximum compression. It runs after the Linux gate or through the explicit `windows_only` recovery input. Sign Windows packages as required before treating them as stable artifacts. macOS remains unpublished until signing and notarization are available.
+The Windows job checks out the exact release tag, installs from the frozen lockfile, rebuilds native modules, verifies PE format, and explicitly overrides the tag's builder targets with `--win nsis zip --x64`. Before checksums and upload, it rejects any ia32 or ARM output and requires the x64 installer, ZIP, blockmap, and update metadata. It uses normal compression to minimize scarce Windows runner time, while Linux and local release commands retain maximum compression. It runs after the Linux gate or through the explicit `windows_only` recovery input. Sign Windows packages as required before treating them as stable artifacts. macOS remains unpublished until signing and notarization are available.
 
 Do not reuse `node_modules` between platforms. Install from `bun.lock`, rebuild native modules for the target Electron runtime, and preserve the exact toolchain versions recorded by `bun run doctor:release`.
 

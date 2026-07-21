@@ -236,7 +236,30 @@ jobs:
           bun run pack
 
       - name: Package Windows x64 artifacts
-        run: bun run package:win --x64 --config.compression=normal
+        run: bun x electron-builder build --win nsis zip --x64 --publish never --config.compression=normal
+
+      - name: Verify Windows x64 artifact set
+        shell: pwsh
+        run: |
+          $required = @(
+            'build/marktext-setup.exe',
+            'build/marktext-setup.exe.blockmap',
+            'build/marktext-x64-win.zip',
+            'build/latest.yml'
+          )
+          foreach ($artifact in $required) {
+            if (-not (Test-Path -Path $artifact -PathType Leaf)) {
+              throw "Missing required Windows x64 artifact: $artifact"
+            }
+          }
+
+          $unexpected = Get-ChildItem -Path build | Where-Object {
+            $_.Name -match '(?i)(?:ia32|arm64|armv7)'
+          }
+          if ($unexpected) {
+            $names = ($unexpected | ForEach-Object FullName) -join ', '
+            throw "Unexpected non-x64 Windows output: $names"
+          }
 
       - name: Generate artifact checksums
         run: bun run release:checksums
@@ -246,10 +269,10 @@ jobs:
         with:
           name: marktext-windows-${{ inputs.release_ref || github.ref_name }}
           path: |
-            build/*.exe
-            build/*-win.zip
-            build/*.blockmap
-            build/latest*.yml
+            build/marktext-setup.exe
+            build/marktext-setup.exe.blockmap
+            build/marktext-x64-win.zip
+            build/latest.yml
             build/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 14
