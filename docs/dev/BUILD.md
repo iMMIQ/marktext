@@ -10,7 +10,7 @@ git clone https://github.com/marktext/marktext.git
 
 Before you can get started developing, you need set up your build environment:
 
-- Node.js `24.x` (the repo pins `24` in `.nvmrc`) and Bun `1.3.x`
+- Node.js `24.x` (the repo pins `24` in `.nvmrc`) and the exact Bun version in `package.json`
 - Python `>=v3.6` for node-gyp
 - C++ compiler and development tools
 - Build is supported on Linux, macOS and Windows
@@ -34,10 +34,12 @@ On Red Hat-based Linux: `sudo dnf install libX11-devel libxkbfile-devel libsecre
 ## Official Developer Commands
 
 - `bun run dev` for local development
+- `bun run doctor` to validate the local toolchain and E2E prerequisites
 - `bun run rebuild` before native packaging
 - `bun run rebuild:force` to invalidate the native rebuild cache
 - `bun run pack` to build `dist/electron`
 - `bun run unit` for the unit suite
+- `bun run check` for lint, licenses, unit, CommonMark, and GFM checks
 - `bun run format` to auto-fix formatting and lint issues
 - `bun run build` to package the app
 
@@ -64,7 +66,9 @@ $ bun run <script>
 | --------------- | ------------------------------------------------ |
 | `build`         | Build MarkText binaries and packages for your OS |
 | `build:bin`     | Build MarkText binary for your OS                |
+| `check`         | Run non-UI quality checks                        |
 | `dev`           | Build and run MarkText in developer mode         |
+| `doctor`        | Validate the development and E2E environment     |
 | `lint`          | Lint code style                                  |
 | `rebuild`       | Rebuild native modules for the current Electron runtime |
 | `test`          | Run the unit and end-to-end suites               |
@@ -80,7 +84,7 @@ The desktop app now uses Bun-native bundling with three entry points:
 - `src/main/preload/index.js` is bundled by `tools/build/bun-pack.mjs` to `dist/electron/preload.js`.
 - `src/renderer/index.html` is bundled by `tools/build/bun-pack.mjs` to `dist/electron/index.html` and renderer assets, with Vue SFCs transformed through the shared `@vue/compiler-sfc` helper.
 
-`bun run dev` starts `tools/dev/bun-dev-runner.mjs`, which rebuilds the Bun bundles, serves `dist/electron` on `127.0.0.1:9091`, and restarts Electron when the app bundles change.
+`bun run dev` starts `tools/dev/bun-dev-runner.mjs` and serves `dist/electron` on a free local port. Main and preload changes rebuild their own entry and restart Electron. Renderer and Muya changes rebuild only their affected entries and refresh the existing window after a successful build.
 
 `bun run pack` is the easiest way to rebuild the full runtime boundary:
 
@@ -107,7 +111,13 @@ The renderer now boots directly with Vue 3, Pinia, and Vue Router. There is no V
 
 Recommended verification commands for the current baseline:
 
-- `bun run format`
-- `./node_modules/.bin/vitest run`
+- `bun run doctor`
+- `bun run check`
 - `bun run pack`
-- `./node_modules/.bin/playwright test -c test/e2e/playwright.config.js test/e2e/launch.spec.js test/e2e/phase-3-smoke.spec.js`
+- `bun run e2e:runtime`
+
+## Continuous integration
+
+The main quality gate runs on Linux and builds the native modules and application bundle once. Unit, CommonMark, GFM, and desktop-isolated E2E tests share that output; the packaging smoke test uses `package:dir` without rebuilding. CI caches Bun and Electron downloads, never `node_modules`, and always installs from the frozen lockfile.
+
+GitHub Actions are pinned to immutable commits. Dependency and action updates follow the seven-day waiting period in [VERSION_POLICY.md](VERSION_POLICY.md). Release candidates, checksums, source maps, and the remaining platform-signing boundary are documented in [RELEASE.md](RELEASE.md).

@@ -501,22 +501,67 @@ export const buildPack = async (options = {}) => {
   return results
 }
 
-export const serveBuiltRenderer = (port = 9091) => {
+export const serveBuiltRenderer = (port = 9091, { getRevision } = {}) => {
   const indexFile = path.join(distDir, 'index.html')
+  const reloadScriptPath = '/__marktext_dev_reload.js'
+  const revisionPath = '/__marktext_dev_revision'
+
+  const serveIndex = async () => {
+    if (!getRevision) {
+      return new Response(Bun.file(indexFile))
+    }
+
+    const html = await Bun.file(indexFile).text()
+    const scriptTag = `<script src="${reloadScriptPath}"></script>`
+    return new Response(html.replace('</body>', `${scriptTag}</body>`), {
+      headers: { 'content-type': 'text/html; charset=utf-8' }
+    })
+  }
 
   return Bun.serve({
     hostname: '127.0.0.1',
     port,
     development: true,
-    fetch (request) {
+    async fetch (request) {
       const url = new URL(request.url)
       const pathname = decodeURIComponent(url.pathname)
+
+      if (getRevision && pathname === revisionPath) {
+        return new Response(String(getRevision()), {
+          headers: { 'cache-control': 'no-store' }
+        })
+      }
+
+      if (getRevision && pathname === reloadScriptPath) {
+        return new Response(`
+let marktextRevision
+const poll = async () => {
+  try {
+    const response = await fetch('${revisionPath}', { cache: 'no-store' })
+    const revision = await response.text()
+    if (marktextRevision !== undefined && revision !== marktextRevision) {
+      location.reload()
+      return
+    }
+    marktextRevision = revision
+  } catch {}
+  setTimeout(poll, 300)
+}
+poll()
+`, {
+          headers: {
+            'cache-control': 'no-store',
+            'content-type': 'text/javascript; charset=utf-8'
+          }
+        })
+      }
+
       const relativePath = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '')
       const filePath = path.join(distDir, relativePath)
       const resolved = path.resolve(filePath)
 
       if (resolved === indexFile) {
-        return new Response(Bun.file(indexFile))
+        return serveIndex()
       }
 
       if (resolved.startsWith(distDir) && fs.existsSync(resolved) && fs.statSync(resolved).isFile()) {
@@ -524,7 +569,7 @@ export const serveBuiltRenderer = (port = 9091) => {
       }
 
       if (pathname === '/' || !path.extname(relativePath)) {
-        return new Response(Bun.file(indexFile))
+        return serveIndex()
       }
 
       return new Response('Not Found', { status: 404 })

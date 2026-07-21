@@ -66,7 +66,7 @@ const expectNode24Baseline = workflow => {
 }
 
 const expectSetupBun = workflow => {
-  expect(workflow).toMatch(/uses:\s*oven-sh\/setup-bun@v2/)
+  expect(workflow).toMatch(/uses:\s*oven-sh\/setup-bun@[0-9a-f]{40}\s+# v2\./)
   expect(workflow).toMatch(/bun-version-file:\s*package\.json/)
   expect(workflow).toMatch(/bun install --frozen-lockfile/)
   expect(workflow).toMatch(/bun\.lock/)
@@ -75,7 +75,7 @@ const expectSetupBun = workflow => {
 describe('phase 5 docs and CI contract', () => {
   it('documents and tests the Node 24 baseline consistently', () => {
     expect(nvmrc).toBe('24')
-    expect(pkg.packageManager).toMatch(/^bun@1\.3\./)
+    expect(pkg.packageManager).toBe('bun@1.3.14')
     expectNode24Baseline(buildWorkflow)
     expectNode24Baseline(releaseWorkflow)
     expectSetupBun(buildWorkflow)

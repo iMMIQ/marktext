@@ -13,6 +13,7 @@ directories:
 buildDependenciesFromSource: true
 files:
 - "dist/electron/**/*"
+- "!dist/electron/**/*.map"
 # Don't bundle these files
 - "!**/node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme}"
 - "!node_modules/css-b64-images/{draft.png,draft.xcf}"

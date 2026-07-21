@@ -1,44 +1,49 @@
-# Steps to release MarkText
+# Releasing MarkText
 
-- Prerequisites
-  - Use Node.js `24.x` (the repo pins `24` in `.nvmrc`)
-  - Install platform native build dependencies required by `node-gyp`
-  - Run `bun install`
-  - Run `bun run rebuild`
-  - Run `bun run pack`
-- Create a release candidate
-  - Create branch `release-v%version%`
-  - Set environment variable `MARKTEXT_IS_STABLE` to `1` for release builds
-  - Ensure [changelog](https://github.com/marktext/marktext/blob/master/.github/CHANGELOG.md) is up-to-date
-  - Bump version in `package.json` and changelog
-  - Update all `README.md` files
-  - Bump Flathub version ([marktext.appdata.xml](https://github.com/marktext/marktext/blob/master/resources/linux/marktext.appdata.xml))
-  - Create commit `release version %version%`
-  - Ensure all tests pass
-  - Run `bun run rebuild` on each target platform before packaging
-  - Run `bun run pack`
-  - A new draft release should be available or create one
-- Publish GitHub release
-  - Add git tag `v%version%`
-  - Add changelog
-  - Add SHA256 checksums
-- Update website and documentation
-- Publish [Flathub package](https://github.com/flathub/com.github.marktext.marktext)
-  - Ensure native dependencies
-  - Update `runtime` and `SDK` if needed
-  - Bump version and update URLs
-  - Test the package (`scripts/build-bundle.sh && scripts/test-marktext.sh`)
-  - Create commit `Update to v%version%`
+The release process is staged. CI validates one revision, produces reviewable artifacts, and never publishes directly from a branch build. A maintainer publishes only after every required platform artifact, signature, checksum, and smoke test belongs to the same Git tag.
 
-## Official Release Commands
+## Release boundary
 
-- `bun run rebuild`
-- `bun run pack`
-- `bun run build`
+Linux is the primary CI environment. It runs the complete quality gate and produces AppImage, Debian, RPM, and tar.gz artifacts. The bundled native modules are verified by executable format before packaging, so an ELF module cannot accidentally be shipped in a Windows or macOS application.
 
-See [VERSION_POLICY.md](VERSION_POLICY.md) for the maintained Node/Electron baseline and the official command surface.
+The current native dependencies (`keytar`, `native-keymap`, `fontmanager-redux`, and `ced`) are rebuilt for the host Electron ABI. Linux must not be presented as a working Windows or macOS cross-builder until target-native PE and Mach-O modules are staged and verified. macOS code signing and notarization also require Apple tooling and remain a short macOS or controlled signing-service step. This boundary is deliberate: an unsigned or wrong-architecture package is not a release artifact.
 
-## Work after releasing
+## Prepare a candidate
 
-- Ensure all issues in the changelog are closed
-- :relaxed: :tada:
+1. Create a release branch and choose the exact version.
+2. Update `package.json`, `.github/CHANGELOG.md`, and `resources/linux/marktext.appdata.xml` to the same version.
+3. Keep prerelease suffixes for beta or release-candidate builds. Remove the suffix only for a stable release.
+4. Run `bun run doctor:release` and resolve required failures.
+5. Run `bun install --frozen-lockfile`.
+6. Run `bun run check:dependency-age --base <merge-base>` and confirm every new dependency version has aged at least seven days.
+7. Run `bun run rebuild`, `bun run verify:native`, `bun run pack`, `bun run check`, and `bun run e2e:runtime`.
+8. Tag the exact candidate revision as `v<package-version>`.
+
+Pushing the tag starts `.github/workflows/release.yml`. A manual run is useful for rehearsal; enable its `stable` input only when the package version has no prerelease suffix.
+
+## CI candidate output
+
+The Linux release job installs from the frozen lockfile, validates the release environment, compares dependency versions with the previous Git tag, repeats release metadata checks, builds native modules and application bundles once, runs the non-UI and isolated E2E suites, and packages Linux artifacts. It uploads:
+
+- `marktext-linux-<tag>` with packages and `SHA256SUMS.txt`
+- `marktext-source-maps-<tag>` with source maps excluded from end-user packages
+- E2E traces and screenshots when the release gate fails
+
+Artifacts are retained for review and are not sent to a GitHub Release automatically.
+
+## Complete platform artifacts
+
+Build Windows and macOS packages from the same tag in controlled target environments until target-native dependency staging exists on Linux. Run `bun run verify:native --platform win32` or `--platform darwin` before the corresponding package command. Sign Windows packages as required. On macOS, sign, notarize, staple, and validate the application before accepting the DMG and ZIP.
+
+Do not reuse `node_modules` between platforms. Install from `bun.lock`, rebuild native modules for the target Electron runtime, and preserve the exact toolchain versions recorded by `bun run doctor:release`.
+
+## Publish
+
+1. Download every staged artifact into one clean directory.
+2. Generate a final checksum manifest with `bun run release:checksums <directory>`.
+3. Verify install and launch smoke tests for every platform and architecture.
+4. Create the GitHub Release for the exact tag, attach all platform artifacts and the checksum manifest, then publish it.
+5. Update the website and documentation.
+6. Update the Flathub manifest, test its bundle, and submit the version bump.
+
+See [VERSION_POLICY.md](VERSION_POLICY.md) for the maintained runtime versions and supply-chain policy.

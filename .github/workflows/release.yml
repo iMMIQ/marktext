@@ -1,172 +1,138 @@
-name: Release
+name: Release Candidate
 
 on:
   workflow_dispatch:
+    inputs:
+      stable:
+        description: Enforce stable-version metadata
+        required: true
+        default: false
+        type: boolean
   push:
-    branches:
-      - 'release-v*'
+    tags:
+      - 'v*'
 
-env:
-  MARKTEXT_RELEASE_REPO_OWNER: ${{ github.repository_owner }}
-  MARKTEXT_RELEASE_REPO_NAME: ${{ github.event.repository.name }}
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  unix:
-    runs-on: ${{ matrix.os }}
-    continue-on-error: false
-    timeout-minutes: 45
-
-    strategy:
-      matrix:
-        os: [ubuntu-22.04]
-
+  stage-linux:
+    name: Validate and stage Linux release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
     env:
-      DISPLAY: ":99.0"
-      MARKTEXT_IS_STABLE: 1
       MARKTEXT_EXIT_ON_ERROR: 1
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Check out Git repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
 
       - name: Install Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version-file: .nvmrc
 
       - name: Install Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: package.json
 
-      - name: Install build dependencies
-        if: runner.os == 'Linux'
-        #                         electron-builder                 | keyboard-layout         | keytar                      | fontmanager     | RPM on Ubuntu
+      - name: Install system dependencies
         run: |
           sudo apt-get -y update
-          sudo apt-get install -y icnsutils graphicsmagick xz-utils libx11-dev libxkbfile-dev gnome-keyring libsecret-1-dev libfontconfig-dev rpm
+          sudo apt-get install -y \
+            bubblewrap dbus-x11 graphicsmagick icnsutils rpm xauth xz-utils xvfb \
+            gnome-keyring libfontconfig-dev libsecret-1-dev libx11-dev libxkbfile-dev
 
-      - name: Cache node_modules
-        uses: actions/cache@v5
+      - name: Cache build downloads
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
-          path: ${{ github.workspace }}/node_modules
-          key: ${{ runner.os }}-node_modules-cache-v2-${{ hashFiles(format('{0}{1}', github.workspace, '/bun.lock')) }}
+          path: |
+            ~/.bun/install/cache
+            ~/.cache/electron
+            ~/.cache/electron-builder
+          key: linux-release-downloads-v3-${{ hashFiles('bun.lock') }}
           restore-keys: |
-            ${{ runner.os }}-node_modules-cache-v2-
-
-      - name: Cache Electron
-        uses: actions/cache@v5
-        with:
-          path: ${{ env.HOME }}/.cache/electron
-          key: ${{ runner.os }}-electron-cache-v2-${{ hashFiles(format('{0}{1}', github.workspace, '/bun.lock')) }}
-
-      - name: Cache Electron-Builder
-        uses: actions/cache@v5
-        with:
-          path: ${{ env.HOME }}/.cache//electron-builder
-          key: ${{ runner.os }}-electron-builder-cache-v2-${{ hashFiles(format('{0}{1}', github.workspace, '/bun.lock')) }}
+            linux-release-downloads-v3-
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Strip ripgrep on Linux
-        if: runner.os == 'Linux'
+      - name: Validate release environment
+        run: bun run doctor:release
+
+      - name: Configure release mode
+        env:
+          STABLE_REQUESTED: ${{ inputs.stable || false }}
         run: |
-          if [ -f node_modules/vscode-ripgrep/bin/rg ]; then
-            strip node_modules/vscode-ripgrep/bin/rg
+          VERSION=$(node -p "require('./package.json').version")
+          if [[ "$STABLE_REQUESTED" == "true" || "$VERSION" != *-* ]]; then
+            echo "MARKTEXT_IS_STABLE=1" >> "$GITHUB_ENV"
           else
-            echo "vscode-ripgrep binary not found; skipping strip"
+            echo "MARKTEXT_IS_STABLE=" >> "$GITHUB_ENV"
           fi
 
-      - name: Lint
+      - name: Validate release inputs
         run: |
-          bun run lint
-          bun run validate-licenses
+          DEPENDENCY_BASE=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo HEAD^)
+          bun run check:dependency-age --base "$DEPENDENCY_BASE"
+          if [[ "$MARKTEXT_IS_STABLE" == "1" ]]; then
+            bun run check:release-state --stable
+          else
+            bun run check:release-state
+          fi
 
-      - name: Run unit tests
-        run: bun run unit
-
-      - name: Build and release
+      - name: Build native modules and application once
         run: |
-              bun run release:linux --publish always -c.publish.provider=github -c.publish.owner=$MARKTEXT_RELEASE_REPO_OWNER -c.publish.repo=$MARKTEXT_RELEASE_REPO_NAME
+          bun run rebuild
+          bun run verify:native --platform linux
+          bun run pack
 
-      - name: Calculate checksums
+      - name: Run release quality gate
         run: |
-          sha256sum build/marktext-x64.tar.gz
-          sha256sum build/marktext-x86_64.AppImage
-          sha256sum build/marktext-*.deb
-          sha256sum build/marktext-*.rpm
-        shell: bash
+          bun run check
+          bun run e2e:runtime
 
-  windows:
-    runs-on: windows-latest
-    continue-on-error: false
-    timeout-minutes: 45
+      - name: Package Linux artifacts
+        run: bun run package:linux
 
-    env:
-      MARKTEXT_IS_STABLE: 1
-      MARKTEXT_EXIT_ON_ERROR: 1
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate artifact checksums
+        run: bun run release:checksums
 
-    steps:
-      - name: Check out Git repository
-        uses: actions/checkout@v6
-
-      - name: Install Node.js
-        uses: actions/setup-node@v6
+      - name: Upload Linux release candidate
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          node-version-file: .nvmrc
+          name: marktext-linux-${{ github.ref_name }}
+          path: |
+            build/*.AppImage
+            build/*.deb
+            build/*.rpm
+            build/*.tar.gz
+            build/latest*.yml
+            build/*.blockmap
+            build/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
 
-      - name: Install Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Upload source maps separately
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          bun-version-file: package.json
+          name: marktext-source-maps-${{ github.ref_name }}
+          path: dist/electron/**/*.map
+          if-no-files-found: error
+          retention-days: 14
 
-      # Workaround: Fix native build failure due to outdated node-gyp version.
-      - name: Fix node-gyp
-        run: |
-          npm install --global node-gyp@latest
-          npm prefix -g | % {npm config set node_gyp "$_\node_modules\node-gyp\bin\node-gyp.js"}
-          node-gyp install
-        shell: pwsh
-
-      - name: Cache node_modules
-        uses: actions/cache@v5
+      - name: Upload E2E diagnostics
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          path: ${{ github.workspace }}\node_modules
-          key: ${{ runner.os }}-node_modules-cache-v2-${{ hashFiles(format('{0}{1}', github.workspace, '\bun.lock')) }}
-          restore-keys: |
-            ${{ runner.os }}-node_modules-cache-v2-
-
-      - name: Cache Electron
-        uses: actions/cache@v5
-        with:
-          path: ${{ env.LOCALAPPDATA }}\electron\Cache
-          key: ${{ runner.os }}-electron-cache-v2-${{ hashFiles(format('{0}{1}', github.workspace, '\bun.lock')) }}
-
-      - name: Cache Electron-Builder
-        uses: actions/cache@v5
-        with:
-          path: ${{ env.LOCALAPPDATA }}\electron-builder\cache
-          key: ${{ runner.os }}-electron-builder-cache-v2-${{ hashFiles(format('{0}{1}', github.workspace, '\bun.lock')) }}
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Lint
-        run: |
-          bun run lint
-          bun run validate-licenses
-
-      - name: Run unit tests
-        run: bun run unit
-
-      - name: Build and release
-        run: bun run release:win --publish always "-c.publish.provider=github" "-c.publish.owner=$env:MARKTEXT_RELEASE_REPO_OWNER" "-c.publish.repo=$env:MARKTEXT_RELEASE_REPO_NAME"
-
-      - name: Calculate checksums
-        run: |
-          get-filehash -Algorithm SHA256 "build\marktext-setup.exe"
-          get-filehash -Algorithm SHA256 "build\marktext-*-win.zip"
-        shell: pwsh
+          name: release-e2e-diagnostics-${{ github.run_id }}
+          path: test-results/e2e
+          if-no-files-found: ignore
+          retention-days: 14
