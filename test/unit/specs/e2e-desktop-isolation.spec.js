@@ -10,6 +10,7 @@ describe('E2E desktop isolation contract', () => {
 
     expect(runner).not.toMatch(/MARKTEXT_E2E_SANDBOXED[^\n]+process\.env\.CI/)
     expect(helpers).not.toContain('!process.env.CI')
+    expect(runner).toContain("'--unshare-user'")
     expect(runner).toContain("'--unshare-net'")
     expect(runner).toContain("'--tmpfs', runtimeDir")
     expect(runner).toContain("'MARKTEXT_E2E_HOST_PID_NS'")

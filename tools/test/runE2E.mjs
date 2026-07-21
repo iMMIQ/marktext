@@ -31,6 +31,7 @@ const runInLinuxSandbox = async () => {
   const runtimeDir = `/run/user/${uid}`
   const sandboxArgs = [
     '--die-with-parent',
+    '--unshare-user',
     '--ro-bind', '/', '/',
     '--bind', ROOT, ROOT,
     '--dev', '/dev',
