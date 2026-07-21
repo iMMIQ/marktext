@@ -28,6 +28,7 @@ describe('CI and release workflow contract', () => {
     expect(buildWorkflow.match(/bun run pack\s*$/gm)).toHaveLength(1)
     expect(buildWorkflow).toContain('bun run e2e:runtime')
     expect(buildWorkflow).toContain('bun run doctor')
+    expect(buildWorkflow).toContain('kernel.apparmor_restrict_unprivileged_userns=0')
     expect(buildWorkflow).toContain('test-results/e2e')
   })
 
@@ -39,6 +40,7 @@ describe('CI and release workflow contract', () => {
     expect(releaseWorkflow).toContain('bun run verify:native --platform linux')
     expect(releaseWorkflow).toContain('git describe --tags --abbrev=0 HEAD^')
     expect(releaseWorkflow).toContain('bun run doctor:release')
+    expect(releaseWorkflow).toContain('kernel.apparmor_restrict_unprivileged_userns=0')
     expect(releaseWorkflow).toContain('bun run release:checksums')
     expect(releaseWorkflow).toContain('build/SHA256SUMS.txt')
     expect(releaseWorkflow).toContain('dist/electron/**/*.map')
