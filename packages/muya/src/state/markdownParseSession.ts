@@ -53,6 +53,15 @@ export class MarkdownParseSession {
         return range;
     }
 
+    resolveStateCounts() {
+        let parsedSegments = 0;
+        for (let segmentIndex = 0; segmentIndex < this.sourceIndex.length; segmentIndex++) {
+            if (!this.segments.isStateCountKnown(segmentIndex))
+                parsedSegments += this._parseSegment(segmentIndex);
+        }
+        return parsedSegments;
+    }
+
     parseNext(maxSegments: number): IMarkdownParseBatch {
         const task = this._scheduler.take(maxSegments);
         let parsedSegments = 0;

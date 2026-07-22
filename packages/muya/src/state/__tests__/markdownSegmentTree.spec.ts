@@ -12,26 +12,29 @@ describe('markdownSegmentTree', () => {
         const sourceIndex = MarkdownSourceIndex.fromText('zero\n\none\n\ntwo\n\nthree\n');
         const tree = new MarkdownSegmentTree(sourceIndex);
 
-        expect(tree.commitSegment(2, [paragraph('two a'), paragraph('two b')])).toBe(true);
+        expect(tree.areAllStateCountsKnown).toBe(true);
+        expect(tree.knownPrefixStates).toBe(4);
+        expect(tree.commitSegment(2, [paragraph('two')])).toBe(true);
         expect(tree.completePrefix).toBe(0);
-        expect(tree.stateRangeForSegment(2)).toBeNull();
-        expect(tree.statesForSegment(2)).toEqual([paragraph('two a'), paragraph('two b')]);
+        expect(tree.stateRangeForSegment(2)).toEqual({ start: 2, end: 3 });
+        expect(tree.stateIndexForLocation(2, 0)).toBe(2);
+        expect(tree.stateIndexForLocation(2, 1)).toBeNull();
+        expect(tree.statesForSegment(2)).toEqual([paragraph('two')]);
 
         tree.commitSegment(0, [paragraph('zero')]);
         tree.commitSegment(1, [paragraph('one')]);
 
         expect(tree.completePrefix).toBe(3);
-        expect(tree.completePrefixStates).toBe(4);
-        expect(tree.stateRangeForSegment(2)).toEqual({ start: 2, end: 4 });
-        expect(tree.locationAtStateIndex(3)).toEqual({ segmentIndex: 2, localStateIndex: 1 });
+        expect(tree.completePrefixStates).toBe(3);
+        expect(tree.stateRangeForSegment(2)).toEqual({ start: 2, end: 3 });
+        expect(tree.locationAtStateIndex(3)).toEqual({ segmentIndex: 3, localStateIndex: 0 });
 
         tree.commitSegment(3, [paragraph('three')]);
         expect(tree.isComplete).toBe(true);
         expect(tree.requireCompleteStateSnapshot()).toEqual([
             paragraph('zero'),
             paragraph('one'),
-            paragraph('two a'),
-            paragraph('two b'),
+            paragraph('two'),
             paragraph('three'),
         ]);
     });
@@ -50,6 +53,13 @@ describe('markdownSegmentTree', () => {
         const markdown = Array.from({ length: 2_500 }, (_, index) => `paragraph ${index}`).join('\n\n');
         const tree = new MarkdownSegmentTree(MarkdownSourceIndex.fromText(markdown));
 
-        expect(tree.storageBytes).toBeLessThan(tree.length * 10 + 8);
+        expect(tree.storageBytes).toBeLessThan(tree.length * 11 + 8);
+    });
+
+    it('fails closed when a certain source segment violates its state count hint', () => {
+        const tree = new MarkdownSegmentTree(MarkdownSourceIndex.fromText('paragraph\n'));
+
+        expect(() => tree.commitSegment(0, [paragraph('one'), paragraph('two')]))
+            .toThrow(/expected 1 semantic states but parsed 2/);
     });
 });

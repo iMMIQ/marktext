@@ -32,6 +32,13 @@ describe('markdownSourceIndex', () => {
         ]);
         expect(index.sourceForRange(3, 4)).toContain('const value = 1;');
         expect(index.recordAt(3)).toMatchObject({ hardLines: 4, startLine: 8 });
+        expect(index.records().map(record => record.stateCountHint)).toEqual([
+            1,
+            1,
+            null,
+            1,
+            1,
+        ]);
     });
 
     it('recognizes setext headings, tables, math, and configured frontmatter', () => {

@@ -70,4 +70,29 @@ describe('markdownParseSession', () => {
         expect(session.segments.isParsed(7)).toBe(true);
         expect(session.segments.isParsed(6)).toBe(false);
     });
+
+    it('resolves only uncertain state counts before background parsing', () => {
+        const markdown = '---\nFoo\n---\nBar\n---\nBaz\n';
+        const sourceIndex = MarkdownSourceIndex.fromText(markdown);
+        const parser = new MarkdownSourceParser(OPTIONS);
+        const session = new MarkdownParseSession(
+            sourceIndex,
+            candidateIndex => parser.parseSegmentStates(sourceIndex, candidateIndex),
+        );
+
+        expect(session.segments.areAllStateCountsKnown).toBe(false);
+        expect(session.resolveStateCounts()).toBe(1);
+        expect(session.segments.areAllStateCountsKnown).toBe(true);
+        expect(session.segments.stateRangeForSegment(0)).toEqual({ start: 0, end: 2 });
+        expect(session.segments.stateIndexForLocation(0, 1)).toBe(1);
+        expect(session.segments.completePrefix).toBeGreaterThanOrEqual(1);
+    });
+
+    it('does not parse ordinary one-state segments while resolving counts', () => {
+        const { session } = createSession(100);
+
+        expect(session.resolveStateCounts()).toBe(0);
+        expect(session.segments.parsedSegments).toBe(0);
+        expect(session.segments.areAllStateCountsKnown).toBe(true);
+    });
 });

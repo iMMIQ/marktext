@@ -38,6 +38,7 @@ export interface ISourceBlockRecord {
     hardLines: number;
     visualRows: number;
     estimatedHeight: number;
+    stateCountHint: 1 | null;
 }
 
 export interface ISourceBlockRange {
@@ -109,6 +110,8 @@ const SOURCE_KINDS: readonly TSourceBlockKind[] = [
 const SOURCE_KIND_CODES = Object.fromEntries(
     SOURCE_KINDS.map((kind, code) => [kind, code]),
 ) as Record<TSourceBlockKind, number>;
+const UNCERTAIN_STATE_COUNT = 0x80;
+const SOURCE_KIND_MASK = 0x7F;
 
 function growUint32(values: Uint32Array, capacity: number) {
     const next = new Uint32Array(capacity);
@@ -168,7 +171,8 @@ class SourceRecordTable {
         this._endLine[index] = record.endLine;
         this._hardLines[index] = record.hardLines;
         this._visualRows[index] = record.visualRows;
-        this._kind[index] = SOURCE_KIND_CODES[record.kind];
+        this._kind[index] = SOURCE_KIND_CODES[record.kind]
+            | (record.stateCountHint === null ? UNCERTAIN_STATE_COUNT : 0);
         this._heightEnds[index] = (index === 0 ? 0 : this._heightEnds[index - 1]) + record.estimatedHeight;
         this._length++;
     }
@@ -188,6 +192,10 @@ class SourceRecordTable {
         return this._to[index];
     }
 
+    stateCountHintAt(index: number): 1 | null {
+        return (this._kind[index] & UNCERTAIN_STATE_COUNT) === 0 ? 1 : null;
+    }
+
     recordAt(index: number): ISourceBlockRecord | null {
         if (index < 0 || index >= this._length)
             return null;
@@ -198,10 +206,11 @@ class SourceRecordTable {
             to: this._to[index],
             startLine: this._startLine[index],
             endLine: this._endLine[index],
-            kind: SOURCE_KINDS[this._kind[index]],
+            kind: SOURCE_KINDS[this._kind[index] & SOURCE_KIND_MASK],
             hardLines: this._hardLines[index],
             visualRows: this._visualRows[index],
             estimatedHeight: this._heightEnds[index] - top,
+            stateCountHint: this.stateCountHintAt(index),
         };
     }
 
@@ -411,6 +420,17 @@ function finalize(
             ? 'table'
             : builder.kind;
     const resolved = { ...builder, kind };
+    let stateCountHint: 1 | null = 1;
+    if (
+        kind === 'definition'
+        || kind === 'frontmatter'
+        || kind === 'html'
+        || kind === 'list'
+        || kind === 'quote'
+        || (kind === 'paragraph' && /^\s*\[/.test(resolved.samples[0] ?? ''))
+    ) {
+        stateCountHint = null;
+    }
     records.append({
         from: resolved.from,
         to: resolved.to,
@@ -420,6 +440,7 @@ function finalize(
         hardLines: resolved.hardLines,
         visualRows: resolved.visualRows,
         estimatedHeight: Math.max(1, estimateHeight(resolved, metrics)),
+        stateCountHint,
     });
 }
 
@@ -711,6 +732,12 @@ export class MarkdownSourceIndex {
         if (index < 0 || index >= this.length)
             throw new RangeError(`Invalid source candidate ${index} for ${this.length} candidates.`);
         return this._records.toAt(index);
+    }
+
+    stateCountHintAt(index: number) {
+        if (index < 0 || index >= this.length)
+            throw new RangeError(`Invalid source candidate ${index} for ${this.length} candidates.`);
+        return this._records.stateCountHintAt(index);
     }
 
     topAt(index: number) {

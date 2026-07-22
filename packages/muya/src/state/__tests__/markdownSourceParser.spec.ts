@@ -55,23 +55,45 @@ function parseBoth(markdown: string, options = OPTIONS) {
 describe('markdownSourceParser', () => {
     it('matches whole-document parsing for all 672 GFM examples', () => {
         const failures: Array<{ number: number; section: string }> = [];
+        const unsafeHints: Array<{ number: number; candidate: number }> = [];
         for (const example of gfmExamples) {
-            const { full, segmented } = parseBoth(example.markdown);
+            const { full, index, segmented } = parseBoth(example.markdown);
             if (JSON.stringify(segmented) !== JSON.stringify(full))
                 failures.push({ number: example.number, section: example.section });
+            const parser = new MarkdownSourceParser(OPTIONS);
+            for (let candidate = 0; candidate < index.length; candidate++) {
+                if (
+                    index.stateCountHintAt(candidate) === 1
+                    && parser.parseSegmentStates(index, candidate).length !== 1
+                ) {
+                    unsafeHints.push({ number: example.number, candidate });
+                }
+            }
         }
         expect(failures).toEqual([]);
+        expect(unsafeHints).toEqual([]);
     });
 
     it('matches whole-document parsing for MarkText round-trip fixtures', () => {
         const failures: string[] = [];
+        const unsafeHints: Array<{ file: string; candidate: number }> = [];
         for (const file of fixtureFiles) {
             const markdown = fs.readFileSync(path.join(fixturesDir, file), 'utf8');
-            const { full, segmented } = parseBoth(markdown);
+            const { full, index, segmented } = parseBoth(markdown);
             if (JSON.stringify(segmented) !== JSON.stringify(full))
                 failures.push(file);
+            const parser = new MarkdownSourceParser(OPTIONS);
+            for (let candidate = 0; candidate < index.length; candidate++) {
+                if (
+                    index.stateCountHintAt(candidate) === 1
+                    && parser.parseSegmentStates(index, candidate).length !== 1
+                ) {
+                    unsafeHints.push({ file, candidate });
+                }
+            }
         }
         expect(failures).toEqual([]);
+        expect(unsafeHints).toEqual([]);
     });
 
     it('preserves frontmatter and multi-block footnotes', () => {
