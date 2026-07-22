@@ -16,7 +16,7 @@ import { lexBlock } from '../utils/marked';
 
 const debug = logger('import markdown: ');
 
-interface IMarkdownToStateOptions {
+export interface IMarkdownToStateOptions {
     footnote: boolean;
     math: boolean;
     isGitlabCompatibilityEnabled: boolean;

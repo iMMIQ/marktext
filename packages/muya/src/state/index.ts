@@ -9,7 +9,7 @@ import { DocumentStore } from './documentStore';
 import { getTOC } from './getTOC';
 
 import { MarkdownSourceIndex } from './markdownSourceIndex';
-import { MarkdownToState } from './markdownToState';
+import { MarkdownSourceParser } from './markdownSourceParser';
 import StateToMarkdown from './stateToMarkdown';
 
 const debug = logger('jsonState:');
@@ -132,6 +132,7 @@ class JSONState {
             wrapCodeBlocks,
             tabSize,
             frontMatter,
+            footnote,
             math,
         } = this._muya.options;
         this._sourceIndex = new MarkdownSourceIndex(snapshot, {
@@ -141,10 +142,11 @@ class JSONState {
             wrapCodeBlocks,
             tabSize,
             frontMatter,
+            footnote,
             math,
         });
         const sourceIndexCompletedAt = performance.now();
-        this._state = this.markdownToState(markdown);
+        this._state = this.markdownToState(markdown, this._sourceIndex);
         const fullParseCompletedAt = performance.now();
         this._loadMetrics = {
             inputType: 'markdown',
@@ -168,7 +170,7 @@ class JSONState {
     // Parse markdown into a block-state array with the editor's current
     // render-affecting options, WITHOUT mutating `this._state`. Used by
     // `buildReplaceOp` to compute the target state for a bulk replacement.
-    markdownToState(markdown: string): TState[] {
+    markdownToState(markdown: string, sourceIndex?: MarkdownSourceIndex): TState[] {
         const {
             footnote,
             isGitlabCompatibilityEnabled,
@@ -177,13 +179,24 @@ class JSONState {
             math,
         } = this._muya.options;
 
-        return new MarkdownToState({
+        const options = {
             footnote,
             isGitlabCompatibilityEnabled,
             trimUnnecessaryCodeBlockEmptyLines,
             frontMatter,
             math,
-        }).generate(markdown);
+        };
+        const index = sourceIndex ?? MarkdownSourceIndex.fromText(markdown, {
+            fontSize: this._muya.options.fontSize,
+            lineHeight: this._muya.options.lineHeight,
+            codeFontSize: this._muya.options.codeFontSize,
+            wrapCodeBlocks: this._muya.options.wrapCodeBlocks,
+            tabSize: this._muya.options.tabSize,
+            frontMatter,
+            footnote,
+            math,
+        });
+        return new MarkdownSourceParser(options).parseRange(index).states;
     }
 
     /**

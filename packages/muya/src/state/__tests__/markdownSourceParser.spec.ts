@@ -1,0 +1,110 @@
+import type { IMarkdownToStateOptions } from '../markdownToState';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { describe, expect, it } from 'vitest';
+import gfmExamples from '../../../test/spec/fixtures/gfm-spec-0.29-gfm.json';
+import { MarkdownSourceIndex } from '../markdownSourceIndex';
+import { MarkdownSourceParser } from '../markdownSourceParser';
+import { MarkdownToState } from '../markdownToState';
+
+const OPTIONS: IMarkdownToStateOptions = {
+    footnote: false,
+    math: true,
+    isGitlabCompatibilityEnabled: true,
+    trimUnnecessaryCodeBlockEmptyLines: false,
+    frontMatter: false,
+};
+
+const fixturesDir = path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '..',
+    '..',
+    '..',
+    'test',
+    'spec',
+    'fixtures',
+    'marktext-round-trip',
+);
+
+const fixtureFiles = [
+    'common/BasicTextFormatting.md',
+    'common/Blockquotes.md',
+    'common/CodeBlocks.md',
+    'common/Escapes.md',
+    'common/Headings.md',
+    'common/Images.md',
+    'common/Links.md',
+    'common/Lists.md',
+    'gfm/BasicTextFormatting.md',
+    'gfm/Lists.md',
+    'gfm/Tables.md',
+];
+
+function parseBoth(markdown: string, options = OPTIONS) {
+    const full = new MarkdownToState(options).generate(markdown);
+    const index = MarkdownSourceIndex.fromText(markdown, {
+        frontMatter: options.frontMatter,
+        footnote: options.footnote,
+        math: options.math,
+    });
+    const segmented = new MarkdownSourceParser(options).parseRange(index).states;
+    return { full, index, segmented };
+}
+
+describe('markdownSourceParser', () => {
+    it('matches whole-document parsing for all 672 GFM examples', () => {
+        const failures: Array<{ number: number; section: string }> = [];
+        for (const example of gfmExamples) {
+            const { full, segmented } = parseBoth(example.markdown);
+            if (JSON.stringify(segmented) !== JSON.stringify(full))
+                failures.push({ number: example.number, section: example.section });
+        }
+        expect(failures).toEqual([]);
+    });
+
+    it('matches whole-document parsing for MarkText round-trip fixtures', () => {
+        const failures: string[] = [];
+        for (const file of fixtureFiles) {
+            const markdown = fs.readFileSync(path.join(fixturesDir, file), 'utf8');
+            const { full, segmented } = parseBoth(markdown);
+            if (JSON.stringify(segmented) !== JSON.stringify(full))
+                failures.push(file);
+        }
+        expect(failures).toEqual([]);
+    });
+
+    it('preserves frontmatter and multi-block footnotes', () => {
+        const markdown = [
+            '---',
+            'title: Example',
+            '---',
+            '',
+            'text[^n]',
+            '',
+            '[^n]: intro',
+            '',
+            '    - item a',
+            '    - item b',
+            '',
+        ].join('\n');
+        const options = { ...OPTIONS, frontMatter: true, footnote: true };
+        const { full, segmented } = parseBoth(markdown, options);
+
+        expect(segmented).toEqual(full);
+        expect(segmented.map(state => state.name)).toEqual(['frontmatter', 'paragraph', 'footnote']);
+    });
+
+    it('tags parsed ranges with immutable source revisions', () => {
+        const index = MarkdownSourceIndex.fromText('# one\n\ntwo\n');
+        const parsed = new MarkdownSourceParser(OPTIONS).parseRange(index, 1, 2);
+
+        expect(parsed).toMatchObject({ revision: index.revision, start: 1, end: 2 });
+        expect(parsed.segments[0]).toMatchObject({
+            revision: index.revision,
+            candidateIndex: 1,
+            states: [{ name: 'paragraph', text: 'two' }],
+        });
+        expect(() => new MarkdownSourceParser(OPTIONS).parseRange(index, -1, 2)).toThrow(/Invalid source candidate range/);
+    });
+});
