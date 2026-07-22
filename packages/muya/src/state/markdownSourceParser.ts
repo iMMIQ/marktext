@@ -1,7 +1,7 @@
 import type { MarkdownSourceIndex } from './markdownSourceIndex';
 import type { IMarkdownToStateOptions } from './markdownToState';
 import type { TState } from './types';
-import { MarkdownSegmentTree } from './markdownSegmentTree';
+import { MarkdownParseSession } from './markdownParseSession';
 import { MarkdownToState } from './markdownToState';
 
 export interface IParsedSourceSegment {
@@ -35,8 +35,14 @@ export class MarkdownSourceParser {
             candidateIndex,
             sourceFrom,
             sourceTo,
-            states: this._parser.generate(index.snapshot.slice(sourceFrom, sourceTo)),
+            states: this.parseSegmentStates(index, candidateIndex),
         };
+    }
+
+    parseSegmentStates(index: MarkdownSourceIndex, candidateIndex: number) {
+        const sourceFrom = index.sourceFromAt(candidateIndex);
+        const sourceTo = index.sourceToAt(candidateIndex);
+        return this._parser.generate(index.snapshot.slice(sourceFrom, sourceTo));
     }
 
     parseAllStates(index: MarkdownSourceIndex) {
@@ -44,14 +50,16 @@ export class MarkdownSourceParser {
     }
 
     parseAll(index: MarkdownSourceIndex) {
-        const segments = new MarkdownSegmentTree(index);
-        for (let candidateIndex = 0; candidateIndex < index.length; candidateIndex++) {
-            const from = index.sourceFromAt(candidateIndex);
-            const to = index.sourceToAt(candidateIndex);
-            const states = this._parser.generate(index.snapshot.slice(from, to));
-            segments.commitSegment(candidateIndex, states);
-        }
-        return segments;
+        const session = this.createSession(index);
+        session.parseAll();
+        return session.segments;
+    }
+
+    createSession(index: MarkdownSourceIndex) {
+        return new MarkdownParseSession(
+            index,
+            candidateIndex => this.parseSegmentStates(index, candidateIndex),
+        );
     }
 
     parseRange(index: MarkdownSourceIndex, start = 0, end = index.length): IParsedSourceRange {
