@@ -35,7 +35,7 @@ describe('markdownSourceIndex', () => {
         expect(index.records().map(record => record.stateCountHint)).toEqual([
             1,
             1,
-            null,
+            1,
             1,
             1,
         ]);

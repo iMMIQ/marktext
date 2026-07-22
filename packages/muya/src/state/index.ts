@@ -44,6 +44,9 @@ export interface IDocumentLoadMetrics {
     sourceIndexMs: number;
     sourceIndexBytes: number;
     segmentIndexBytes: number;
+    stateCountResolveMs: number;
+    stateCountPreparsedSegments: number;
+    semanticSlots: number;
     fullParseMs: number;
     sourceCandidates: number;
     parsedLogicalBlocks: number;
@@ -87,6 +90,9 @@ class JSONState {
         sourceIndexMs: 0,
         sourceIndexBytes: 0,
         segmentIndexBytes: 0,
+        stateCountResolveMs: 0,
+        stateCountPreparsedSegments: 0,
+        semanticSlots: 0,
         fullParseMs: 0,
         sourceCandidates: 0,
         parsedLogicalBlocks: 0,
@@ -135,6 +141,9 @@ class JSONState {
             sourceIndexMs: 0,
             sourceIndexBytes: 0,
             segmentIndexBytes: 0,
+            stateCountResolveMs: 0,
+            stateCountPreparsedSegments: 0,
+            semanticSlots: state.length,
             fullParseMs: 0,
             sourceCandidates: 0,
             parsedLogicalBlocks: state.length,
@@ -166,8 +175,12 @@ class JSONState {
             math,
         });
         const sourceIndexCompletedAt = performance.now();
-        this._segmentTree = this._markdownParser().parseAll(this._sourceIndex);
-        this._state = this._segmentTree.requireCompleteStateSnapshot();
+        const parseSession = this._markdownParser().createSession(this._sourceIndex);
+        const stateCountStartedAt = performance.now();
+        const stateCountPreparsedSegments = parseSession.resolveStateCounts();
+        const stateCountCompletedAt = performance.now();
+        this._segmentTree = parseSession.segments;
+        this._state = parseSession.parseAll();
         const fullParseCompletedAt = performance.now();
         this._loadMetrics = {
             inputType: 'markdown',
@@ -176,6 +189,9 @@ class JSONState {
             sourceIndexMs: sourceIndexCompletedAt - storeCompletedAt,
             sourceIndexBytes: this._sourceIndex.storageBytes,
             segmentIndexBytes: this._segmentTree.storageBytes,
+            stateCountResolveMs: stateCountCompletedAt - stateCountStartedAt,
+            stateCountPreparsedSegments,
+            semanticSlots: this._segmentTree.knownPrefixStates,
             fullParseMs: fullParseCompletedAt - sourceIndexCompletedAt,
             sourceCandidates: this._sourceIndex.length,
             parsedLogicalBlocks: this._state.length,

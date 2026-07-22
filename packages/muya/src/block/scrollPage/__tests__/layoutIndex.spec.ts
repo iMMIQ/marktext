@@ -1,5 +1,7 @@
 import type { TState } from '../../../state/types';
 import { describe, expect, it } from 'vitest';
+import { MarkdownSourceIndex } from '../../../state/markdownSourceIndex';
+import { MarkdownSourceParser } from '../../../state/markdownSourceParser';
 import { LayoutIndex } from '../layoutIndex';
 
 const metrics = {
@@ -85,5 +87,28 @@ describe('layoutIndex', () => {
             measuredHeight: null,
             revision: 9,
         });
+    });
+
+    it('builds a full semantic layout before ordinary segments are parsed', () => {
+        const markdown = Array.from({ length: 100 }, (_, index) => `paragraph ${index}`).join('\n\n');
+        const source = MarkdownSourceIndex.fromText(markdown);
+        const parser = new MarkdownSourceParser({
+            footnote: false,
+            math: true,
+            isGitlabCompatibilityEnabled: true,
+            trimUnnecessaryCodeBlockEmptyLines: false,
+            frontMatter: true,
+        });
+        const session = parser.createSession(source);
+        const index = new LayoutIndex();
+
+        expect(session.resolveStateCounts()).toBe(0);
+        expect(session.segments.parsedSegments).toBe(0);
+        index.rebuildFromSegments(session.segments, metrics, 11);
+
+        expect(index.length).toBe(100);
+        expect(index.totalHeight).toBeCloseTo(source.totalHeight);
+        expect(index.indexAtProgress(1)).toBe(99);
+        expect(index.recordAt(50)).toMatchObject({ stateIndex: 50, revision: 11 });
     });
 });

@@ -150,6 +150,13 @@ export class MarkdownSegmentTree {
         return this._stateCountKnown[segmentIndex] === 1;
     }
 
+    stateCountAt(segmentIndex: number) {
+        this._assertSegmentIndex(segmentIndex);
+        return this._stateCountKnown[segmentIndex] === 1
+            ? this._stateCounts[segmentIndex]
+            : null;
+    }
+
     commitSegment(segmentIndex: number, states: readonly TState[], revision = this.revision) {
         this._assertSegmentIndex(segmentIndex);
         if (revision !== this.revision)
@@ -202,6 +209,18 @@ export class MarkdownSegmentTree {
         this._ensureCountTree();
         const start = this._countTree.sum(segmentIndex);
         return this._prefixStates.slice(start, start + this._stateCounts[segmentIndex]);
+    }
+
+    stateAtLocation(segmentIndex: number, localStateIndex: number): TState | null {
+        this._assertSegmentIndex(segmentIndex);
+        if (!Number.isInteger(localStateIndex) || localStateIndex < 0)
+            return null;
+        if (this._parsed[segmentIndex] === 0)
+            return null;
+        if (segmentIndex >= this._completePrefix)
+            return this._sparseStates.get(segmentIndex)?.[localStateIndex] ?? null;
+        const stateIndex = this.stateIndexForLocation(segmentIndex, localStateIndex);
+        return stateIndex === null ? null : this._prefixStates[stateIndex] ?? null;
     }
 
     stateRangeForSegment(segmentIndex: number): ISegmentStateRange | null {

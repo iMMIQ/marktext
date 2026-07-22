@@ -54,6 +54,9 @@ interface ILoadStartResult {
     sourceIndexBytes: number;
     segmentIndexBytes: number;
     layoutIndexBytes: number;
+    stateCountResolveMs: number;
+    stateCountPreparsedSegments: number;
+    semanticSlots: number;
     fullParseMs: number;
     setContentCallMs: number;
     firstPaintOpportunityMs: number;
@@ -105,6 +108,9 @@ interface IJumpRun {
     sourceIndexBytes: number;
     segmentIndexBytes: number;
     layoutIndexBytes: number;
+    stateCountResolveMs: number;
+    stateCountPreparsedSegments: number;
+    semanticSlots: number;
     fullParseMs: number;
     setContentCallMs: number;
     firstPaintOpportunityMs: number;
@@ -310,6 +316,9 @@ async function startDocument(page: Page, targetBytes: number): Promise<ILoadStar
             sourceIndexBytes: loadMetrics.sourceIndexBytes,
             segmentIndexBytes: loadMetrics.segmentIndexBytes,
             layoutIndexBytes: virtualization.layoutIndexBytes,
+            stateCountResolveMs: loadMetrics.stateCountResolveMs,
+            stateCountPreparsedSegments: loadMetrics.stateCountPreparsedSegments,
+            semanticSlots: loadMetrics.semanticSlots,
             fullParseMs: loadMetrics.fullParseMs,
             setContentCallMs: setContentCompletedAt - setContentStartedAt,
             firstPaintOpportunityMs: performance.now() - startedAt,
@@ -520,6 +529,9 @@ test('large document benchmark @benchmark', async ({ page, browserName }, testIn
             sourceIndexBytes: jumpLoad.sourceIndexBytes,
             segmentIndexBytes: jumpLoad.segmentIndexBytes,
             layoutIndexBytes: jumpLoad.layoutIndexBytes,
+            stateCountResolveMs: jumpLoad.stateCountResolveMs,
+            stateCountPreparsedSegments: jumpLoad.stateCountPreparsedSegments,
+            semanticSlots: jumpLoad.semanticSlots,
             fullParseMs: jumpLoad.fullParseMs,
             setContentCallMs: jumpLoad.setContentCallMs,
             firstPaintOpportunityMs: jumpLoad.firstPaintOpportunityMs,
@@ -570,6 +582,9 @@ test('large document benchmark @benchmark', async ({ page, browserName }, testIn
             sourceIndexBytes: stats(loadRuns.map(run => run.sourceIndexBytes)),
             segmentIndexBytes: stats(loadRuns.map(run => run.segmentIndexBytes)),
             layoutIndexBytes: stats(loadRuns.map(run => run.layoutIndexBytes)),
+            stateCountResolveMs: stats(loadRuns.map(run => run.stateCountResolveMs)),
+            stateCountPreparsedSegments: stats(loadRuns.map(run => run.stateCountPreparsedSegments)),
+            semanticSlots: stats(loadRuns.map(run => run.semanticSlots)),
             fullParseMs: stats(loadRuns.map(run => run.fullParseMs)),
             setContentCallMs: stats(loadRuns.map(run => run.setContentCallMs)),
             sourceCandidates: stats(loadRuns.map(run => run.sourceCandidates)),

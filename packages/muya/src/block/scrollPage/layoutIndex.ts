@@ -1,3 +1,4 @@
+import type { MarkdownSegmentTree } from '../../state/markdownSegmentTree';
 import type { TState } from '../../state/types';
 
 export interface ILayoutMetrics {
@@ -245,22 +246,36 @@ export class LayoutIndex {
 
     rebuild(states: readonly TState[], metrics: Partial<ILayoutMetrics> = {}, revision = this._revision + 1) {
         const resolvedMetrics = { ...DEFAULT_METRICS, ...metrics };
-        const preserveMeasurements = revision === this._revision;
-        const previousMeasurements = this._measuredHeights;
-        this._revision = revision;
-        this._estimatedHeights = new Float64Array(states.length);
-        this._measuredHeights = new Float64Array(states.length);
-        this._measuredHeights.fill(Number.NaN);
-        if (preserveMeasurements) {
-            this._measuredHeights.set(
-                previousMeasurements.subarray(0, Math.min(states.length, previousMeasurements.length)),
-            );
-        }
+        this._prepareRebuild(states.length, revision);
         for (let stateIndex = 0; stateIndex < states.length; stateIndex++) {
             this._estimatedHeights[stateIndex] = Math.max(
                 1,
                 estimateStateHeight(states[stateIndex], resolvedMetrics),
             );
+        }
+        this._heightTree.build(this._estimatedHeights, this._measuredHeights);
+    }
+
+    rebuildFromSegments(
+        segments: MarkdownSegmentTree,
+        metrics: Partial<ILayoutMetrics> = {},
+        revision = this._revision + 1,
+    ) {
+        if (!segments.areAllStateCountsKnown)
+            throw new Error(`Cannot build semantic layout with only ${segments.knownCountPrefix}/${segments.length} segment counts.`);
+        const resolvedMetrics = { ...DEFAULT_METRICS, ...metrics };
+        this._prepareRebuild(segments.knownPrefixStates, revision);
+        let stateIndex = 0;
+        for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex++) {
+            const stateCount = segments.stateCountAt(segmentIndex)!;
+            const fallbackHeight = segments.sourceIndex.estimatedHeightAt(segmentIndex) / Math.max(1, stateCount);
+            for (let localStateIndex = 0; localStateIndex < stateCount; localStateIndex++) {
+                const state = segments.stateAtLocation(segmentIndex, localStateIndex);
+                this._estimatedHeights[stateIndex++] = Math.max(
+                    1,
+                    state ? estimateStateHeight(state, resolvedMetrics) : fallbackHeight,
+                );
+            }
         }
         this._heightTree.build(this._estimatedHeights, this._measuredHeights);
     }
@@ -329,5 +344,19 @@ export class LayoutIndex {
     clearMeasurements() {
         this._measuredHeights.fill(Number.NaN);
         this._heightTree.build(this._estimatedHeights);
+    }
+
+    private _prepareRebuild(length: number, revision: number) {
+        const preserveMeasurements = revision === this._revision;
+        const previousMeasurements = this._measuredHeights;
+        this._revision = revision;
+        this._estimatedHeights = new Float64Array(length);
+        this._measuredHeights = new Float64Array(length);
+        this._measuredHeights.fill(Number.NaN);
+        if (preserveMeasurements) {
+            this._measuredHeights.set(
+                previousMeasurements.subarray(0, Math.min(length, previousMeasurements.length)),
+            );
+        }
     }
 }

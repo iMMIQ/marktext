@@ -72,6 +72,8 @@ interface IRecordBuilder {
     lastSample: string;
     fence?: { marker: string; length: number };
     untilBlank?: boolean;
+    stateCountRisk?: boolean;
+    listMarkerFamily?: string;
 }
 
 interface ILineClassification {
@@ -425,8 +427,7 @@ function finalize(
         kind === 'definition'
         || kind === 'frontmatter'
         || kind === 'html'
-        || kind === 'list'
-        || kind === 'quote'
+        || ((kind === 'list' || kind === 'quote') && resolved.stateCountRisk)
         || (kind === 'paragraph' && /^\s*\[/.test(resolved.samples[0] ?? ''))
     ) {
         stateCountHint = null;
@@ -450,6 +451,7 @@ function appendLine(
     columns: number,
     wrap = true,
 ) {
+    updateStateCountRisk(builder, line);
     builder.to = line.nextOffset;
     builder.endLine = line.line + 1;
     builder.hardLines++;
@@ -459,13 +461,39 @@ function appendLine(
         builder.samples.push(line.sample);
 }
 
+function listMarkerFamily(sample: string) {
+    const match = /^ {0,3}([-+*]|\d+([.)]))(?:[ \t]+|$)/.exec(sample);
+    if (!match)
+        return null;
+    return match[2] ? `ordered:${match[2]}` : `bullet:${match[1]}`;
+}
+
+function updateStateCountRisk(builder: IRecordBuilder, line: ISourceLine) {
+    if (line.blank) {
+        builder.stateCountRisk = true;
+        return;
+    }
+    if (builder.kind === 'quote' && !QUOTE.test(line.sample)) {
+        builder.stateCountRisk = true;
+        return;
+    }
+    if (builder.kind !== 'list')
+        return;
+    const family = listMarkerFamily(line.sample);
+    if (!family)
+        return;
+    if (builder.listMarkerFamily && builder.listMarkerFamily !== family)
+        builder.stateCountRisk = true;
+    builder.listMarkerFamily ??= family;
+}
+
 function createBuilder(
     line: ISourceLine,
     classified: ReturnType<typeof classifyLine>,
     from: number,
     columns: number,
 ): IRecordBuilder {
-    return {
+    const builder: IRecordBuilder = {
         from,
         to: line.nextOffset,
         startLine: line.line,
@@ -478,6 +506,8 @@ function createBuilder(
         fence: classified.fence,
         untilBlank: classified.untilBlank,
     };
+    updateStateCountRisk(builder, line);
+    return builder;
 }
 
 function continuesAfterBlank(builder: IRecordBuilder | null, line: ISourceLine) {
@@ -712,6 +742,12 @@ export class MarkdownSourceIndex {
 
     get storageBytes() {
         return this._records.storageBytes;
+    }
+
+    estimatedHeightAt(index: number) {
+        if (index < 0 || index >= this.length)
+            return 0;
+        return this.topAt(index + 1) - this.topAt(index);
     }
 
     records() {

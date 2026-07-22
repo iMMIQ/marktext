@@ -37,6 +37,9 @@ describe('document load metrics', () => {
             parsedLogicalBlocks: 3,
             sourceStoreMs: expect.any(Number),
             sourceIndexMs: expect.any(Number),
+            stateCountResolveMs: expect.any(Number),
+            stateCountPreparsedSegments: expect.any(Number),
+            semanticSlots: 3,
             fullParseMs: expect.any(Number),
         });
         expect(state.getSourceIndex()?.sourceForRange(1, 2)).toContain('Paragraph');
@@ -63,6 +66,7 @@ describe('document load metrics', () => {
             inputType: 'state',
             sourceBytes: 0,
             sourceCandidates: 0,
+            semanticSlots: 1,
             parsedLogicalBlocks: 1,
         });
         expect(state.getSourceIndex()).toBeNull();
