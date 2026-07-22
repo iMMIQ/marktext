@@ -18,9 +18,18 @@ const debug = logger('jsonState:');
 // document as `TState[]`; bridging the two requires `unknown` casts that
 // happen at every callsite. Concentrate them here so production code never
 // writes `as unknown as Doc` itself.
-export function asDoc(state: TState[] | TState): Doc {
+export function asDoc(state: readonly TState[] | TState): Doc {
     // eslint-disable-next-line no-restricted-syntax
     return state as unknown as Doc;
+}
+
+export interface IJSONChangePayload {
+    op: JSONOp;
+    source: string;
+    prevStateSnapshot: readonly TState[];
+    stateSnapshot: readonly TState[];
+    readonly prevDoc: TState[];
+    readonly doc: TState[];
 }
 
 export function asState(doc: unknown): TState[] {
@@ -294,25 +303,22 @@ class JSONState {
     }
 
     dispatch(op: JSONOp, source = 'user' /* user, api */) {
-        const prevDoc = this.getState();
+        const prevStateSnapshot = this._state;
         this._apply(op);
-        // TODO: remove doc in future
-        const doc = this.getState();
         debug.log(JSON.stringify(op));
-        this._muya.eventCenter.emit('json-change', {
-            op,
-            source,
-            prevDoc,
-            doc,
-        });
+        this._emitJSONChange(op, source, prevStateSnapshot);
     }
 
     getState(): TState[] {
         return deepClone(this._state);
     }
 
+    getStateSnapshot(): readonly TState[] {
+        return this._state;
+    }
+
     getMarkdown() {
-        return this.getMarkdownFromState(this.getState());
+        return this.getMarkdownFromState(this._state);
     }
 
     getTOC() {
@@ -322,7 +328,7 @@ class JSONState {
     // Serialize an ARBITRARY state array to markdown with the same generator
     // `getMarkdown` uses. Used by `Muya.getCursorOffset` to serialize a
     // sentinel-bearing state clone WITHOUT mutating the live `_state`.
-    getMarkdownFromState(state: TState[]): string {
+    getMarkdownFromState(state: readonly TState[]): string {
         const mdGenerator = new StateToMarkdown({
             listIndentation: this._muya.options.listIndentation,
         });
@@ -338,6 +344,23 @@ class JSONState {
             this._rafId = null;
             this._flushOperationCache();
         });
+    }
+
+    private _emitJSONChange(op: JSONOp, source: string, prevStateSnapshot: readonly TState[]) {
+        const stateSnapshot = this._state;
+        const payload: IJSONChangePayload = {
+            op,
+            source,
+            prevStateSnapshot,
+            stateSnapshot,
+            get prevDoc() {
+                return deepClone(Array.from(prevStateSnapshot));
+            },
+            get doc() {
+                return deepClone(stateSnapshot);
+            },
+        };
+        this._muya.eventCenter.emit('json-change', payload);
     }
 
     // Apply queued edits to the current document now instead of on the next
@@ -366,10 +389,8 @@ class JSONState {
         const op = this._operationCache.reduce(
             (acc, curr) => json1.type.compose(acc, curr) as JSONOpList,
         );
-        const prevDoc = this.getState();
+        const prevStateSnapshot = this._state;
         this._apply(op);
-        // TODO: remove doc in future
-        const doc = this.getState();
         // Clear before emitting: a listener that edits synchronously then starts
         // a fresh batch instead of mutating the one being flushed.
         this._operationCache = [];
@@ -377,12 +398,7 @@ class JSONState {
         if (op === null)
             return;
 
-        this._muya.eventCenter.emit('json-change', {
-            op,
-            source: 'user',
-            prevDoc,
-            doc,
-        });
+        this._emitJSONChange(op, 'user', prevStateSnapshot);
     }
 }
 

@@ -1,5 +1,6 @@
 import type { JSONOpList } from 'ot-json1';
 import type { Muya } from '../../muya';
+import type { IJSONChangePayload } from '../../state';
 import type { TState } from '../../state/types';
 import type { Nullable } from '../../types';
 import type Content from '../base/content';
@@ -7,7 +8,7 @@ import type TreeNode from '../base/treeNode';
 import type { IConstructor, TBlockPath } from '../types';
 import { LinkedList } from '../../block/base/linkedList/linkedList';
 import { BLOCK_DOM_PROPERTY } from '../../config';
-import { isHTMLElement, isMouseEvent } from '../../utils';
+import { deepClone, isHTMLElement, isMouseEvent } from '../../utils';
 import { findScrollContainer } from '../../utils/dom';
 import logger from '../../utils/logger';
 import Parent from '../base/parent';
@@ -69,7 +70,7 @@ export class ScrollPage extends Parent {
         return block as IConstructor<Parent>;
     }
 
-    static create(muya: Muya, state: TState[]) {
+    static create(muya: Muya, state: readonly TState[]) {
         const scrollPage = new ScrollPage(muya);
         scrollPage.parent!.domNode!.appendChild(scrollPage.domNode!);
         scrollPage.updateState(state);
@@ -109,19 +110,17 @@ export class ScrollPage extends Parent {
         eventCenter.attachDOMEvent(domNode!, 'click', this._clickHandler.bind(this));
     }
 
-    private _handleJSONChange = ({ doc }: { doc?: TState[] }) => {
-        if (!Array.isArray(doc))
-            return;
-        const structureChanged = doc.length !== this._state.length;
-        this._state = doc;
+    private _handleJSONChange = ({ stateSnapshot }: IJSONChangePayload) => {
+        const structureChanged = stateSnapshot.length !== this._state.length;
+        this._state = stateSnapshot;
         this._revision++;
         this._renderScheduler.reset(this._revision);
         if (structureChanged)
-            this._layoutIndex.rebuild(doc, this._getLayoutMetrics(), this._revision);
+            this._layoutIndex.rebuild(stateSnapshot, this._getLayoutMetrics(), this._revision);
         this._scheduleOverscan();
     };
 
-    updateState(state: TState[]) {
+    updateState(state: readonly TState[]) {
         this._cancelScheduledWork();
         this._revision++;
         this._state = state;
@@ -520,7 +519,7 @@ export class ScrollPage extends Parent {
         }
         for (const index of desired) {
             if (!this._mountedBlocks.has(index) && this._state[index]) {
-                const state = this._state[index];
+                const state = deepClone(this._state[index]);
                 const block = ScrollPage.loadBlock(state.name).create(this.muya, state);
                 block.parent = this;
                 this._mountedBlocks.set(index, block);

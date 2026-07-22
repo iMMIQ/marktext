@@ -1,6 +1,7 @@
 import type { JSONOpList } from 'ot-json1';
 import type { Muya } from '../muya';
 import type { IAnchorFocusInfo, IHistorySelection } from '../selection/types';
+import type { IJSONChangePayload } from '../state';
 import type { TState } from '../state/types';
 import type { Nullable } from '../types';
 import * as json1 from 'ot-json1';
@@ -125,16 +126,7 @@ class History {
     private _listen() {
         this._muya.eventCenter.on(
             'json-change',
-            ({
-                op,
-                source,
-                prevDoc,
-            }: {
-                op: Nullable<JSONOpList>;
-                source: string;
-                prevDoc: TState[];
-                doc: TState[];
-            }) => {
+            ({ op, source, prevStateSnapshot }: IJSONChangePayload) => {
                 if (this._ignoreChange)
                     return;
 
@@ -146,7 +138,7 @@ class History {
                     return;
 
                 if (!this._options.userOnly || source === 'user')
-                    this._record(op, prevDoc);
+                    this._record(op, prevStateSnapshot);
                 else
                     this._transform(op);
             },
@@ -160,7 +152,7 @@ class History {
         const { operation, selection, rebuild } = this._stack[source].pop()!;
         const inverseOperation = json1.type.invertWithDoc(
             operation,
-            asDoc(this._muya.editor.jsonState.getState()),
+            asDoc(this._muya.editor.jsonState.getStateSnapshot()),
         );
 
         this._stack[dest].push({
@@ -294,7 +286,7 @@ class History {
         return this._selectionStack.length === 2 ? this._selectionStack[0] : null;
     }
 
-    private _record(op: JSONOpList, doc: TState[]) {
+    private _record(op: JSONOpList, doc: readonly TState[]) {
         if (op.length === 0)
             return;
 

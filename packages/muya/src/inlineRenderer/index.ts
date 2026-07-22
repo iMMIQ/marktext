@@ -75,10 +75,10 @@ class InlineRenderer {
     }
 
     private _collectReferenceDefinitions() {
-        const state = this.muya.editor.jsonState.getState();
+        const state = this.muya.editor.jsonState.getStateSnapshot();
         const labels = new Map();
 
-        const travel = (sts: TState[]) => {
+        const travel = (sts: readonly TState[]) => {
             if (Array.isArray(sts) && sts.length) {
                 for (const st of sts) {
                     if (st.name === 'paragraph') {

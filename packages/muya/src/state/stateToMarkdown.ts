@@ -86,12 +86,12 @@ export default class ExportMarkdown {
         }
     }
 
-    generate(states: TState[]) {
+    generate(states: readonly TState[]) {
         return this._convertStatesToMarkdown(states);
     }
 
     private _convertStatesToMarkdown(
-        states: TState[],
+        states: readonly TState[],
         indent = '',
         listIndent = '',
     ): string {

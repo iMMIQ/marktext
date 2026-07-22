@@ -277,7 +277,7 @@ export class Editor {
         registerBlocks();
 
         const muya = this._muya;
-        const state = this.jsonState.getState();
+        const state = this.jsonState.getStateSnapshot();
 
         this.scrollPage = ScrollPage.create(muya, state);
 
@@ -424,7 +424,7 @@ export class Editor {
             // blocks drop never re-inserted). The json state is authoritative and
             // already up to date — rebuild from it instead of leaving an empty doc.
             debug.error(`updateContents incremental apply failed; rebuilding from state: ${String(error)}`);
-            this.scrollPage!.updateState(this.jsonState.getState());
+            this.scrollPage!.updateState(this.jsonState.getStateSnapshot());
             this._restoreSelection(selection, true);
         }
     }
@@ -490,7 +490,7 @@ export class Editor {
     rebuildContents(operations: JSONOp, selection: Nullable<IHistorySelection>, source: string) {
         this.jsonState.dispatch(operations, source);
 
-        const state = this.jsonState.getState();
+        const state = this.jsonState.getStateSnapshot();
         this.scrollPage!.updateState(state);
 
         // The tree was rebuilt wholesale, so the selection's cached block
@@ -500,7 +500,7 @@ export class Editor {
 
     setContent(content: TState[] | string, autoFocus = false) {
         this.jsonState.setContent(content);
-        const state = this.jsonState.getState();
+        const state = this.jsonState.getStateSnapshot();
 
         this.scrollPage!.updateState(state);
         this.history.clear();
