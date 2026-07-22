@@ -171,10 +171,17 @@ class HeightTree {
         return this._tree.length - 1;
     }
 
-    build(values: readonly number[]) {
+    get storageBytes() {
+        return this._tree.byteLength;
+    }
+
+    build(values: Float64Array, measured?: Float64Array) {
         this._tree = new Float64Array(values.length + 1);
         for (let index = 1; index <= values.length; index++) {
-            this._tree[index] += values[index - 1];
+            const measuredHeight = measured?.[index - 1];
+            this._tree[index] += measuredHeight !== undefined && !Number.isNaN(measuredHeight)
+                ? measuredHeight
+                : values[index - 1];
             const parent = index + (index & -index);
             if (parent <= values.length)
                 this._tree[parent] += this._tree[index];
@@ -214,7 +221,8 @@ class HeightTree {
 
 export class LayoutIndex {
     private readonly _heightTree = new HeightTree();
-    private _records: ILayoutRecord[] = [];
+    private _estimatedHeights = new Float64Array(0);
+    private _measuredHeights = new Float64Array(0);
     private _revision = 0;
 
     get revision() {
@@ -222,39 +230,59 @@ export class LayoutIndex {
     }
 
     get length() {
-        return this._records.length;
+        return this._estimatedHeights.length;
     }
 
     get totalHeight() {
         return this._heightTree.sum(this.length);
     }
 
+    get storageBytes() {
+        return this._estimatedHeights.byteLength
+            + this._measuredHeights.byteLength
+            + this._heightTree.storageBytes;
+    }
+
     rebuild(states: readonly TState[], metrics: Partial<ILayoutMetrics> = {}, revision = this._revision + 1) {
         const resolvedMetrics = { ...DEFAULT_METRICS, ...metrics };
         const preserveMeasurements = revision === this._revision;
-        const previousMeasurements = new Map(
-            this._records
-                .filter(record => preserveMeasurements && record.measuredHeight !== null)
-                .map(record => [record.id, record.measuredHeight] as const),
-        );
+        const previousMeasurements = this._measuredHeights;
         this._revision = revision;
-        this._records = states.map((state, stateIndex) => ({
-            id: stateIndex,
-            stateIndex,
-            estimatedHeight: Math.max(1, estimateStateHeight(state, resolvedMetrics)),
-            measuredHeight: previousMeasurements.get(stateIndex) ?? null,
-            revision,
-        }));
-        this._heightTree.build(this._records.map(record => this._heightOf(record)));
+        this._estimatedHeights = new Float64Array(states.length);
+        this._measuredHeights = new Float64Array(states.length);
+        this._measuredHeights.fill(Number.NaN);
+        if (preserveMeasurements) {
+            this._measuredHeights.set(
+                previousMeasurements.subarray(0, Math.min(states.length, previousMeasurements.length)),
+            );
+        }
+        for (let stateIndex = 0; stateIndex < states.length; stateIndex++) {
+            this._estimatedHeights[stateIndex] = Math.max(
+                1,
+                estimateStateHeight(states[stateIndex], resolvedMetrics),
+            );
+        }
+        this._heightTree.build(this._estimatedHeights, this._measuredHeights);
     }
 
     recordAt(index: number) {
-        return this._records[index] ?? null;
+        if (index < 0 || index >= this.length)
+            return null;
+        const measuredHeight = this._measuredHeights[index];
+        return {
+            id: index,
+            stateIndex: index,
+            estimatedHeight: this._estimatedHeights[index],
+            measuredHeight: Number.isNaN(measuredHeight) ? null : measuredHeight,
+            revision: this._revision,
+        } satisfies ILayoutRecord;
     }
 
     heightAt(index: number) {
-        const record = this.recordAt(index);
-        return record ? this._heightOf(record) : 0;
+        if (index < 0 || index >= this.length)
+            return 0;
+        const measuredHeight = this._measuredHeights[index];
+        return Number.isNaN(measuredHeight) ? this._estimatedHeights[index] : measuredHeight;
     }
 
     topAt(index: number) {
@@ -288,11 +316,10 @@ export class LayoutIndex {
     }
 
     updateMeasuredHeight(index: number, measuredHeight: number) {
-        const record = this.recordAt(index);
-        if (!record || !Number.isFinite(measuredHeight) || measuredHeight <= 0)
+        if (index < 0 || index >= this.length || !Number.isFinite(measuredHeight) || measuredHeight <= 0)
             return 0;
-        const previousHeight = this._heightOf(record);
-        record.measuredHeight = measuredHeight;
+        const previousHeight = this.heightAt(index);
+        this._measuredHeights[index] = measuredHeight;
         const delta = measuredHeight - previousHeight;
         if (delta !== 0)
             this._heightTree.add(index, delta);
@@ -300,12 +327,7 @@ export class LayoutIndex {
     }
 
     clearMeasurements() {
-        for (const record of this._records)
-            record.measuredHeight = null;
-        this._heightTree.build(this._records.map(record => record.estimatedHeight));
-    }
-
-    private _heightOf(record: ILayoutRecord) {
-        return record.measuredHeight ?? record.estimatedHeight;
+        this._measuredHeights.fill(Number.NaN);
+        this._heightTree.build(this._estimatedHeights);
     }
 }

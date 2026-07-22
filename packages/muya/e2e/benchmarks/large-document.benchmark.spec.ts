@@ -53,6 +53,7 @@ interface ILoadStartResult {
     sourceIndexMs: number;
     sourceIndexBytes: number;
     segmentIndexBytes: number;
+    layoutIndexBytes: number;
     fullParseMs: number;
     setContentCallMs: number;
     firstPaintOpportunityMs: number;
@@ -103,6 +104,7 @@ interface IJumpRun {
     sourceIndexMs: number;
     sourceIndexBytes: number;
     segmentIndexBytes: number;
+    layoutIndexBytes: number;
     fullParseMs: number;
     setContentCallMs: number;
     firstPaintOpportunityMs: number;
@@ -307,6 +309,7 @@ async function startDocument(page: Page, targetBytes: number): Promise<ILoadStar
             sourceIndexMs: loadMetrics.sourceIndexMs,
             sourceIndexBytes: loadMetrics.sourceIndexBytes,
             segmentIndexBytes: loadMetrics.segmentIndexBytes,
+            layoutIndexBytes: virtualization.layoutIndexBytes,
             fullParseMs: loadMetrics.fullParseMs,
             setContentCallMs: setContentCompletedAt - setContentStartedAt,
             firstPaintOpportunityMs: performance.now() - startedAt,
@@ -516,6 +519,7 @@ test('large document benchmark @benchmark', async ({ page, browserName }, testIn
             sourceIndexMs: jumpLoad.sourceIndexMs,
             sourceIndexBytes: jumpLoad.sourceIndexBytes,
             segmentIndexBytes: jumpLoad.segmentIndexBytes,
+            layoutIndexBytes: jumpLoad.layoutIndexBytes,
             fullParseMs: jumpLoad.fullParseMs,
             setContentCallMs: jumpLoad.setContentCallMs,
             firstPaintOpportunityMs: jumpLoad.firstPaintOpportunityMs,
@@ -565,6 +569,7 @@ test('large document benchmark @benchmark', async ({ page, browserName }, testIn
             sourceIndexMs: stats(loadRuns.map(run => run.sourceIndexMs)),
             sourceIndexBytes: stats(loadRuns.map(run => run.sourceIndexBytes)),
             segmentIndexBytes: stats(loadRuns.map(run => run.segmentIndexBytes)),
+            layoutIndexBytes: stats(loadRuns.map(run => run.layoutIndexBytes)),
             fullParseMs: stats(loadRuns.map(run => run.fullParseMs)),
             setContentCallMs: stats(loadRuns.map(run => run.setContentCallMs)),
             sourceCandidates: stats(loadRuns.map(run => run.sourceCandidates)),

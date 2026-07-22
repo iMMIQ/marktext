@@ -69,4 +69,21 @@ describe('layoutIndex', () => {
             bottom: index.totalHeight,
         });
     });
+
+    it('keeps large layout storage compact and materializes records on demand', () => {
+        const states: TState[] = Array.from({ length: 2_500 }, (_, index) => ({
+            name: 'paragraph',
+            text: `paragraph ${index}`,
+        }));
+        const index = new LayoutIndex();
+        index.rebuild(states, metrics, 9);
+
+        expect(index.storageBytes).toBeLessThan(states.length * 25 + 16);
+        expect(index.recordAt(1_024)).toMatchObject({
+            id: 1_024,
+            stateIndex: 1_024,
+            measuredHeight: null,
+            revision: 9,
+        });
+    });
 });

@@ -267,6 +267,7 @@ export class ScrollPage extends Parent {
             firstMountedIndex: mountedIndexes[0] ?? null,
             lastMountedIndex: mountedIndexes[mountedIndexes.length - 1] ?? null,
             totalHeight: this._layoutIndex.totalHeight,
+            layoutIndexBytes: this._layoutIndex.storageBytes,
             revision: this._revision,
         };
     }
