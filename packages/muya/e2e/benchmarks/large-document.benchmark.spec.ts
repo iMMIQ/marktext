@@ -52,6 +52,7 @@ interface ILoadStartResult {
     sourceStoreMs: number;
     sourceIndexMs: number;
     sourceIndexBytes: number;
+    segmentIndexBytes: number;
     fullParseMs: number;
     setContentCallMs: number;
     firstPaintOpportunityMs: number;
@@ -101,6 +102,7 @@ interface IJumpRun {
     sourceStoreMs: number;
     sourceIndexMs: number;
     sourceIndexBytes: number;
+    segmentIndexBytes: number;
     fullParseMs: number;
     setContentCallMs: number;
     firstPaintOpportunityMs: number;
@@ -304,6 +306,7 @@ async function startDocument(page: Page, targetBytes: number): Promise<ILoadStar
             sourceStoreMs: loadMetrics.sourceStoreMs,
             sourceIndexMs: loadMetrics.sourceIndexMs,
             sourceIndexBytes: loadMetrics.sourceIndexBytes,
+            segmentIndexBytes: loadMetrics.segmentIndexBytes,
             fullParseMs: loadMetrics.fullParseMs,
             setContentCallMs: setContentCompletedAt - setContentStartedAt,
             firstPaintOpportunityMs: performance.now() - startedAt,
@@ -512,6 +515,7 @@ test('large document benchmark @benchmark', async ({ page, browserName }, testIn
             sourceStoreMs: jumpLoad.sourceStoreMs,
             sourceIndexMs: jumpLoad.sourceIndexMs,
             sourceIndexBytes: jumpLoad.sourceIndexBytes,
+            segmentIndexBytes: jumpLoad.segmentIndexBytes,
             fullParseMs: jumpLoad.fullParseMs,
             setContentCallMs: jumpLoad.setContentCallMs,
             firstPaintOpportunityMs: jumpLoad.firstPaintOpportunityMs,
@@ -560,6 +564,7 @@ test('large document benchmark @benchmark', async ({ page, browserName }, testIn
             sourceStoreMs: stats(loadRuns.map(run => run.sourceStoreMs)),
             sourceIndexMs: stats(loadRuns.map(run => run.sourceIndexMs)),
             sourceIndexBytes: stats(loadRuns.map(run => run.sourceIndexBytes)),
+            segmentIndexBytes: stats(loadRuns.map(run => run.segmentIndexBytes)),
             fullParseMs: stats(loadRuns.map(run => run.fullParseMs)),
             setContentCallMs: stats(loadRuns.map(run => run.setContentCallMs)),
             sourceCandidates: stats(loadRuns.map(run => run.sourceCandidates)),

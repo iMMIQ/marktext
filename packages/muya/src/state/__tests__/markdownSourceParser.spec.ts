@@ -107,4 +107,24 @@ describe('markdownSourceParser', () => {
         });
         expect(() => new MarkdownSourceParser(OPTIONS).parseRange(index, -1, 2)).toThrow(/Invalid source candidate range/);
     });
+
+    it('maps variable state counts through stable source segments', () => {
+        const markdown = '---\nFoo\n---\nBar\n---\nBaz\n';
+        const full = new MarkdownToState(OPTIONS).generate(markdown);
+        // The scanner conservatively keeps the opening region together while
+        // the semantic parser interprets it with frontmatter disabled.
+        const index = MarkdownSourceIndex.fromText(markdown);
+        const segments = new MarkdownSourceParser(OPTIONS).parseAll(index);
+
+        expect(segments.requireCompleteStateSnapshot()).toEqual(full);
+        expect(segments.statesForSegment(0)?.map(state => state.name)).toEqual([
+            'thematic-break',
+            'setext-heading',
+        ]);
+        expect(segments.stateRangeForSegment(0)).toEqual({ start: 0, end: 2 });
+        expect(segments.locationAtStateIndex(1)).toEqual({
+            segmentIndex: 0,
+            localStateIndex: 1,
+        });
+    });
 });

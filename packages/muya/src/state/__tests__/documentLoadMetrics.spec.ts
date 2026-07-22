@@ -40,6 +40,11 @@ describe('document load metrics', () => {
             fullParseMs: expect.any(Number),
         });
         expect(state.getSourceIndex()?.sourceForRange(1, 2)).toContain('Paragraph');
+        expect(state.getSegmentTree()).toMatchObject({
+            isComplete: true,
+            parsedSegments: 3,
+            parsedStates: 3,
+        });
     });
 
     it('invalidates source coordinates after semantic operations', () => {
@@ -48,6 +53,7 @@ describe('document load metrics', () => {
         state.dispatch(json1.editOp([0, 'text'], 'text-unicode', [6, ' after']), 'test');
 
         expect(state.getSourceIndex()).toBeNull();
+        expect(state.getSegmentTree()).toBeNull();
     });
 
     it('reports state-array loads without pretending they were source scanned', () => {
@@ -60,5 +66,6 @@ describe('document load metrics', () => {
             parsedLogicalBlocks: 1,
         });
         expect(state.getSourceIndex()).toBeNull();
+        expect(state.getSegmentTree()).toBeNull();
     });
 });

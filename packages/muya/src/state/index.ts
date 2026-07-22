@@ -1,6 +1,7 @@
 import type { Doc, JSONOp, JSONOpList, Path } from 'ot-json1';
 import type { Muya } from '../muya';
 import type { TDiff } from '../utils';
+import type { MarkdownSegmentTree } from './markdownSegmentTree';
 import type { TState } from './types';
 import * as json1 from 'ot-json1';
 import { deepClone } from '../utils';
@@ -42,6 +43,7 @@ export interface IDocumentLoadMetrics {
     sourceStoreMs: number;
     sourceIndexMs: number;
     sourceIndexBytes: number;
+    segmentIndexBytes: number;
     fullParseMs: number;
     sourceCandidates: number;
     parsedLogicalBlocks: number;
@@ -76,12 +78,15 @@ class JSONState {
 
     private _sourceIndex: MarkdownSourceIndex | null = null;
 
+    private _segmentTree: MarkdownSegmentTree | null = null;
+
     private _loadMetrics: IDocumentLoadMetrics = {
         inputType: 'state',
         sourceBytes: 0,
         sourceStoreMs: 0,
         sourceIndexMs: 0,
         sourceIndexBytes: 0,
+        segmentIndexBytes: 0,
         fullParseMs: 0,
         sourceCandidates: 0,
         parsedLogicalBlocks: 0,
@@ -98,6 +103,7 @@ class JSONState {
         if (op === null)
             return;
         this._sourceIndex = null;
+        this._segmentTree = null;
         this._state = asState(json1.type.apply(asDoc(this._state), op));
     }
 
@@ -120,6 +126,7 @@ class JSONState {
 
     private _setState(state: TState[]) {
         this._sourceIndex = null;
+        this._segmentTree = null;
         this._state = state;
         this._loadMetrics = {
             inputType: 'state',
@@ -127,6 +134,7 @@ class JSONState {
             sourceStoreMs: 0,
             sourceIndexMs: 0,
             sourceIndexBytes: 0,
+            segmentIndexBytes: 0,
             fullParseMs: 0,
             sourceCandidates: 0,
             parsedLogicalBlocks: state.length,
@@ -158,7 +166,8 @@ class JSONState {
             math,
         });
         const sourceIndexCompletedAt = performance.now();
-        this._state = this.markdownToState(markdown, this._sourceIndex);
+        this._segmentTree = this._markdownParser().parseAll(this._sourceIndex);
+        this._state = this._segmentTree.requireCompleteStateSnapshot();
         const fullParseCompletedAt = performance.now();
         this._loadMetrics = {
             inputType: 'markdown',
@@ -166,6 +175,7 @@ class JSONState {
             sourceStoreMs: storeCompletedAt - storeStartedAt,
             sourceIndexMs: sourceIndexCompletedAt - storeCompletedAt,
             sourceIndexBytes: this._sourceIndex.storageBytes,
+            segmentIndexBytes: this._segmentTree.storageBytes,
             fullParseMs: fullParseCompletedAt - sourceIndexCompletedAt,
             sourceCandidates: this._sourceIndex.length,
             parsedLogicalBlocks: this._state.length,
@@ -180,25 +190,15 @@ class JSONState {
         return this._sourceIndex;
     }
 
+    getSegmentTree() {
+        return this._segmentTree;
+    }
+
     // Parse markdown into a block-state array with the editor's current
     // render-affecting options, WITHOUT mutating `this._state`. Used by
     // `buildReplaceOp` to compute the target state for a bulk replacement.
     markdownToState(markdown: string, sourceIndex?: MarkdownSourceIndex): TState[] {
-        const {
-            footnote,
-            isGitlabCompatibilityEnabled,
-            trimUnnecessaryCodeBlockEmptyLines,
-            frontMatter,
-            math,
-        } = this._muya.options;
-
-        const options = {
-            footnote,
-            isGitlabCompatibilityEnabled,
-            trimUnnecessaryCodeBlockEmptyLines,
-            frontMatter,
-            math,
-        };
+        const { frontMatter, footnote, math } = this._muya.options;
         const index = sourceIndex ?? MarkdownSourceIndex.fromText(markdown, {
             fontSize: this._muya.options.fontSize,
             lineHeight: this._muya.options.lineHeight,
@@ -209,7 +209,24 @@ class JSONState {
             footnote,
             math,
         });
-        return new MarkdownSourceParser(options).parseAllStates(index);
+        return this._markdownParser().parseAllStates(index);
+    }
+
+    private _markdownParser() {
+        const {
+            footnote,
+            isGitlabCompatibilityEnabled,
+            trimUnnecessaryCodeBlockEmptyLines,
+            frontMatter,
+            math,
+        } = this._muya.options;
+        return new MarkdownSourceParser({
+            footnote,
+            isGitlabCompatibilityEnabled,
+            trimUnnecessaryCodeBlockEmptyLines,
+            frontMatter,
+            math,
+        });
     }
 
     /**

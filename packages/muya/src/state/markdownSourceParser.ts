@@ -1,6 +1,7 @@
 import type { MarkdownSourceIndex } from './markdownSourceIndex';
 import type { IMarkdownToStateOptions } from './markdownToState';
 import type { TState } from './types';
+import { MarkdownSegmentTree } from './markdownSegmentTree';
 import { MarkdownToState } from './markdownToState';
 
 export interface IParsedSourceSegment {
@@ -39,13 +40,18 @@ export class MarkdownSourceParser {
     }
 
     parseAllStates(index: MarkdownSourceIndex) {
-        const states: TState[] = [];
+        return this.parseAll(index).requireCompleteStateSnapshot();
+    }
+
+    parseAll(index: MarkdownSourceIndex) {
+        const segments = new MarkdownSegmentTree(index);
         for (let candidateIndex = 0; candidateIndex < index.length; candidateIndex++) {
             const from = index.sourceFromAt(candidateIndex);
             const to = index.sourceToAt(candidateIndex);
-            states.push(...this._parser.generate(index.snapshot.slice(from, to)));
+            const states = this._parser.generate(index.snapshot.slice(from, to));
+            segments.commitSegment(candidateIndex, states);
         }
-        return states;
+        return segments;
     }
 
     parseRange(index: MarkdownSourceIndex, start = 0, end = index.length): IParsedSourceRange {
