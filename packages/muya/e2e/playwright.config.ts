@@ -1,12 +1,15 @@
+import { availableParallelism } from 'node:os';
 import process from 'node:process';
 import { defineConfig, devices } from '@playwright/test';
+
+const testWorkers = Math.max(1, Math.floor(availableParallelism() / 2));
 
 export default defineConfig({
     testDir: './tests',
     fullyParallel: true,
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? 2 : 0,
-    workers: process.env.CI ? 2 : undefined,
+    workers: testWorkers,
     reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
     timeout: 30_000,
     expect: { timeout: 5_000 },

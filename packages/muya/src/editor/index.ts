@@ -398,6 +398,8 @@ export class Editor {
 
     updateContents(operations: JSONOp, selection: Nullable<IHistorySelection>, source: string) {
         const muya = this._muya;
+        if (operations !== null)
+            this.scrollPage?.ensureMountedForOperation(operations);
         // ot-json1 no-op (`null`) is forwarded to dispatch — JSONState
         // short-circuits internally so listeners still see a json-change
         // event for the no-op.
@@ -407,14 +409,17 @@ export class Editor {
         if (operations === null)
             return;
 
+        this.scrollPage?.suspendOnDemandMount();
         try {
             const snapshot = pick(this.scrollPage as BlockNode, operations);
 
             drop(snapshot, operations, muya);
 
+            this.scrollPage?.resumeOnDemandMount();
             this._restoreSelection(selection);
         }
         catch (error) {
+            this.scrollPage?.resumeOnDemandMount();
             // The incremental walk left the live tree half-applied (pick removed
             // blocks drop never re-inserted). The json state is authoritative and
             // already up to date — rebuild from it instead of leaving an empty doc.

@@ -14,6 +14,8 @@
 }
 
 .mu-container {
+    display: flex;
+    flex-direction: column;
     box-sizing: border-box;
     max-width: var(--editor-area-width, 800px);
     min-height: 100%;
@@ -21,6 +23,20 @@
     padding: 0 50px 100px;
 
     color: var(--editor-color);
+
+    overflow-anchor: none;
+}
+
+.mu-container > * {
+    flex: none;
+}
+
+.mu-container > .mu-virtual-spacer {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+
+    pointer-events: none;
 }
 
 .mu-container p,

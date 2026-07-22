@@ -119,6 +119,12 @@ export function tablePickerCell(row: number, column: number): string {
     return `${floats.tablePicker} span.mu-table-picker-cell[data-row="${row}"][data-column="${column}"]`;
 }
 
+export function virtualBlock(index: number): string {
+    return `[data-virtual-index="${index}"]`;
+}
+
+export const virtualBlocks = '[data-virtual-index]';
+
 export const toolbar = {
     undo: '#undo',
     redo: '#redo',

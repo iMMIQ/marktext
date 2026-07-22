@@ -1,3 +1,4 @@
+import { availableParallelism } from 'node:os';
 import { resolve } from 'node:path';
 import libAssetsPlugin from '@laynezh/vite-plugin-lib-assets';
 import dts from 'vite-plugin-dts';
@@ -7,6 +8,7 @@ import pkg from './package.json';
 
 // eslint-disable-next-line node/prefer-global/process
 const dirname = process.cwd();
+const testWorkers = Math.max(1, Math.floor(availableParallelism() / 2));
 
 export default defineConfig({
     build: {
@@ -20,6 +22,7 @@ export default defineConfig({
         },
     },
     test: {
+        maxWorkers: testWorkers,
         // Process CSS imports (including `?inline`) so the export path's
         // inlined base stylesheets resolve to real content under Vitest.
         // Without this Vitest defaults to `css: { include: [] }` and every

@@ -2,6 +2,7 @@
 import type { Muya } from '../../../muya';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import TableChessboard from '..';
+import * as core from '../../../index';
 import EventCenter from '../../../event';
 
 // The `TableChessboard` (table grid dimension picker) is a real, working
@@ -66,10 +67,9 @@ async function nextTick() {
 }
 
 describe('tableChessboard — plugin shape (restored, revert #4435)', () => {
-    it('is exported from the package entrypoint', async () => {
-        const pkg = await import('../../../index');
-        expect('TableChessboard' in pkg).toBe(true);
-        expect(pkg.TableChessboard).toBe(TableChessboard);
+    it('is exported from the package entrypoint', () => {
+        expect('TableChessboard' in core).toBe(true);
+        expect(core.TableChessboard).toBe(TableChessboard);
     });
 
     it('exposes a stable static pluginName so Muya.use registers it', () => {

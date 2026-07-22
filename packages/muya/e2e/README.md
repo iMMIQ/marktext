@@ -64,6 +64,47 @@ Inspect failures:
 pnpm --filter muya-e2e exec playwright show-report   # HTML report from the latest run
 ```
 
+## Large-document benchmark
+
+The benchmark is separate from the regression suite: it builds the E2E host as
+a production bundle, runs Chromium with one worker, does not affect pull-request
+CI, and writes machine-readable results to
+`test-results/large-document-benchmark.json`.
+
+The standard profile generates an exact 800 KiB mixed-Markdown document in the
+browser and runs it three times. It records synchronous `setContent`, the first
+double-`requestAnimationFrame` paint opportunity, real `beforeinput`-to-paint,
+direct middle/bottom jumps, long tasks, mounted block and DOM bounds, and
+Chromium JavaScript heap growth over the empty-host baseline.
+
+```sh
+pnpm -C packages/muya/e2e benchmark
+```
+
+The 128 MiB stress profile is deliberately opt-in. It runs once and keeps the
+same bounded viewport-rendering contract as the standard profile:
+
+```sh
+MUYA_BENCHMARK_PROFILE=stress pnpm -C packages/muya/e2e benchmark
+```
+
+Every setting can be overridden without changing a checked-in fixture:
+
+```sh
+MUYA_BENCHMARK_BYTES=1048576 \
+MUYA_BENCHMARK_RUNS=5 \
+MUYA_BENCHMARK_DIRECT_JUMPS=1 \
+MUYA_BENCHMARK_OUTPUT=test-results/custom-benchmark.json \
+pnpm -C packages/muya/e2e benchmark
+```
+
+Screenshots and the JSON report are also attached to
+`playwright-report-benchmark/index.html`.
+Performance numbers are comparable only when the report's browser, hardware,
+platform, viewport, build mode, and source revision match.
+The default three runs are intended for development comparisons; use at least
+20 runs before treating the reported p95 as a release-quality percentile.
+
 ## Conventions
 
 - **`page.keyboard.type` with `delay: 0` drops characters.** muya's content-change pipeline re-renders synchronously per keystroke; Playwright's default 0ms inter-key delay can outrun snabbdom patches. Use `slowType()` from `tests/helpers/keyboard.ts` (30ms per char) for any typing > 4 chars.

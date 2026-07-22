@@ -120,6 +120,9 @@ class TreeNode implements ILinkedNode {
 
         const { parent } = this;
 
+        if (parent.isOutMostBlock)
+            parent.scrollPage?.ensureAdjacentMounted(parent, -1);
+
         // Walk previous siblings, skipping empty containers (e.g. a list item
         // whose only paragraph was removed) that hold no content descendant.
         // Otherwise such a sibling yields null and the caret gets stuck when
@@ -146,6 +149,9 @@ class TreeNode implements ILinkedNode {
             return null;
 
         const { parent } = this;
+
+        if (parent.isOutMostBlock)
+            parent.scrollPage?.ensureAdjacentMounted(parent, 1);
 
         if (this.blockName === 'language-input')
             return parent.lastContentInDescendant();
@@ -264,7 +270,12 @@ class TreeNode implements ILinkedNode {
         if (!this.parent)
             return;
 
-        this.parent.children.remove(this);
+        const parent = this.parent;
+        parent.children.remove(this);
+        if (parent.isScrollPage) {
+            (parent as Parent & { handleChildRemoved?: (node: TreeNode) => void })
+                .handleChildRemoved?.(this);
+        }
         this.parent = null;
         this.domNode?.remove();
 
