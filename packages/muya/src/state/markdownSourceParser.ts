@@ -27,16 +27,25 @@ export class MarkdownSourceParser {
     }
 
     parseSegment(index: MarkdownSourceIndex, candidateIndex: number): IParsedSourceSegment {
-        const record = index.recordAt(candidateIndex);
-        if (!record)
-            throw new RangeError(`Invalid source candidate ${candidateIndex} for ${index.length} candidates.`);
+        const sourceFrom = index.sourceFromAt(candidateIndex);
+        const sourceTo = index.sourceToAt(candidateIndex);
         return {
             revision: index.revision,
             candidateIndex,
-            sourceFrom: record.from,
-            sourceTo: record.to,
-            states: this._parser.generate(index.sourceForRange(candidateIndex, candidateIndex + 1)),
+            sourceFrom,
+            sourceTo,
+            states: this._parser.generate(index.snapshot.slice(sourceFrom, sourceTo)),
         };
+    }
+
+    parseAllStates(index: MarkdownSourceIndex) {
+        const states: TState[] = [];
+        for (let candidateIndex = 0; candidateIndex < index.length; candidateIndex++) {
+            const from = index.sourceFromAt(candidateIndex);
+            const to = index.sourceToAt(candidateIndex);
+            states.push(...this._parser.generate(index.snapshot.slice(from, to)));
+        }
+        return states;
     }
 
     parseRange(index: MarkdownSourceIndex, start = 0, end = index.length): IParsedSourceRange {

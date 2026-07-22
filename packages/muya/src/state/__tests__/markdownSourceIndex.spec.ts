@@ -98,6 +98,26 @@ describe('markdownSourceIndex', () => {
         expect(index.totalHeight).toBeGreaterThan(0);
     });
 
+    it('keeps compact records exact after growing beyond the initial capacity', () => {
+        const markdown = Array.from({ length: 2_500 }, (_, index) => `paragraph ${index}`)
+            .join('\n\n');
+        const index = MarkdownSourceIndex.fromText(markdown);
+        const records = index.records();
+
+        expect(index.length).toBe(2_500);
+        expect(records).toHaveLength(index.length);
+        for (const candidate of [0, 1_023, 1_024, 2_499]) {
+            const record = records[candidate];
+            expect(index.recordAt(candidate)).toEqual(record);
+            expect(index.sourceFromAt(candidate)).toBe(record.from);
+            expect(index.sourceToAt(candidate)).toBe(record.to);
+            expect(index.indexAtOffset(record.from)).toBe(candidate);
+            expect(index.indexAtHeight(index.topAt(candidate))).toBe(candidate);
+        }
+
+        expect(index.storageBytes).toBeLessThan(index.length * 70);
+    });
+
     it('uses snapshot chunks without flattening the document', () => {
         const snapshot = new DocumentStore(`${'x'.repeat(2_000)}\n\nend`, { chunkSize: 1024 }).snapshot();
         const flatten = vi.spyOn(snapshot, 'toString').mockImplementation(() => {

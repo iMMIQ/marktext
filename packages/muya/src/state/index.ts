@@ -41,6 +41,7 @@ export interface IDocumentLoadMetrics {
     sourceBytes: number;
     sourceStoreMs: number;
     sourceIndexMs: number;
+    sourceIndexBytes: number;
     fullParseMs: number;
     sourceCandidates: number;
     parsedLogicalBlocks: number;
@@ -80,6 +81,7 @@ class JSONState {
         sourceBytes: 0,
         sourceStoreMs: 0,
         sourceIndexMs: 0,
+        sourceIndexBytes: 0,
         fullParseMs: 0,
         sourceCandidates: 0,
         parsedLogicalBlocks: 0,
@@ -124,6 +126,7 @@ class JSONState {
             sourceBytes: 0,
             sourceStoreMs: 0,
             sourceIndexMs: 0,
+            sourceIndexBytes: 0,
             fullParseMs: 0,
             sourceCandidates: 0,
             parsedLogicalBlocks: state.length,
@@ -162,6 +165,7 @@ class JSONState {
             sourceBytes: snapshot.length,
             sourceStoreMs: storeCompletedAt - storeStartedAt,
             sourceIndexMs: sourceIndexCompletedAt - storeCompletedAt,
+            sourceIndexBytes: this._sourceIndex.storageBytes,
             fullParseMs: fullParseCompletedAt - sourceIndexCompletedAt,
             sourceCandidates: this._sourceIndex.length,
             parsedLogicalBlocks: this._state.length,
@@ -205,7 +209,7 @@ class JSONState {
             footnote,
             math,
         });
-        return new MarkdownSourceParser(options).parseRange(index).states;
+        return new MarkdownSourceParser(options).parseAllStates(index);
     }
 
     /**

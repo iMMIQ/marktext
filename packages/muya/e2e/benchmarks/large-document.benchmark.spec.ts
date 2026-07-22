@@ -51,6 +51,7 @@ interface ILoadStartResult {
     firstPaintDomNodes: number;
     sourceStoreMs: number;
     sourceIndexMs: number;
+    sourceIndexBytes: number;
     fullParseMs: number;
     setContentCallMs: number;
     firstPaintOpportunityMs: number;
@@ -99,6 +100,7 @@ interface IJumpRun {
     sourceCandidates: number;
     sourceStoreMs: number;
     sourceIndexMs: number;
+    sourceIndexBytes: number;
     fullParseMs: number;
     setContentCallMs: number;
     firstPaintOpportunityMs: number;
@@ -301,6 +303,7 @@ async function startDocument(page: Page, targetBytes: number): Promise<ILoadStar
             firstPaintDomNodes: muya.domNode.querySelectorAll('*').length,
             sourceStoreMs: loadMetrics.sourceStoreMs,
             sourceIndexMs: loadMetrics.sourceIndexMs,
+            sourceIndexBytes: loadMetrics.sourceIndexBytes,
             fullParseMs: loadMetrics.fullParseMs,
             setContentCallMs: setContentCompletedAt - setContentStartedAt,
             firstPaintOpportunityMs: performance.now() - startedAt,
@@ -508,6 +511,7 @@ test('large document benchmark @benchmark', async ({ page, browserName }, testIn
             sourceCandidates: jumpLoad.sourceCandidates,
             sourceStoreMs: jumpLoad.sourceStoreMs,
             sourceIndexMs: jumpLoad.sourceIndexMs,
+            sourceIndexBytes: jumpLoad.sourceIndexBytes,
             fullParseMs: jumpLoad.fullParseMs,
             setContentCallMs: jumpLoad.setContentCallMs,
             firstPaintOpportunityMs: jumpLoad.firstPaintOpportunityMs,
@@ -555,6 +559,7 @@ test('large document benchmark @benchmark', async ({ page, browserName }, testIn
         summary: {
             sourceStoreMs: stats(loadRuns.map(run => run.sourceStoreMs)),
             sourceIndexMs: stats(loadRuns.map(run => run.sourceIndexMs)),
+            sourceIndexBytes: stats(loadRuns.map(run => run.sourceIndexBytes)),
             fullParseMs: stats(loadRuns.map(run => run.fullParseMs)),
             setContentCallMs: stats(loadRuns.map(run => run.setContentCallMs)),
             sourceCandidates: stats(loadRuns.map(run => run.sourceCandidates)),

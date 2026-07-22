@@ -91,6 +91,135 @@ const DEFAULT_METRICS: ISourceLayoutMetrics = {
     math: true,
 };
 
+const SOURCE_KINDS: readonly TSourceBlockKind[] = [
+    'blank',
+    'code',
+    'definition',
+    'footnote',
+    'frontmatter',
+    'heading',
+    'html',
+    'list',
+    'math',
+    'paragraph',
+    'quote',
+    'table',
+    'thematic-break',
+];
+const SOURCE_KIND_CODES = Object.fromEntries(
+    SOURCE_KINDS.map((kind, code) => [kind, code]),
+) as Record<TSourceBlockKind, number>;
+
+function growUint32(values: Uint32Array, capacity: number) {
+    const next = new Uint32Array(capacity);
+    next.set(values);
+    return next;
+}
+
+function growUint8(values: Uint8Array, capacity: number) {
+    const next = new Uint8Array(capacity);
+    next.set(values);
+    return next;
+}
+
+function growFloat64(values: Float64Array, capacity: number) {
+    const next = new Float64Array(capacity);
+    next.set(values);
+    return next;
+}
+
+class SourceRecordTable {
+    private _length = 0;
+    private _capacity = 1024;
+    private _from = new Uint32Array(this._capacity);
+    private _to = new Uint32Array(this._capacity);
+    private _startLine = new Uint32Array(this._capacity);
+    private _endLine = new Uint32Array(this._capacity);
+    private _hardLines = new Uint32Array(this._capacity);
+    private _visualRows = new Uint32Array(this._capacity);
+    private _kind = new Uint8Array(this._capacity);
+    private _heightEnds = new Float64Array(this._capacity);
+
+    get length() {
+        return this._length;
+    }
+
+    get heightEnds() {
+        return this._heightEnds.subarray(0, this._length);
+    }
+
+    get storageBytes() {
+        return this._from.byteLength
+            + this._to.byteLength
+            + this._startLine.byteLength
+            + this._endLine.byteLength
+            + this._hardLines.byteLength
+            + this._visualRows.byteLength
+            + this._kind.byteLength
+            + this._heightEnds.byteLength;
+    }
+
+    append(record: Omit<ISourceBlockRecord, 'id'>) {
+        this._ensureCapacity();
+        const index = this._length;
+        this._from[index] = record.from;
+        this._to[index] = record.to;
+        this._startLine[index] = record.startLine;
+        this._endLine[index] = record.endLine;
+        this._hardLines[index] = record.hardLines;
+        this._visualRows[index] = record.visualRows;
+        this._kind[index] = SOURCE_KIND_CODES[record.kind];
+        this._heightEnds[index] = (index === 0 ? 0 : this._heightEnds[index - 1]) + record.estimatedHeight;
+        this._length++;
+    }
+
+    extendLast(to: number, endLine: number) {
+        if (this._length === 0)
+            return;
+        this._to[this._length - 1] = to;
+        this._endLine[this._length - 1] = endLine;
+    }
+
+    fromAt(index: number) {
+        return this._from[index];
+    }
+
+    toAt(index: number) {
+        return this._to[index];
+    }
+
+    recordAt(index: number): ISourceBlockRecord | null {
+        if (index < 0 || index >= this._length)
+            return null;
+        const top = index === 0 ? 0 : this._heightEnds[index - 1];
+        return {
+            id: index,
+            from: this._from[index],
+            to: this._to[index],
+            startLine: this._startLine[index],
+            endLine: this._endLine[index],
+            kind: SOURCE_KINDS[this._kind[index]],
+            hardLines: this._hardLines[index],
+            visualRows: this._visualRows[index],
+            estimatedHeight: this._heightEnds[index] - top,
+        };
+    }
+
+    private _ensureCapacity() {
+        if (this._length < this._capacity)
+            return;
+        this._capacity *= 2;
+        this._from = growUint32(this._from, this._capacity);
+        this._to = growUint32(this._to, this._capacity);
+        this._startLine = growUint32(this._startLine, this._capacity);
+        this._endLine = growUint32(this._endLine, this._capacity);
+        this._hardLines = growUint32(this._hardLines, this._capacity);
+        this._visualRows = growUint32(this._visualRows, this._capacity);
+        this._kind = growUint8(this._kind, this._capacity);
+        this._heightEnds = growFloat64(this._heightEnds, this._capacity);
+    }
+}
+
 const FENCE_START = /^ {0,3}(`{3,}|~{3,})/;
 const ATX_HEADING = /^ {0,3}(#{1,6})(?:\s+|$)/;
 const SETEXT_HEADING = /^ {0,3}(?:=+|-+)\s*$/;
@@ -273,7 +402,7 @@ function estimateHeight(builder: IRecordBuilder, metrics: ISourceLayoutMetrics) 
 
 function finalize(
     builder: IRecordBuilder,
-    records: ISourceBlockRecord[],
+    records: SourceRecordTable,
     metrics: ISourceLayoutMetrics,
 ) {
     const kind = builder.kind === 'paragraph' && builder.samples[1] && SETEXT_HEADING.test(builder.samples[1])
@@ -282,8 +411,7 @@ function finalize(
             ? 'table'
             : builder.kind;
     const resolved = { ...builder, kind };
-    records.push({
-        id: records.length,
+    records.append({
         from: resolved.from,
         to: resolved.to,
         startLine: resolved.startLine,
@@ -369,7 +497,7 @@ function absorbBlankLines(
 
 function flushBuilder(
     builder: IRecordBuilder | null,
-    records: ISourceBlockRecord[],
+    records: SourceRecordTable,
     metrics: ISourceLayoutMetrics,
 ) {
     if (builder)
@@ -380,7 +508,7 @@ function flushBuilder(
 function consumeFencedLine(
     builder: IRecordBuilder,
     line: ISourceLine,
-    records: ISourceBlockRecord[],
+    records: SourceRecordTable,
     metrics: ISourceLayoutMetrics,
     codeColumns: number,
 ) {
@@ -392,15 +520,11 @@ function consumeFencedLine(
 function consumeBlankLine(
     builder: IRecordBuilder | null,
     line: ISourceLine,
-    records: ISourceBlockRecord[],
+    records: SourceRecordTable,
     metrics: ISourceLayoutMetrics,
 ) {
     flushBuilder(builder, records, metrics);
-    if (records.length > 0) {
-        const previous = records[records.length - 1];
-        previous.to = line.nextOffset;
-        previous.endLine = line.line + 1;
-    }
+    records.extendLast(line.nextOffset, line.line + 1);
     return null;
 }
 
@@ -423,7 +547,7 @@ function interruptsCurrentBlock(builder: IRecordBuilder, classified: ILineClassi
 function startContentBuilder(
     line: ISourceLine,
     classified: ILineClassification,
-    records: ISourceBlockRecord[],
+    records: SourceRecordTable,
     metrics: ISourceLayoutMetrics,
     textColumns: number,
     codeColumns: number,
@@ -440,7 +564,7 @@ function startContentBuilder(
 function consumeContentLine(
     builder: IRecordBuilder | null,
     line: ISourceLine,
-    records: ISourceBlockRecord[],
+    records: SourceRecordTable,
     metrics: ISourceLayoutMetrics,
     textColumns: number,
     codeColumns: number,
@@ -475,7 +599,7 @@ function consumeContentLine(
 }
 
 function scan(snapshot: DocumentSnapshot, metrics: ISourceLayoutMetrics) {
-    const records: ISourceBlockRecord[] = [];
+    const records = new SourceRecordTable();
     const textColumns = Math.max(12, Math.floor(metrics.contentWidth / (metrics.fontSize * 0.56)));
     const codeColumns = Math.max(12, Math.floor(metrics.contentWidth / (metrics.codeFontSize * 0.61)));
     let builder: IRecordBuilder | null = null;
@@ -540,8 +664,7 @@ function lowerBound(values: Float64Array, target: number) {
 }
 
 export class MarkdownSourceIndex {
-    private readonly _records: ISourceBlockRecord[];
-    private readonly _heightEnds: Float64Array;
+    private readonly _records: SourceRecordTable;
 
     readonly revision: number;
 
@@ -552,12 +675,6 @@ export class MarkdownSourceIndex {
         const resolvedMetrics = { ...DEFAULT_METRICS, ...metrics };
         this.revision = snapshot.revision;
         this._records = scan(snapshot, resolvedMetrics);
-        this._heightEnds = new Float64Array(this._records.length);
-        let height = 0;
-        for (let index = 0; index < this._records.length; index++) {
-            height += this._records[index].estimatedHeight;
-            this._heightEnds[index] = height;
-        }
     }
 
     static fromText(text: string, metrics: Partial<ISourceLayoutMetrics> = {}) {
@@ -569,19 +686,35 @@ export class MarkdownSourceIndex {
     }
 
     get totalHeight() {
-        return this._heightEnds[this._heightEnds.length - 1] ?? 0;
+        return this._records.heightEnds[this.length - 1] ?? 0;
+    }
+
+    get storageBytes() {
+        return this._records.storageBytes;
     }
 
     records() {
-        return this._records as readonly ISourceBlockRecord[];
+        return Array.from({ length: this.length }, (_, index) => this._records.recordAt(index)!);
     }
 
     recordAt(index: number) {
-        return this._records[index] ?? null;
+        return this._records.recordAt(index);
+    }
+
+    sourceFromAt(index: number) {
+        if (index < 0 || index >= this.length)
+            throw new RangeError(`Invalid source candidate ${index} for ${this.length} candidates.`);
+        return this._records.fromAt(index);
+    }
+
+    sourceToAt(index: number) {
+        if (index < 0 || index >= this.length)
+            throw new RangeError(`Invalid source candidate ${index} for ${this.length} candidates.`);
+        return this._records.toAt(index);
     }
 
     topAt(index: number) {
-        return index <= 0 ? 0 : this._heightEnds[Math.min(index, this.length) - 1];
+        return index <= 0 ? 0 : this._records.heightEnds[Math.min(index, this.length) - 1];
     }
 
     indexAtOffset(offset: number) {
@@ -593,7 +726,7 @@ export class MarkdownSourceIndex {
         let high = this.length;
         while (low < high) {
             const middle = (low + high) >>> 1;
-            if (this._records[middle].to <= offset)
+            if (this._records.toAt(middle) <= offset)
                 low = middle + 1;
             else
                 high = middle;
@@ -604,7 +737,7 @@ export class MarkdownSourceIndex {
     indexAtHeight(offset: number) {
         if (offset <= 0)
             return 0;
-        return Math.min(lowerBound(this._heightEnds, offset), this.length - 1);
+        return Math.min(lowerBound(this._records.heightEnds, offset), this.length - 1);
     }
 
     indexAtProgress(progress: number) {
@@ -626,8 +759,8 @@ export class MarkdownSourceIndex {
         return {
             start: normalizedStart,
             end: normalizedEnd,
-            from: this._records[normalizedStart].from,
-            to: this._records[normalizedEnd - 1].to,
+            from: this._records.fromAt(normalizedStart),
+            to: this._records.toAt(normalizedEnd - 1),
             top: this.topAt(normalizedStart),
             bottom: this.topAt(normalizedEnd),
         };
