@@ -51,6 +51,15 @@ function countNewlines(text: string) {
     return count;
 }
 
+function countNewlinesBefore(text: string, offset: number) {
+    let count = 0;
+    for (let index = 0; index < offset; index++) {
+        if (text.charCodeAt(index) === 10)
+            count++;
+    }
+    return count;
+}
+
 const nodeLength = (node: ITextNode | null) => node?.length ?? 0;
 const nodeNewlines = (node: ITextNode | null) => node?.newlines ?? 0;
 
@@ -143,6 +152,66 @@ function* iterateChunks(node: ITextNode | null): Generator<string> {
     yield* iterateChunks(node.right);
 }
 
+function lineAtOffset(node: ITextNode | null, offset: number) {
+    let current = node;
+    let remaining = offset;
+    let line = 0;
+    while (current) {
+        const leftLength = nodeLength(current.left);
+        if (remaining < leftLength) {
+            current = current.left;
+            continue;
+        }
+
+        line += nodeNewlines(current.left);
+        remaining -= leftLength;
+        if (remaining <= current.text.length)
+            return line + countNewlinesBefore(current.text, remaining);
+
+        line += current.textNewlines;
+        remaining -= current.text.length;
+        current = current.right;
+    }
+    return line;
+}
+
+function offsetOfNewline(node: ITextNode | null, newlineIndex: number) {
+    let current = node;
+    let index = newlineIndex;
+    let baseOffset = 0;
+    while (current) {
+        const leftNewlines = nodeNewlines(current.left);
+        if (index < leftNewlines) {
+            current = current.left;
+            continue;
+        }
+
+        const leftLength = nodeLength(current.left);
+        baseOffset += leftLength;
+        index -= leftNewlines;
+        if (index < current.textNewlines) {
+            for (let textOffset = 0; textOffset < current.text.length; textOffset++) {
+                if (current.text.charCodeAt(textOffset) !== 10)
+                    continue;
+                if (index === 0)
+                    return baseOffset + textOffset;
+                index--;
+            }
+        }
+
+        index -= current.textNewlines;
+        baseOffset += current.text.length;
+        current = current.right;
+    }
+    return -1;
+}
+
+function offsetAtLine(node: ITextNode | null, line: number) {
+    if (line === 0)
+        return 0;
+    return offsetOfNewline(node, line - 1) + 1;
+}
+
 function createTree(text: string, chunkSize: number) {
     let root: ITextNode | null = null;
     for (let offset = 0; offset < text.length; offset += chunkSize)
@@ -202,6 +271,26 @@ export class DocumentSnapshot {
         return chunks.join('');
     }
 
+    lineAtOffset(offset: number) {
+        validateRange(offset, offset, this.length);
+        return lineAtOffset(this._root, offset);
+    }
+
+    offsetAtLine(line: number) {
+        if (!Number.isInteger(line) || line < 0 || line >= this.lineCount)
+            throw new RangeError(`Invalid line ${line} for ${this.lineCount} lines.`);
+        return offsetAtLine(this._root, line);
+    }
+
+    lineRange(line: number) {
+        const from = this.offsetAtLine(line);
+        const next = line + 1 < this.lineCount ? this.offsetAtLine(line + 1) : this.length;
+        let to = next > from && this.slice(next - 1, next) === '\n' ? next - 1 : next;
+        if (to > from && this.slice(to - 1, to) === '\r')
+            to--;
+        return { from, to };
+    }
+
     * chunks() {
         yield* iterateChunks(this._root);
     }
@@ -244,6 +333,21 @@ export class DocumentStore {
         const chunks: string[] = [];
         appendSlice(this._root, from, to, chunks);
         return chunks.join('');
+    }
+
+    lineAtOffset(offset: number) {
+        validateRange(offset, offset, this.length);
+        return lineAtOffset(this._root, offset);
+    }
+
+    offsetAtLine(line: number) {
+        if (!Number.isInteger(line) || line < 0 || line >= this.lineCount)
+            throw new RangeError(`Invalid line ${line} for ${this.lineCount} lines.`);
+        return offsetAtLine(this._root, line);
+    }
+
+    lineRange(line: number) {
+        return this.snapshot().lineRange(line);
     }
 
     snapshot() {

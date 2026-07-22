@@ -44,10 +44,14 @@ interface IHeapSnapshot {
 interface ILoadStartResult {
     exactBytes: number;
     logicalBlocks: number;
+    sourceCandidates: number;
     initialMountedBlocks: number;
     initialDomNodes: number;
     firstPaintMountedBlocks: number;
     firstPaintDomNodes: number;
+    sourceStoreMs: number;
+    sourceIndexMs: number;
+    fullParseMs: number;
     setContentCallMs: number;
     firstPaintOpportunityMs: number;
     baselineHeap: IHeapSnapshot;
@@ -92,6 +96,10 @@ interface IJumpRun {
     run: number;
     exactBytes: number;
     logicalBlocks: number;
+    sourceCandidates: number;
+    sourceStoreMs: number;
+    sourceIndexMs: number;
+    fullParseMs: number;
     setContentCallMs: number;
     firstPaintOpportunityMs: number;
     middle: IJumpResult;
@@ -274,6 +282,9 @@ async function startDocument(page: Page, targetBytes: number): Promise<ILoadStar
         const setContentStartedAt = performance.now();
         muya.setContent(markdown);
         const setContentCompletedAt = performance.now();
+        const loadMetrics = muya.editor.jsonState.getDocumentLoadMetrics();
+        if (loadMetrics.inputType !== 'markdown')
+            throw new Error('Benchmark markdown did not use the source-indexed load path');
         const virtualization = muya.editor.scrollPage!.getVirtualizationStats();
         const logicalBlocks = virtualization.logicalBlocks;
         const initialMountedBlocks = virtualization.mountedBlocks;
@@ -283,10 +294,14 @@ async function startDocument(page: Page, targetBytes: number): Promise<ILoadStar
         return {
             exactBytes: markdown.length,
             logicalBlocks,
+            sourceCandidates: loadMetrics.sourceCandidates,
             initialMountedBlocks,
             initialDomNodes,
             firstPaintMountedBlocks: muya.editor.scrollPage!.getVirtualizationStats().mountedBlocks,
             firstPaintDomNodes: muya.domNode.querySelectorAll('*').length,
+            sourceStoreMs: loadMetrics.sourceStoreMs,
+            sourceIndexMs: loadMetrics.sourceIndexMs,
+            fullParseMs: loadMetrics.fullParseMs,
             setContentCallMs: setContentCompletedAt - setContentStartedAt,
             firstPaintOpportunityMs: performance.now() - startedAt,
             baselineHeap,
@@ -490,6 +505,10 @@ test('large document benchmark @benchmark', async ({ page, browserName }, testIn
             run,
             exactBytes: jumpLoad.exactBytes,
             logicalBlocks: jumpLoad.logicalBlocks,
+            sourceCandidates: jumpLoad.sourceCandidates,
+            sourceStoreMs: jumpLoad.sourceStoreMs,
+            sourceIndexMs: jumpLoad.sourceIndexMs,
+            fullParseMs: jumpLoad.fullParseMs,
             setContentCallMs: jumpLoad.setContentCallMs,
             firstPaintOpportunityMs: jumpLoad.firstPaintOpportunityMs,
             middle,
@@ -511,7 +530,7 @@ test('large document benchmark @benchmark', async ({ page, browserName }, testIn
     });
 
     const report = {
-        schemaVersion: 1,
+        schemaVersion: 2,
         generatedAt: new Date().toISOString(),
         sourceRevision: process.env.GITHUB_SHA ?? readGit(['rev-parse', 'HEAD']),
         sourceDirty: (readGit(['status', '--porcelain']) ?? '').length > 0,
@@ -534,7 +553,12 @@ test('large document benchmark @benchmark', async ({ page, browserName }, testIn
             ...firstPageEnvironment,
         },
         summary: {
+            sourceStoreMs: stats(loadRuns.map(run => run.sourceStoreMs)),
+            sourceIndexMs: stats(loadRuns.map(run => run.sourceIndexMs)),
+            fullParseMs: stats(loadRuns.map(run => run.fullParseMs)),
             setContentCallMs: stats(loadRuns.map(run => run.setContentCallMs)),
+            sourceCandidates: stats(loadRuns.map(run => run.sourceCandidates)),
+            parsedLogicalBlocks: stats(loadRuns.map(run => run.logicalBlocks)),
             firstPaintOpportunityMs: stats(loadRuns.map(run => run.firstPaintOpportunityMs)),
             inputToPaintMs: stats(loadRuns.map(run => run.inputToPaintMs)),
             initialMountedBlocks: stats(loadRuns.map(run => run.initialMountedBlocks)),

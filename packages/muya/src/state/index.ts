@@ -5,8 +5,10 @@ import type { TState } from './types';
 import * as json1 from 'ot-json1';
 import { deepClone } from '../utils';
 import logger from '../utils/logger';
+import { DocumentStore } from './documentStore';
 import { getTOC } from './getTOC';
 
+import { MarkdownSourceIndex } from './markdownSourceIndex';
 import { MarkdownToState } from './markdownToState';
 import StateToMarkdown from './stateToMarkdown';
 
@@ -23,6 +25,16 @@ export function asDoc(state: TState[] | TState): Doc {
 
 export function asState(doc: unknown): TState[] {
     return doc as TState[];
+}
+
+export interface IDocumentLoadMetrics {
+    inputType: 'markdown' | 'state';
+    sourceBytes: number;
+    sourceStoreMs: number;
+    sourceIndexMs: number;
+    fullParseMs: number;
+    sourceCandidates: number;
+    parsedLogicalBlocks: number;
 }
 
 class JSONState {
@@ -52,6 +64,18 @@ class JSONState {
 
     private _state: TState[] = [];
 
+    private _sourceIndex: MarkdownSourceIndex | null = null;
+
+    private _loadMetrics: IDocumentLoadMetrics = {
+        inputType: 'state',
+        sourceBytes: 0,
+        sourceStoreMs: 0,
+        sourceIndexMs: 0,
+        fullParseMs: 0,
+        sourceCandidates: 0,
+        parsedLogicalBlocks: 0,
+    };
+
     constructor(private _muya: Muya, stateOrMarkdown: TState[] | string) {
         this.setContent(stateOrMarkdown);
     }
@@ -62,6 +86,7 @@ class JSONState {
         // the call site can treat `op` as definitely applied.
         if (op === null)
             return;
+        this._sourceIndex = null;
         this._state = asState(json1.type.apply(asDoc(this._state), op));
     }
 
@@ -83,11 +108,61 @@ class JSONState {
     }
 
     private _setState(state: TState[]) {
+        this._sourceIndex = null;
         this._state = state;
+        this._loadMetrics = {
+            inputType: 'state',
+            sourceBytes: 0,
+            sourceStoreMs: 0,
+            sourceIndexMs: 0,
+            fullParseMs: 0,
+            sourceCandidates: 0,
+            parsedLogicalBlocks: state.length,
+        };
     }
 
     private _setMarkdown(markdown: string) {
+        const storeStartedAt = performance.now();
+        const snapshot = new DocumentStore(markdown).snapshot();
+        const storeCompletedAt = performance.now();
+        const {
+            fontSize,
+            lineHeight,
+            codeFontSize,
+            wrapCodeBlocks,
+            tabSize,
+            frontMatter,
+            math,
+        } = this._muya.options;
+        this._sourceIndex = new MarkdownSourceIndex(snapshot, {
+            fontSize,
+            lineHeight,
+            codeFontSize,
+            wrapCodeBlocks,
+            tabSize,
+            frontMatter,
+            math,
+        });
+        const sourceIndexCompletedAt = performance.now();
         this._state = this.markdownToState(markdown);
+        const fullParseCompletedAt = performance.now();
+        this._loadMetrics = {
+            inputType: 'markdown',
+            sourceBytes: snapshot.length,
+            sourceStoreMs: storeCompletedAt - storeStartedAt,
+            sourceIndexMs: sourceIndexCompletedAt - storeCompletedAt,
+            fullParseMs: fullParseCompletedAt - sourceIndexCompletedAt,
+            sourceCandidates: this._sourceIndex.length,
+            parsedLogicalBlocks: this._state.length,
+        };
+    }
+
+    getDocumentLoadMetrics(): IDocumentLoadMetrics {
+        return { ...this._loadMetrics };
+    }
+
+    getSourceIndex() {
+        return this._sourceIndex;
     }
 
     // Parse markdown into a block-state array with the editor's current
