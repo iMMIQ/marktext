@@ -28,8 +28,7 @@ export class MarkdownSourceParser {
     }
 
     parseSegment(index: MarkdownSourceIndex, candidateIndex: number): IParsedSourceSegment {
-        const sourceFrom = index.sourceFromAt(candidateIndex);
-        const sourceTo = index.sourceToAt(candidateIndex);
+        const { from: sourceFrom, to: sourceTo } = index.sourceBoundsAt(candidateIndex);
         return {
             revision: index.revision,
             candidateIndex,
@@ -40,8 +39,7 @@ export class MarkdownSourceParser {
     }
 
     parseSegmentStates(index: MarkdownSourceIndex, candidateIndex: number) {
-        const sourceFrom = index.sourceFromAt(candidateIndex);
-        const sourceTo = index.sourceToAt(candidateIndex);
+        const { from: sourceFrom, to: sourceTo } = index.sourceBoundsAt(candidateIndex);
         return this._parser.generate(index.snapshot.slice(sourceFrom, sourceTo));
     }
 

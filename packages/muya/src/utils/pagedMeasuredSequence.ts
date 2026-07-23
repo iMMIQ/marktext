@@ -1,10 +1,14 @@
 type SequenceNode = ISequenceBranch | ISequenceLeaf;
 
+export type MeasureStorage = 'float64' | 'uint32' | 'uint8';
+
+type MeasureArray = Float64Array | Uint32Array | Uint8Array;
+
 interface ISequenceLeaf {
     kind: 'leaf';
     parent: ISequenceBranch | null;
     length: number;
-    values: Float64Array;
+    values: MeasureArray[];
     totals: Float64Array;
 }
 
@@ -12,6 +16,7 @@ interface ISequenceBranch {
     kind: 'branch';
     parent: ISequenceBranch | null;
     children: SequenceNode[];
+    lengthEnds: Uint32Array;
     length: number;
     totals: Float64Array;
 }
@@ -28,10 +33,13 @@ export type MeasureReader = (index: number, measure: number) => number;
 export class PagedMeasuredSequence {
     private _root: SequenceNode | null = null;
 
+    readonly storageTypes: readonly MeasureStorage[];
+
     constructor(
         readonly measureCount: number,
         readonly pageCapacity = 256,
         readonly branchCapacity = 32,
+        storageTypes: readonly MeasureStorage[] = [],
     ) {
         if (!Number.isInteger(measureCount) || measureCount < 1)
             throw new RangeError('measureCount must be a positive integer.');
@@ -39,6 +47,11 @@ export class PagedMeasuredSequence {
             throw new RangeError('pageCapacity must be at least 4.');
         if (!Number.isInteger(branchCapacity) || branchCapacity < 4)
             throw new RangeError('branchCapacity must be at least 4.');
+        if (storageTypes.length !== 0 && storageTypes.length !== measureCount)
+            throw new RangeError(`Expected ${measureCount} storage types, received ${storageTypes.length}.`);
+        this.storageTypes = storageTypes.length === 0
+            ? Array.from({ length: measureCount }, () => 'float64' as const)
+            : Array.from(storageTypes);
     }
 
     get length() {
@@ -53,10 +66,14 @@ export class PagedMeasuredSequence {
         while (pending.length > 0) {
             const node = pending.pop()!;
             bytes += node.totals.byteLength;
-            if (node.kind === 'leaf')
-                bytes += node.values.byteLength;
-            else
+            if (node.kind === 'leaf') {
+                for (const values of node.values)
+                    bytes += values.byteLength;
+            }
+            else {
+                bytes += node.lengthEnds.byteLength;
                 pending.push(...node.children);
+            }
         }
         return bytes;
     }
@@ -74,7 +91,7 @@ export class PagedMeasuredSequence {
             const leaf = this._createLeaf(leafLength);
             for (let localIndex = 0; localIndex < leafLength; localIndex++) {
                 for (let measure = 0; measure < this.measureCount; measure++)
-                    leaf.values[localIndex * this.measureCount + measure] = read(start + localIndex, measure);
+                    leaf.values[measure][localIndex] = read(start + localIndex, measure);
             }
             this._refreshLeaf(leaf);
             leaves.push(leaf);
@@ -86,7 +103,7 @@ export class PagedMeasuredSequence {
         this._assertIndex(index);
         this._assertMeasure(measure);
         const { leaf, offset } = this._findLeaf(index);
-        return leaf.values[offset * this.measureCount + measure];
+        return leaf.values[measure][offset];
     }
 
     recordAt(index: number, target = new Float64Array(this.measureCount)) {
@@ -94,8 +111,8 @@ export class PagedMeasuredSequence {
         if (target.length < this.measureCount)
             throw new RangeError(`Record target needs ${this.measureCount} entries.`);
         const { leaf, offset } = this._findLeaf(index);
-        const start = offset * this.measureCount;
-        target.set(leaf.values.subarray(start, start + this.measureCount));
+        for (let measure = 0; measure < this.measureCount; measure++)
+            target[measure] = leaf.values[measure][offset];
         return target;
     }
 
@@ -104,12 +121,12 @@ export class PagedMeasuredSequence {
         this._assertMeasure(measure);
         if (!Number.isFinite(value))
             throw new RangeError('Sequence measures must be finite.');
+        this._assertStoredValue(measure, value);
         const { leaf, offset } = this._findLeaf(index);
-        const valueIndex = offset * this.measureCount + measure;
-        const delta = value - leaf.values[valueIndex];
+        const delta = value - leaf.values[measure][offset];
         if (delta === 0)
             return 0;
-        leaf.values[valueIndex] = value;
+        leaf.values[measure][offset] = value;
         leaf.totals[measure] += delta;
         for (let parent = leaf.parent; parent; parent = parent.parent)
             parent.totals[measure] += delta;
@@ -147,24 +164,44 @@ export class PagedMeasuredSequence {
         }
         if (node) {
             for (let index = 0; index < remaining; index++) {
-                const start = index * this.measureCount;
                 for (let measure = 0; measure < this.measureCount; measure++)
-                    target[measure] += node.values[start + measure];
+                    target[measure] += node.values[measure][index];
             }
         }
         return target;
+    }
+
+    prefixMeasure(count: number, measure: number) {
+        if (!Number.isInteger(count) || count < 0 || count > this.length)
+            throw new RangeError(`Invalid prefix length ${count} for ${this.length} records.`);
+        this._assertMeasure(measure);
+        let total = 0;
+        let node = this._root;
+        let remaining = count;
+        while (node && node.kind === 'branch') {
+            const childIndex = this._childIndexAtRank(node, remaining);
+            for (let index = 0; index < childIndex; index++)
+                total += node.children[index].totals[measure];
+            const previousLength = childIndex === 0 ? 0 : node.lengthEnds[childIndex - 1];
+            remaining -= previousLength;
+            node = childIndex < node.children.length ? node.children[childIndex] : null;
+        }
+        if (node) {
+            const values = node.values[measure];
+            for (let index = 0; index < remaining; index++)
+                total += values[index];
+        }
+        return total;
     }
 
     selectByMeasure(measure: number, offset: number) {
         this._assertMeasure(measure);
         if (!this._root)
             return 0;
-        if (offset <= 0)
-            return 0;
 
         let node = this._root;
         let rank = 0;
-        let remaining = offset;
+        let remaining = Math.max(0, offset);
         while (node.kind === 'branch') {
             let selected = node.children[node.children.length - 1];
             for (const child of node.children) {
@@ -178,7 +215,7 @@ export class PagedMeasuredSequence {
             node = selected;
         }
         for (let index = 0; index < node.length; index++) {
-            const value = node.values[index * this.measureCount + measure];
+            const value = node.values[measure][index];
             if (value > remaining)
                 return Math.min(this.length - 1, rank + index);
             remaining -= value;
@@ -200,8 +237,8 @@ export class PagedMeasuredSequence {
         const record = new Float64Array(this.measureCount);
         while (index < end) {
             for (; offset < leaf.length && index < end; offset++, index++) {
-                const valueStart = offset * this.measureCount;
-                record.set(leaf.values.subarray(valueStart, valueStart + this.measureCount));
+                for (let measure = 0; measure < this.measureCount; measure++)
+                    record[measure] = leaf.values[measure][offset];
                 visitor(index, record);
             }
             if (index < end) {
@@ -236,23 +273,22 @@ export class PagedMeasuredSequence {
         }
         const { leaf, offset } = this._findLeaf(index, true);
         const combinedLength = leaf.length + inserted;
-        const combined = new Float64Array(combinedLength * this.measureCount);
-        const splitOffset = offset * this.measureCount;
-        combined.set(leaf.values.subarray(0, splitOffset));
-        for (let insertedIndex = 0; insertedIndex < inserted; insertedIndex++) {
-            for (let measure = 0; measure < this.measureCount; measure++) {
-                combined[splitOffset + insertedIndex * this.measureCount + measure]
-                    = read(insertedIndex, measure);
-            }
+        const combined = this.storageTypes.map(type => this._createValueArray(type, combinedLength));
+        for (let measure = 0; measure < this.measureCount; measure++) {
+            combined[measure].set(leaf.values[measure].subarray(0, offset));
+            for (let insertedIndex = 0; insertedIndex < inserted; insertedIndex++)
+                combined[measure][offset + insertedIndex] = read(insertedIndex, measure);
+            combined[measure].set(
+                leaf.values[measure].subarray(offset, leaf.length),
+                offset + inserted,
+            );
         }
-        combined.set(
-            leaf.values.subarray(splitOffset, leaf.length * this.measureCount),
-            splitOffset + inserted * this.measureCount,
-        );
 
         if (combinedLength <= this.pageCapacity) {
-            leaf.values.fill(0);
-            leaf.values.set(combined);
+            for (let measure = 0; measure < this.measureCount; measure++) {
+                leaf.values[measure].fill(0);
+                leaf.values[measure].set(combined[measure]);
+            }
             leaf.length = combinedLength;
             this._refreshLeaf(leaf);
             this._refreshAncestors(leaf.parent);
@@ -263,10 +299,8 @@ export class PagedMeasuredSequence {
         for (let start = 0; start < combinedLength; start += this.pageCapacity) {
             const length = Math.min(this.pageCapacity, combinedLength - start);
             const next = this._createLeaf(length);
-            next.values.set(combined.subarray(
-                start * this.measureCount,
-                (start + length) * this.measureCount,
-            ));
+            for (let measure = 0; measure < this.measureCount; measure++)
+                next.values[measure].set(combined[measure].subarray(start, start + length));
             this._refreshLeaf(next);
             replacement.push(next);
         }
@@ -274,11 +308,10 @@ export class PagedMeasuredSequence {
     }
 
     private _deleteFromLeaf(leaf: ISequenceLeaf, offset: number, count: number) {
-        const destination = offset * this.measureCount;
-        const source = (offset + count) * this.measureCount;
-        const used = leaf.length * this.measureCount;
-        leaf.values.copyWithin(destination, source, used);
-        leaf.values.fill(0, used - count * this.measureCount, used);
+        for (const values of leaf.values) {
+            values.copyWithin(offset, offset + count, leaf.length);
+            values.fill(0, leaf.length - count, leaf.length);
+        }
         leaf.length -= count;
         if (leaf.length === 0) {
             this._removeLeaf(leaf);
@@ -367,15 +400,10 @@ export class PagedMeasuredSequence {
         let node = this._root;
         let remaining = index;
         while (node.kind === 'branch') {
-            let selected = node.children[node.children.length - 1];
-            for (const child of node.children) {
-                if (remaining < child.length) {
-                    selected = child;
-                    break;
-                }
-                remaining -= child.length;
-            }
-            node = selected;
+            const childIndex = this._childIndexAtRank(node, remaining);
+            const previousLength = childIndex === 0 ? 0 : node.lengthEnds[childIndex - 1];
+            remaining -= previousLength;
+            node = node.children[childIndex];
         }
         return { leaf: node, offset: remaining };
     }
@@ -414,7 +442,7 @@ export class PagedMeasuredSequence {
             kind: 'leaf',
             parent: null,
             length,
-            values: new Float64Array(this.pageCapacity * this.measureCount),
+            values: this.storageTypes.map(type => this._createValueArray(type, this.pageCapacity)),
             totals: new Float64Array(this.measureCount),
         };
     }
@@ -424,6 +452,7 @@ export class PagedMeasuredSequence {
             kind: 'branch',
             parent: null,
             children,
+            lengthEnds: new Uint32Array(children.length),
             length: 0,
             totals: new Float64Array(this.measureCount),
         };
@@ -435,18 +464,22 @@ export class PagedMeasuredSequence {
 
     private _refreshLeaf(leaf: ISequenceLeaf) {
         leaf.totals.fill(0);
-        for (let index = 0; index < leaf.length; index++) {
-            const start = index * this.measureCount;
-            for (let measure = 0; measure < this.measureCount; measure++)
-                leaf.totals[measure] += leaf.values[start + measure];
+        for (let measure = 0; measure < this.measureCount; measure++) {
+            const values = leaf.values[measure];
+            for (let index = 0; index < leaf.length; index++)
+                leaf.totals[measure] += values[index];
         }
     }
 
     private _refreshBranch(branch: ISequenceBranch) {
         branch.length = 0;
         branch.totals.fill(0);
-        for (const child of branch.children) {
+        if (branch.lengthEnds.length !== branch.children.length)
+            branch.lengthEnds = new Uint32Array(branch.children.length);
+        for (let index = 0; index < branch.children.length; index++) {
+            const child = branch.children[index];
             branch.length += child.length;
+            branch.lengthEnds[index] = branch.length;
             this._addTotals(branch.totals, child.totals);
         }
     }
@@ -474,5 +507,35 @@ export class PagedMeasuredSequence {
     private _assertMeasure(measure: number) {
         if (!Number.isInteger(measure) || measure < 0 || measure >= this.measureCount)
             throw new RangeError(`Invalid measure ${measure} for ${this.measureCount} measures.`);
+    }
+
+    private _assertStoredValue(measure: number, value: number) {
+        const storageType = this.storageTypes[measure];
+        if (storageType === 'float64')
+            return;
+        const maximum = storageType === 'uint8' ? 0xFF : 0xFFFFFFFF;
+        if (!Number.isInteger(value) || value < 0 || value > maximum)
+            throw new RangeError(`Measure ${measure} requires a ${storageType} value.`);
+    }
+
+    private _childIndexAtRank(branch: ISequenceBranch, rank: number) {
+        let low = 0;
+        let high = branch.lengthEnds.length;
+        while (low < high) {
+            const middle = (low + high) >>> 1;
+            if (branch.lengthEnds[middle] <= rank)
+                low = middle + 1;
+            else
+                high = middle;
+        }
+        return low;
+    }
+
+    private _createValueArray(type: MeasureStorage, length: number): MeasureArray {
+        if (type === 'uint8')
+            return new Uint8Array(length);
+        if (type === 'uint32')
+            return new Uint32Array(length);
+        return new Float64Array(length);
     }
 }

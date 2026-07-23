@@ -172,7 +172,6 @@ function estimateStateHeight(state: TState, metrics: ILayoutMetrics): number {
 
 export class LayoutIndex {
     private readonly _records = new PagedMeasuredSequence(LAYOUT_MEASURES);
-    private readonly _prefixBuffer = new Float64Array(LAYOUT_MEASURES);
     private _revision = 0;
 
     get revision() {
@@ -266,7 +265,7 @@ export class LayoutIndex {
     }
 
     topAt(index: number) {
-        return this._records.prefixMeasures(index, this._prefixBuffer)[EFFECTIVE_HEIGHT];
+        return this._records.prefixMeasure(index, EFFECTIVE_HEIGHT);
     }
 
     indexAtOffset(offset: number) {

@@ -1,4 +1,5 @@
 import type { DocumentSnapshot } from './documentStore';
+import { PagedMeasuredSequence } from '../utils/pagedMeasuredSequence';
 import { DocumentStore } from './documentStore';
 
 export type TSourceBlockKind
@@ -114,6 +115,13 @@ const SOURCE_KIND_CODES = Object.fromEntries(
 ) as Record<TSourceBlockKind, number>;
 const UNCERTAIN_STATE_COUNT = 0x80;
 const SOURCE_KIND_MASK = 0x7F;
+const SOURCE_LENGTH = 0;
+const LINE_SPAN = 1;
+const HARD_LINES = 2;
+const VISUAL_ROWS = 3;
+const SOURCE_KIND = 4;
+const ESTIMATED_HEIGHT = 5;
+const SOURCE_MEASURES = 6;
 
 function growUint32(values: Uint32Array, capacity: number) {
     const next = new Uint32Array(capacity);
@@ -144,16 +152,25 @@ class SourceRecordTable {
     private _visualRows = new Uint32Array(this._capacity);
     private _kind = new Uint8Array(this._capacity);
     private _heightEnds = new Float64Array(this._capacity);
+    private readonly _records = new PagedMeasuredSequence(
+        SOURCE_MEASURES,
+        64,
+        32,
+        ['uint32', 'uint32', 'uint32', 'uint32', 'uint8', 'float64'],
+    );
 
     get length() {
         return this._length;
     }
 
-    get heightEnds() {
-        return this._heightEnds.subarray(0, this._length);
+    get totalHeight() {
+        this._seal();
+        return this._records.total(ESTIMATED_HEIGHT);
     }
 
     get storageBytes() {
+        if (this._records.length > 0)
+            return this._records.storageBytes;
         return this._from.byteLength
             + this._to.byteLength
             + this._startLine.byteLength
@@ -165,6 +182,8 @@ class SourceRecordTable {
     }
 
     append(record: Omit<ISourceBlockRecord, 'id'>) {
+        if (this._records.length > 0)
+            throw new Error('Cannot append to a sealed source record table.');
         this._ensureCapacity();
         const index = this._length;
         this._from[index] = record.from;
@@ -180,6 +199,8 @@ class SourceRecordTable {
     }
 
     extendLast(to: number, endLine: number) {
+        if (this._records.length > 0)
+            throw new Error('Cannot extend a sealed source record table.');
         if (this._length === 0)
             return;
         this._to[this._length - 1] = to;
@@ -187,37 +208,105 @@ class SourceRecordTable {
     }
 
     fromAt(index: number) {
-        return this._from[index];
+        this._seal();
+        return this._records.prefixMeasure(index, SOURCE_LENGTH);
     }
 
     toAt(index: number) {
-        return this._to[index];
+        this._seal();
+        return this._records.prefixMeasure(index + 1, SOURCE_LENGTH);
+    }
+
+    boundsAt(index: number) {
+        this._seal();
+        const from = this._records.prefixMeasure(index, SOURCE_LENGTH);
+        return {
+            from,
+            to: from + this._records.measureAt(index, SOURCE_LENGTH),
+        };
     }
 
     stateCountHintAt(index: number): 1 | null {
-        return (this._kind[index] & UNCERTAIN_STATE_COUNT) === 0 ? 1 : null;
+        this._seal();
+        return (this._records.measureAt(index, SOURCE_KIND) & UNCERTAIN_STATE_COUNT) === 0 ? 1 : null;
     }
 
     kindAt(index: number) {
-        return SOURCE_KINDS[this._kind[index] & SOURCE_KIND_MASK];
+        this._seal();
+        return SOURCE_KINDS[this._records.measureAt(index, SOURCE_KIND) & SOURCE_KIND_MASK];
+    }
+
+    estimatedHeightAt(index: number) {
+        this._seal();
+        return this._records.measureAt(index, ESTIMATED_HEIGHT);
+    }
+
+    topAt(index: number) {
+        this._seal();
+        return this._records.prefixMeasure(index, ESTIMATED_HEIGHT);
+    }
+
+    indexAtOffset(offset: number) {
+        this._seal();
+        return this._records.selectByMeasure(SOURCE_LENGTH, offset);
+    }
+
+    indexAtHeight(offset: number) {
+        this._seal();
+        return this._records.selectByMeasure(ESTIMATED_HEIGHT, offset);
     }
 
     recordAt(index: number): ISourceBlockRecord | null {
         if (index < 0 || index >= this._length)
             return null;
-        const top = index === 0 ? 0 : this._heightEnds[index - 1];
+        this._seal();
+        const record = this._records.recordAt(index);
+        const from = this._records.prefixMeasure(index, SOURCE_LENGTH);
+        const startLine = this._records.prefixMeasure(index, LINE_SPAN);
         return {
             id: index,
-            from: this._from[index],
-            to: this._to[index],
-            startLine: this._startLine[index],
-            endLine: this._endLine[index],
-            kind: SOURCE_KINDS[this._kind[index] & SOURCE_KIND_MASK],
-            hardLines: this._hardLines[index],
-            visualRows: this._visualRows[index],
-            estimatedHeight: this._heightEnds[index] - top,
-            stateCountHint: this.stateCountHintAt(index),
+            from,
+            to: from + record[SOURCE_LENGTH],
+            startLine,
+            endLine: startLine + record[LINE_SPAN],
+            kind: SOURCE_KINDS[record[SOURCE_KIND] & SOURCE_KIND_MASK],
+            hardLines: record[HARD_LINES],
+            visualRows: record[VISUAL_ROWS],
+            estimatedHeight: record[ESTIMATED_HEIGHT],
+            stateCountHint: (record[SOURCE_KIND] & UNCERTAIN_STATE_COUNT) === 0 ? 1 : null,
         };
+    }
+
+    seal() {
+        this._seal();
+    }
+
+    private _seal() {
+        if (this._records.length > 0)
+            return;
+        this._records.build(this._length, (index, measure) => {
+            if (measure === SOURCE_LENGTH)
+                return this._to[index] - this._from[index];
+            if (measure === LINE_SPAN)
+                return this._endLine[index] - this._startLine[index];
+            if (measure === HARD_LINES)
+                return this._hardLines[index];
+            if (measure === VISUAL_ROWS)
+                return this._visualRows[index];
+            if (measure === SOURCE_KIND)
+                return this._kind[index];
+            const top = index === 0 ? 0 : this._heightEnds[index - 1];
+            return this._heightEnds[index] - top;
+        });
+        this._capacity = 0;
+        this._from = new Uint32Array(0);
+        this._to = new Uint32Array(0);
+        this._startLine = new Uint32Array(0);
+        this._endLine = new Uint32Array(0);
+        this._hardLines = new Uint32Array(0);
+        this._visualRows = new Uint32Array(0);
+        this._kind = new Uint8Array(0);
+        this._heightEnds = new Float64Array(0);
     }
 
     private _ensureCapacity() {
@@ -837,19 +926,6 @@ function scan(snapshot: DocumentSnapshot, metrics: ISourceLayoutMetrics) {
     return records;
 }
 
-function lowerBound(values: Float64Array, target: number) {
-    let low = 0;
-    let high = values.length;
-    while (low < high) {
-        const middle = (low + high) >>> 1;
-        if (values[middle] <= target)
-            low = middle + 1;
-        else
-            high = middle;
-    }
-    return low;
-}
-
 export class MarkdownSourceIndex {
     private readonly _records: SourceRecordTable;
 
@@ -869,6 +945,7 @@ export class MarkdownSourceIndex {
         if (session && !sessionRecords)
             throw new Error('Cannot build a source index from an incomplete scan.');
         this._records = sessionRecords ?? scan(snapshot, resolvedMetrics);
+        this._records.seal();
     }
 
     static fromText(text: string, metrics: Partial<ISourceLayoutMetrics> = {}) {
@@ -884,7 +961,7 @@ export class MarkdownSourceIndex {
     }
 
     get totalHeight() {
-        return this._records.heightEnds[this.length - 1] ?? 0;
+        return this._records.totalHeight;
     }
 
     get storageBytes() {
@@ -894,7 +971,7 @@ export class MarkdownSourceIndex {
     estimatedHeightAt(index: number) {
         if (index < 0 || index >= this.length)
             return 0;
-        return this.topAt(index + 1) - this.topAt(index);
+        return this._records.estimatedHeightAt(index);
     }
 
     records() {
@@ -917,6 +994,12 @@ export class MarkdownSourceIndex {
         return this._records.toAt(index);
     }
 
+    sourceBoundsAt(index: number) {
+        if (index < 0 || index >= this.length)
+            throw new RangeError(`Invalid source candidate ${index} for ${this.length} candidates.`);
+        return this._records.boundsAt(index);
+    }
+
     stateCountHintAt(index: number) {
         if (index < 0 || index >= this.length)
             throw new RangeError(`Invalid source candidate ${index} for ${this.length} candidates.`);
@@ -930,7 +1013,7 @@ export class MarkdownSourceIndex {
     }
 
     topAt(index: number) {
-        return index <= 0 ? 0 : this._records.heightEnds[Math.min(index, this.length) - 1];
+        return this._records.topAt(Math.min(this.length, Math.max(0, index)));
     }
 
     indexAtOffset(offset: number) {
@@ -938,22 +1021,13 @@ export class MarkdownSourceIndex {
             return 0;
         if (offset >= this.snapshot.length)
             return this.length - 1;
-        let low = 0;
-        let high = this.length;
-        while (low < high) {
-            const middle = (low + high) >>> 1;
-            if (this._records.toAt(middle) <= offset)
-                low = middle + 1;
-            else
-                high = middle;
-        }
-        return Math.min(low, this.length - 1);
+        return this._records.indexAtOffset(offset);
     }
 
     indexAtHeight(offset: number) {
         if (offset <= 0)
             return 0;
-        return Math.min(lowerBound(this._records.heightEnds, offset), this.length - 1);
+        return this._records.indexAtHeight(offset);
     }
 
     indexAtProgress(progress: number) {

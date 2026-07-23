@@ -1,5 +1,6 @@
 import type { MarkdownSourceIndex } from './markdownSourceIndex';
 import type { TState } from './types';
+import { PagedMeasuredSequence } from '../utils/pagedMeasuredSequence';
 
 export interface ISegmentStateRange {
     start: number;
@@ -11,50 +12,9 @@ export interface ISegmentStateLocation {
     localStateIndex: number;
 }
 
-class StateCountTree {
-    private readonly _tree: Uint32Array;
-
-    constructor(length: number) {
-        this._tree = new Uint32Array(length + 1);
-    }
-
-    get storageBytes() {
-        return this._tree.byteLength;
-    }
-
-    build(values: Uint32Array) {
-        this._tree.fill(0);
-        for (let index = 1; index <= values.length; index++) {
-            this._tree[index] += values[index - 1];
-            const parent = index + (index & -index);
-            if (parent < this._tree.length)
-                this._tree[parent] += this._tree[index];
-        }
-    }
-
-    sum(count: number) {
-        let total = 0;
-        for (let cursor = Math.min(Math.max(0, count), this._tree.length - 1); cursor > 0; cursor -= cursor & -cursor)
-            total += this._tree[cursor];
-        return total;
-    }
-
-    indexAt(stateIndex: number) {
-        let segmentIndex = 0;
-        let prefixCount = 0;
-        let bit = 1;
-        while ((bit << 1) < this._tree.length)
-            bit <<= 1;
-        for (let step = bit; step > 0; step >>= 1) {
-            const next = segmentIndex + step;
-            if (next < this._tree.length && prefixCount + this._tree[next] <= stateIndex) {
-                segmentIndex = next;
-                prefixCount += this._tree[next];
-            }
-        }
-        return segmentIndex;
-    }
-}
+const STATE_COUNT = 0;
+const STATE_COUNT_KNOWN = 1;
+const PARSED = 2;
 
 /**
  * Stable source-segment ownership for semantic states.
@@ -65,35 +25,38 @@ class StateCountTree {
  * segment state count is known.
  */
 export class MarkdownSegmentTree {
-    private readonly _stateCounts: Uint32Array;
-    private readonly _stateCountKnown: Uint8Array;
-    private readonly _parsed: Uint8Array;
-    private readonly _countTree: StateCountTree;
+    private readonly _segments = new PagedMeasuredSequence(
+        3,
+        256,
+        32,
+        ['uint32', 'uint8', 'uint8'],
+    );
+
     private readonly _prefixStates: TState[] = [];
+    private readonly _segmentBuffer = new Float64Array(3);
     private readonly _sparseStates = new Map<number, readonly TState[]>();
     private _completePrefix = 0;
     private _knownCountPrefix = 0;
     private _parsedSegments = 0;
     private _parsedStates = 0;
-    private _countTreeDirty = false;
 
     readonly revision: number;
 
     constructor(readonly sourceIndex: MarkdownSourceIndex) {
         this.revision = sourceIndex.revision;
-        this._stateCounts = new Uint32Array(sourceIndex.length);
-        this._stateCountKnown = new Uint8Array(sourceIndex.length);
-        this._parsed = new Uint8Array(sourceIndex.length);
-        this._countTree = new StateCountTree(sourceIndex.length);
-        for (let segmentIndex = 0; segmentIndex < sourceIndex.length; segmentIndex++) {
-            const hint = sourceIndex.stateCountHintAt(segmentIndex);
-            if (hint !== null) {
-                this._stateCounts[segmentIndex] = hint;
-                this._stateCountKnown[segmentIndex] = 1;
+        let cachedIndex = -1;
+        let cachedHint: 1 | null = null;
+        this._segments.build(sourceIndex.length, (segmentIndex, measure) => {
+            if (segmentIndex !== cachedIndex) {
+                cachedIndex = segmentIndex;
+                cachedHint = sourceIndex.stateCountHintAt(segmentIndex);
+                if (segmentIndex === this._knownCountPrefix && cachedHint !== null)
+                    this._knownCountPrefix++;
             }
-        }
-        this._advanceKnownCountPrefix();
-        this._countTreeDirty = this.length > 0;
+            if (measure === STATE_COUNT)
+                return cachedHint ?? 0;
+            return measure === STATE_COUNT_KNOWN && cachedHint !== null ? 1 : 0;
+        });
     }
 
     get length() {
@@ -121,8 +84,7 @@ export class MarkdownSegmentTree {
     }
 
     get knownPrefixStates() {
-        this._ensureCountTree();
-        return this._countTree.sum(this._knownCountPrefix);
+        return this._statePrefix(this._knownCountPrefix);
     }
 
     get areAllStateCountsKnown() {
@@ -136,31 +98,28 @@ export class MarkdownSegmentTree {
     get totalStates() {
         if (!this.areAllStateCountsKnown)
             throw new Error(`Semantic state counts are incomplete: ${this._knownCountPrefix}/${this.length}.`);
-        this._ensureCountTree();
-        return this._countTree.sum(this.length);
+        return this._segments.total(STATE_COUNT);
     }
 
     get storageBytes() {
-        return this._stateCounts.byteLength
-            + this._stateCountKnown.byteLength
-            + this._parsed.byteLength
-            + this._countTree.storageBytes;
+        return this._segments.storageBytes;
     }
 
     isParsed(segmentIndex: number) {
         this._assertSegmentIndex(segmentIndex);
-        return this._parsed[segmentIndex] === 1;
+        return this._segments.measureAt(segmentIndex, PARSED) === 1;
     }
 
     isStateCountKnown(segmentIndex: number) {
         this._assertSegmentIndex(segmentIndex);
-        return this._stateCountKnown[segmentIndex] === 1;
+        return this._segments.measureAt(segmentIndex, STATE_COUNT_KNOWN) === 1;
     }
 
     stateCountAt(segmentIndex: number) {
         this._assertSegmentIndex(segmentIndex);
-        return this._stateCountKnown[segmentIndex] === 1
-            ? this._stateCounts[segmentIndex]
+        const segment = this._segments.recordAt(segmentIndex, this._segmentBuffer);
+        return segment[STATE_COUNT_KNOWN] === 1
+            ? segment[STATE_COUNT]
             : null;
     }
 
@@ -168,27 +127,28 @@ export class MarkdownSegmentTree {
         this._assertSegmentIndex(segmentIndex);
         if (revision !== this.revision)
             return false;
-        if (this._parsed[segmentIndex] === 1)
+        if (this._segments.measureAt(segmentIndex, PARSED) === 1)
             return false;
 
+        const stateCountKnown = this._segments.measureAt(segmentIndex, STATE_COUNT_KNOWN) === 1;
+        const expectedStateCount = this._segments.measureAt(segmentIndex, STATE_COUNT);
         if (
-            this._stateCountKnown[segmentIndex] === 1
-            && this._stateCounts[segmentIndex] !== states.length
+            stateCountKnown
+            && expectedStateCount !== states.length
         ) {
             throw new Error(
-                `Source segment ${segmentIndex} expected ${this._stateCounts[segmentIndex]} semantic states but parsed ${states.length}.`,
+                `Source segment ${segmentIndex} expected ${expectedStateCount} semantic states but parsed ${states.length}.`,
             );
         }
 
-        this._parsed[segmentIndex] = 1;
-        if (this._stateCountKnown[segmentIndex] === 0) {
-            this._stateCounts[segmentIndex] = states.length;
-            this._stateCountKnown[segmentIndex] = 1;
+        this._segments.setMeasure(segmentIndex, PARSED, 1);
+        if (!stateCountKnown) {
+            this._segments.setMeasure(segmentIndex, STATE_COUNT, states.length);
+            this._segments.setMeasure(segmentIndex, STATE_COUNT_KNOWN, 1);
             this._advanceKnownCountPrefix();
         }
         this._parsedSegments++;
         this._parsedStates += states.length;
-        this._countTreeDirty = true;
 
         if (segmentIndex === this._completePrefix) {
             this._appendToPrefix(states);
@@ -208,44 +168,44 @@ export class MarkdownSegmentTree {
 
     replaceSegment(segmentIndex: number, states: readonly TState[], revision = this.revision) {
         this._assertSegmentIndex(segmentIndex);
-        if (revision !== this.revision || this._parsed[segmentIndex] === 0)
+        if (revision !== this.revision || this._segments.measureAt(segmentIndex, PARSED) === 0)
             return false;
 
-        this._ensureCountTree();
-        const previousCount = this._stateCounts[segmentIndex];
+        const previousCount = this._segments.measureAt(segmentIndex, STATE_COUNT);
         const nextStates = Array.from(states);
         if (segmentIndex < this._completePrefix) {
-            const start = this._countTree.sum(segmentIndex);
+            const start = this._statePrefix(segmentIndex);
             this._prefixStates.splice(start, previousCount, ...nextStates);
         }
         else {
             this._sparseStates.set(segmentIndex, nextStates);
         }
 
-        this._stateCounts[segmentIndex] = nextStates.length;
-        this._stateCountKnown[segmentIndex] = 1;
+        this._segments.setMeasure(segmentIndex, STATE_COUNT, nextStates.length);
+        this._segments.setMeasure(segmentIndex, STATE_COUNT_KNOWN, 1);
         this._parsedStates += nextStates.length - previousCount;
-        this._countTreeDirty = true;
         return true;
     }
 
     statesForSegment(segmentIndex: number): readonly TState[] | null {
         this._assertSegmentIndex(segmentIndex);
-        if (this._parsed[segmentIndex] === 0)
+        if (this._segments.measureAt(segmentIndex, PARSED) === 0)
             return null;
         if (segmentIndex >= this._completePrefix)
             return this._sparseStates.get(segmentIndex) ?? null;
 
-        this._ensureCountTree();
-        const start = this._countTree.sum(segmentIndex);
-        return this._prefixStates.slice(start, start + this._stateCounts[segmentIndex]);
+        const start = this._statePrefix(segmentIndex);
+        return this._prefixStates.slice(
+            start,
+            start + this._segments.measureAt(segmentIndex, STATE_COUNT),
+        );
     }
 
     stateAtLocation(segmentIndex: number, localStateIndex: number): TState | null {
         this._assertSegmentIndex(segmentIndex);
         if (!Number.isInteger(localStateIndex) || localStateIndex < 0)
             return null;
-        if (this._parsed[segmentIndex] === 0)
+        if (this._segments.measureAt(segmentIndex, PARSED) === 0)
             return null;
         if (segmentIndex >= this._completePrefix)
             return this._sparseStates.get(segmentIndex)?.[localStateIndex] ?? null;
@@ -257,9 +217,11 @@ export class MarkdownSegmentTree {
         this._assertSegmentIndex(segmentIndex);
         if (segmentIndex >= this._knownCountPrefix)
             return null;
-        this._ensureCountTree();
-        const start = this._countTree.sum(segmentIndex);
-        return { start, end: start + this._stateCounts[segmentIndex] };
+        const start = this._statePrefix(segmentIndex);
+        return {
+            start,
+            end: start + this._segments.measureAt(segmentIndex, STATE_COUNT),
+        };
     }
 
     stateIndexForLocation(segmentIndex: number, localStateIndex: number) {
@@ -278,11 +240,10 @@ export class MarkdownSegmentTree {
     locationAtStateIndex(stateIndex: number): ISegmentStateLocation | null {
         if (!Number.isInteger(stateIndex) || stateIndex < 0 || stateIndex >= this.knownPrefixStates)
             return null;
-        this._ensureCountTree();
-        const segmentIndex = this._countTree.indexAt(stateIndex);
+        const segmentIndex = this._segments.selectByMeasure(STATE_COUNT, stateIndex);
         return {
             segmentIndex,
-            localStateIndex: stateIndex - this._countTree.sum(segmentIndex),
+            localStateIndex: stateIndex - this._statePrefix(segmentIndex),
         };
     }
 
@@ -308,9 +269,8 @@ export class MarkdownSegmentTree {
     forEachParsedStateAt(visitor: (state: TState, stateIndex: number) => void) {
         for (let stateIndex = 0; stateIndex < this._prefixStates.length; stateIndex++)
             visitor(this._prefixStates[stateIndex], stateIndex);
-        this._ensureCountTree();
         for (const [segmentIndex, states] of this._sparseStates) {
-            const start = this._countTree.sum(segmentIndex);
+            const start = this._statePrefix(segmentIndex);
             for (let localStateIndex = 0; localStateIndex < states.length; localStateIndex++)
                 visitor(states[localStateIndex], start + localStateIndex);
         }
@@ -328,17 +288,14 @@ export class MarkdownSegmentTree {
         this._completePrefix++;
     }
 
-    private _ensureCountTree() {
-        if (!this._countTreeDirty)
-            return;
-        this._countTree.build(this._stateCounts);
-        this._countTreeDirty = false;
+    private _statePrefix(segmentCount: number) {
+        return this._segments.prefixMeasure(segmentCount, STATE_COUNT);
     }
 
     private _advanceKnownCountPrefix() {
         while (
             this._knownCountPrefix < this.length
-            && this._stateCountKnown[this._knownCountPrefix] === 1
+            && this._segments.measureAt(this._knownCountPrefix, STATE_COUNT_KNOWN) === 1
         ) {
             this._knownCountPrefix++;
         }

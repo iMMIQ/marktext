@@ -82,11 +82,23 @@ describe('markdownSegmentTree', () => {
         expect(snapshot[2]).toEqual(paragraph('two'));
     });
 
+    it('maps past a zero-state uncertain segment without rebuilding counts', () => {
+        const tree = new MarkdownSegmentTree(MarkdownSourceIndex.fromText('[link]: /target\n\nafter\n'));
+
+        expect(tree.knownCountPrefix).toBe(0);
+        expect(tree.commitSegment(0, [])).toBe(true);
+        expect(tree.areAllStateCountsKnown).toBe(true);
+        expect(tree.totalStates).toBe(1);
+        expect(tree.stateRangeForSegment(0)).toEqual({ start: 0, end: 0 });
+        expect(tree.stateRangeForSegment(1)).toEqual({ start: 0, end: 1 });
+        expect(tree.locationAtStateIndex(0)).toEqual({ segmentIndex: 1, localStateIndex: 0 });
+    });
+
     it('keeps structural storage bounded independently of semantic state size', () => {
         const markdown = Array.from({ length: 2_500 }, (_, index) => `paragraph ${index}`).join('\n\n');
         const tree = new MarkdownSegmentTree(MarkdownSourceIndex.fromText(markdown));
 
-        expect(tree.storageBytes).toBeLessThan(tree.length * 11 + 8);
+        expect(tree.storageBytes).toBeLessThan(tree.length * 7);
     });
 
     it('fails closed when a certain source segment violates its state count hint', () => {

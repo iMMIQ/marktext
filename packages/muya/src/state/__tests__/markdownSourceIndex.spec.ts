@@ -118,6 +118,7 @@ describe('markdownSourceIndex', () => {
             expect(index.recordAt(candidate)).toEqual(record);
             expect(index.sourceFromAt(candidate)).toBe(record.from);
             expect(index.sourceToAt(candidate)).toBe(record.to);
+            expect(index.sourceBoundsAt(candidate)).toEqual({ from: record.from, to: record.to });
             expect(index.indexAtOffset(record.from)).toBe(candidate);
             expect(index.indexAtHeight(index.topAt(candidate))).toBe(candidate);
         }

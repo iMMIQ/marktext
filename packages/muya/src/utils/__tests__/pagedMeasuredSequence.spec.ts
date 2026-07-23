@@ -27,6 +27,35 @@ function select(records: readonly Record[], measure: number, offset: number) {
 }
 
 describe('pagedMeasuredSequence', () => {
+    it('stores compact integer columns without changing aggregate precision', () => {
+        const records: Record[] = Array.from({ length: 1_000 }, (_, index) => [
+            index + 1,
+            index % 256,
+            index % 2,
+        ]);
+        const sequence = new PagedMeasuredSequence(
+            3,
+            256,
+            32,
+            ['uint32', 'uint8', 'uint8'],
+        );
+        sequence.build(records.length, reader(records));
+
+        expect([...sequence.recordAt(999)]).toEqual(records[999]);
+        expect([...sequence.prefixMeasures(1_000)]).toEqual(prefix(records, 1_000));
+        expect(sequence.storageBytes).toBeLessThan(7_000);
+        expect(() => sequence.setMeasure(0, 1, 256)).toThrow(/requires a uint8 value/);
+    });
+
+    it('skips zero-measure records during measured selection', () => {
+        const sequence = new PagedMeasuredSequence(1, 4, 4, ['uint32']);
+        sequence.build(4, index => [0, 0, 2, 1][index]);
+
+        expect(sequence.selectByMeasure(0, 0)).toBe(2);
+        expect(sequence.selectByMeasure(0, 1)).toBe(2);
+        expect(sequence.selectByMeasure(0, 2)).toBe(3);
+    });
+
     it('bulk builds compact pages and queries rank, prefixes, ranges, and measures', () => {
         const records: Record[] = Array.from({ length: 137 }, (_, index) => [
             index + 1,
