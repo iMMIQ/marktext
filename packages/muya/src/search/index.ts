@@ -1,15 +1,18 @@
 import type Content from '../block/base/content';
-import type TreeNode from '../block/base/treeNode';
+import type { TBlockPath } from '../block/types';
 import type { IHighlight } from '../inlineRenderer/types';
 import type { Muya } from '../muya';
 import type { IMatch } from './types';
+import diff from 'fast-diff';
 import { DEFAULT_SEARCH_OPTIONS } from '../config';
+import { diffToTextOp } from '../utils';
 import { buildRegexValue, matchString } from '../utils/search';
 
 export class Search {
     private _value: string = '';
     public matches: IMatch[] = [];
     public index: number = -1;
+    private _textByPath = new Map<string, string>();
 
     get value() {
         return this._value;
@@ -22,21 +25,36 @@ export class Search {
     constructor(private _muya: Muya) {}
 
     // Drop match state when the document is replaced (e.g. a tab switch), so
-    // stale matches don't reference the previous document's blocks (#1932).
+    // stale logical paths don't resolve into the replacement document (#1932).
     reset() {
+        this._updateMatches(true, false);
         this._value = '';
         this.matches = [];
         this.index = -1;
+        this._textByPath.clear();
     }
 
-    private _updateMatches(isClear = false) {
+    private _pathKey(path: TBlockPath) {
+        return JSON.stringify(path);
+    }
+
+    private _queryMatch(match: IMatch, mount: boolean) {
+        const block = mount
+            ? this._scrollPage?.queryBlock([...match.path])
+            : this._scrollPage?.queryMountedBlock([...match.path]);
+        return block?.isContent() ? block : null;
+    }
+
+    private _updateMatches(isClear = false, updateFocus = true) {
         const { matches, index } = this;
-        let i;
         const len = matches.length;
         const matchesMap = new Map<Content, IHighlight[]>();
 
-        for (i = 0; i < len; i++) {
-            const { block, start, end } = matches[i];
+        for (let i = 0; i < len; i++) {
+            const { start, end } = matches[i];
+            const block = this._queryMatch(matches[i], false);
+            if (!block)
+                continue;
             const active = i === index;
             const highlight: IHighlight = { start, end, active };
             const highlights = matchesMap.get(block);
@@ -55,39 +73,62 @@ export class Search {
 
             block.update(undefined, isClear ? [] : highlights);
 
-            if (block.parent?.active && !isActive)
+            if (updateFocus && block.parent?.active && !isActive)
                 block.blurHandler();
 
-            if (isActive && !isClear)
+            if (updateFocus && isActive && !isClear)
                 block.focusHandler();
         }
     }
 
-    private _innerReplace(matches: IMatch[], value: string) {
+    refreshMountedHighlights() {
+        if (this.matches.length)
+            this._updateMatches(false, false);
+    }
+
+    private _innerReplace(matches: IMatch[], replacement: (match: IMatch) => string) {
         if (!matches.length)
             return;
 
-        let tempText = '';
-        let lastBlock = matches[0].block;
-        let lastEnd = 0;
-
+        const grouped = new Map<string, { path: TBlockPath; matches: IMatch[] }>();
         for (const match of matches) {
-            const { start, end, block } = match;
-            if (lastBlock !== block) {
-                if (lastBlock)
-                    lastBlock.text = tempText + lastBlock.text.substring(lastEnd);
-
-                tempText = '';
-                lastEnd = 0;
-                lastBlock = block;
-            }
-
-            tempText += block.text.substring(lastEnd, start);
-            tempText += value;
-            lastEnd = end;
+            const key = this._pathKey(match.path);
+            const group = grouped.get(key) ?? { path: match.path, matches: [] };
+            group.matches.push(match);
+            grouped.set(key, group);
         }
 
-        lastBlock.text = tempText + lastBlock.text.substring(lastEnd);
+        for (const [key, { path, matches: blockMatches }] of grouped) {
+            const oldText = this._textByPath.get(key);
+            if (oldText === undefined)
+                continue;
+            let nextText = '';
+            let lastEnd = 0;
+            for (const match of blockMatches) {
+                nextText += oldText.substring(lastEnd, match.start);
+                nextText += replacement(match);
+                lastEnd = match.end;
+            }
+            nextText += oldText.substring(lastEnd);
+            if (nextText === oldText)
+                continue;
+
+            const mounted = this._scrollPage?.queryMountedBlock([...path]);
+            if (mounted?.isContent()) {
+                mounted.text = nextText;
+                if (
+                    mounted.blockName === 'language-input'
+                    && mounted.parent
+                    && 'lang' in mounted.parent
+                ) {
+                    mounted.parent.lang = nextText;
+                }
+            }
+            else {
+                this._muya.editor.jsonState.editOperation(path, diffToTextOp(diff(oldText, nextText)));
+            }
+        }
+        this._muya.editor.jsonState.flush();
     }
 
     replace(replaceValue: string, opt = { isSingle: true, isRegexp: false }) {
@@ -97,16 +138,16 @@ export class Search {
         const value = this._value;
 
         if (matches.length) {
-            if (isRegexp)
-                replaceValue = buildRegexValue(matches[index], replaceValue);
-
+            const replacement = isRegexp
+                ? (match: IMatch) => buildRegexValue(match, replaceValue)
+                : () => replaceValue;
             if (isSingle) {
                 // replace one
-                this._innerReplace([matches[index]], replaceValue);
+                this._innerReplace([matches[index] ?? matches[0]], replacement);
             }
             else {
                 // replace all
-                this._innerReplace(matches, replaceValue);
+                this._innerReplace(matches, replacement);
             }
             const highlightIndex = index < matches.length - 1 ? index : index - 1;
 
@@ -142,6 +183,9 @@ export class Search {
         this.index = index;
 
         this._updateMatches(true);
+        const match = matches[index];
+        const block = this._queryMatch(match, true);
+        block?.outMostBlock?.domNode?.scrollIntoView?.({ block: 'center' });
         this._updateMatches();
 
         return this;
@@ -154,6 +198,7 @@ export class Search {
      */
     search(value: string, opts = {}) {
         const matches: IMatch[] = [];
+        const textByPath = new Map<string, string>();
         const options = Object.assign({}, DEFAULT_SEARCH_OPTIONS, opts);
         const { highlightIndex, selectHighlight } = options;
         let index = -1;
@@ -168,24 +213,21 @@ export class Search {
 
         // Highlight current search.
         if (value) {
-            this._scrollPage?.depthFirstTraverse((block: TreeNode) => {
-                if (block.isContent()) {
-                    const { text } = block;
-                    if (text && typeof text === 'string') {
-                        const strMatches = matchString(text, value, options);
-                        matches.push(
-                            ...strMatches.map(({ index, match, subMatches }) => {
-                                return {
-                                    block,
-                                    start: index,
-                                    end: index + match.length,
-                                    match,
-                                    subMatches,
-                                };
-                            }),
-                        );
-                    }
-                }
+            this._muya.editor.jsonState.forEachTextState((text, path) => {
+                if (!text)
+                    return;
+                const blockPath = [...path] as TBlockPath;
+                textByPath.set(this._pathKey(blockPath), text);
+                const strMatches = matchString(text, value, options);
+                matches.push(
+                    ...strMatches.map(({ index, match, subMatches }) => ({
+                        path: blockPath,
+                        start: index,
+                        end: index + match.length,
+                        match,
+                        subMatches,
+                    })),
+                );
             });
         }
 
@@ -198,7 +240,7 @@ export class Search {
             index = 0;
         }
 
-        Object.assign(this, { _value: value, matches, index });
+        Object.assign(this, { _value: value, matches, index, _textByPath: textByPath });
 
         this._updateMatches();
 
@@ -209,8 +251,10 @@ export class Search {
         if (selectHighlight) {
             const activeMatch = matches[index] ?? prevActiveMatch;
             if (activeMatch) {
-                const { block, start, end } = activeMatch;
-                block.setCursor(start, end, true);
+                const { start, end } = activeMatch;
+                const block = this._queryMatch(activeMatch, true);
+                block?.outMostBlock?.domNode?.scrollIntoView?.({ block: 'center' });
+                block?.setCursor(start, end, true);
             }
         }
 

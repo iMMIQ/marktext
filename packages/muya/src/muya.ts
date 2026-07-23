@@ -278,7 +278,7 @@ export class Muya {
      * Used by the desktop shell when handing a tab back from source-code mode:
      * the bulk source-mode edit becomes one undo step. The change is recorded
      * as a `rebuild` history entry, so undo /
-     * redo re-create the block tree wholesale (`ScrollPage.updateState`) rather
+     * redo re-create the block tree wholesale (`ScrollPage.updateDocument`) rather
      * than walking it incrementally — making arbitrary block-type changes
      * (paragraph<->heading, list/table/code/frontmatter, multi-block reorder…)
      * safe to round-trip. No-op when `content` is identical to the current

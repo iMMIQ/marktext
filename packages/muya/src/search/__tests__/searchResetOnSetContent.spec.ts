@@ -75,6 +75,6 @@ describe('search resets when the document content is replaced (#1932)', () => {
         search.search('foo');
 
         expect(search.matches.length).toBe(2);
-        expect(search.matches.every(m => m.block.parent !== null)).toBe(true);
+        expect(search.matches.every(m => m.path[0] === 0)).toBe(true);
     });
 });

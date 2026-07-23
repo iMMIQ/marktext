@@ -19,7 +19,7 @@ interface IOperation {
     selection: Nullable<IHistorySelection>;
     // A `rebuild` entry is applied on undo/redo by dispatching its op to the
     // authoritative json state and rebuilding the live block tree wholesale
-    // (ScrollPage.updateState) — NOT through `Editor.updateContents`'
+    // (ScrollPage.updateDocument) — NOT through `Editor.updateContents`'
     // incremental pick/drop DOM walker. The walker only handles a few op shapes
     // (single block insert at an index, text edit, checked/meta) and desyncs the
     // DOM from the json state for whole-document ops, so bulk replacements

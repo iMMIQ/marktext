@@ -396,8 +396,8 @@ export class Editor {
 
     updateContents(operations: JSONOp, selection: Nullable<IHistorySelection>, source: string) {
         const muya = this._muya;
-        if (operations !== null)
-            this.scrollPage?.ensureMountedForOperation(operations);
+        const canApplyIncrementally = operations === null
+            || this.scrollPage?.ensureMountedForOperation(operations) !== false;
         // ot-json1 no-op (`null`) is forwarded to dispatch — JSONState
         // short-circuits internally so listeners still see a json-change
         // event for the no-op.
@@ -406,6 +406,12 @@ export class Editor {
         // Codes bellow are copy from `ot-json1.apply` and modified.
         if (operations === null)
             return;
+
+        if (!canApplyIncrementally) {
+            this.scrollPage!.updateDocument(this.jsonState);
+            this._restoreSelection(selection, true);
+            return;
+        }
 
         this.scrollPage?.suspendOnDemandMount();
         try {
@@ -422,7 +428,7 @@ export class Editor {
             // blocks drop never re-inserted). The json state is authoritative and
             // already up to date — rebuild from it instead of leaving an empty doc.
             debug.error(`updateContents incremental apply failed; rebuilding from state: ${String(error)}`);
-            this.scrollPage!.updateState(this.jsonState.getStateSnapshot());
+            this.scrollPage!.updateDocument(this.jsonState);
             this._restoreSelection(selection, true);
         }
     }
@@ -479,7 +485,7 @@ export class Editor {
     /**
      * Apply a history op by rebuilding the live block tree wholesale instead of
      * walking it incrementally (`updateContents`). The op is dispatched to the
-     * authoritative json state, then `ScrollPage.updateState` re-creates the DOM
+     * authoritative json state, then `ScrollPage.updateDocument` re-creates the DOM
      * from that state — the same safe path `setContent` uses. Used for undo/redo
      * of whole-document boundaries (e.g. exiting source-code mode) whose op
      * shapes the incremental pick/drop walker cannot apply without desyncing the
@@ -488,8 +494,7 @@ export class Editor {
     rebuildContents(operations: JSONOp, selection: Nullable<IHistorySelection>, source: string) {
         this.jsonState.dispatch(operations, source);
 
-        const state = this.jsonState.getStateSnapshot();
-        this.scrollPage!.updateState(state);
+        this.scrollPage!.updateDocument(this.jsonState);
 
         // The tree was rebuilt wholesale, so the selection's cached block
         // references are stale — resolve the caret from paths instead.
@@ -497,10 +502,13 @@ export class Editor {
     }
 
     setContent(content: TState[] | string, autoFocus = false) {
+        // Clear logical search paths before the replacement tree mounts, so
+        // its initial viewport cannot briefly inherit highlights from the
+        // outgoing document at coincident paths.
+        this.searchModule.reset();
         this.jsonState.setContent(content);
         this.scrollPage!.updateDocument(this.jsonState);
         this.history.clear();
-        this.searchModule.reset();
 
         if (autoFocus)
             this.focus();

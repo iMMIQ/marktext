@@ -91,6 +91,16 @@ function shiftTopLevelIndexes(op: JSONOp, delta: number): JSONOp {
     return op.map(component => shiftTopLevelIndexes(component as JSONOp, delta)) as JSONOpList;
 }
 
+function topLevelComponents(op: JSONOp): JSONOpList[] | null {
+    if (op === null)
+        return [];
+    if (typeof op[0] === 'number')
+        return [op];
+    if (op.every(component => Array.isArray(component) && typeof component[0] === 'number'))
+        return op as JSONOpList[];
+    return null;
+}
+
 function containsStateName(states: readonly TState[], names: ReadonlySet<string>): boolean {
     for (const state of states) {
         if (names.has(state.name))
@@ -347,6 +357,22 @@ class JSONState {
         }
     }
 
+    forEachTextState(visitor: (text: string, path: Path) => void) {
+        this._materializeAllSemanticStates();
+        const visit = (states: readonly TState[], parentPath: Path) => {
+            states.forEach((state, index) => {
+                const path = [...parentPath, index];
+                if (state.name === 'code-block' && state.meta.lang)
+                    visitor(state.meta.lang, [...path, 'meta', 'lang']);
+                if ('text' in state)
+                    visitor(state.text, [...path, 'text']);
+                if ('children' in state)
+                    visit(state.children, [...path, 'children']);
+            });
+        };
+        visit(this._state.asArray(), []);
+    }
+
     ensureReferenceDefinitions() {
         if (this._referenceDefinitionsReady || !this._sourceIndex || !this._segmentTree)
             return;
@@ -487,6 +513,22 @@ class JSONState {
         }
     }
 
+    private _groupSourceOperationComponents(op: JSONOp) {
+        const components = topLevelComponents(op);
+        if (!components)
+            return null;
+        const grouped = new Map<number, JSONOpList[]>();
+        for (const component of components) {
+            const segmentIndex = this._segmentForOperationIndex(component[0] as number);
+            if (segmentIndex === null)
+                return null;
+            const group = grouped.get(segmentIndex) ?? [];
+            group.push(component);
+            grouped.set(segmentIndex, group);
+        }
+        return grouped;
+    }
+
     private _applySourceBackedOperation(op: JSONOp) {
         const segments = this._segmentTree;
         if (!segments || !this._parseSession)
@@ -494,59 +536,76 @@ class JSONState {
         const indexes = [...new Set(topLevelIndexes(op))];
         if (indexes.length === 0)
             return false;
-        const segmentIndexes = indexes.map(index => this._segmentForOperationIndex(index));
-        const segmentIndex = segmentIndexes[0];
-        if (segmentIndex === null || segmentIndexes.some(index => index !== segmentIndex)) {
+        const grouped = this._groupSourceOperationComponents(op);
+        if (!grouped) {
             this._materializeAllSemanticStates();
             return false;
         }
 
-        const range = segments.stateRangeForSegment(segmentIndex)!;
-        this.ensureSemanticRange(range.start, Math.max(range.start + 1, range.end));
-        const previousStates = segments.statesForSegment(segmentIndex);
-        if (!previousStates) {
-            this._materializeAllSemanticStates();
-            return false;
+        const replacements: Array<{
+            segmentIndex: number;
+            range: { start: number; end: number };
+            previousStates: readonly TState[];
+            nextStates: TState[];
+        }> = [];
+        for (const [segmentIndex, group] of grouped) {
+            const range = segments.stateRangeForSegment(segmentIndex)!;
+            this.ensureSemanticRange(range.start, Math.max(range.start + 1, range.end));
+            const previousStates = segments.statesForSegment(segmentIndex);
+            if (!previousStates) {
+                this._materializeAllSemanticStates();
+                return false;
+            }
+            const shifted = group.map(component =>
+                shiftTopLevelIndexes(component, range.start) as JSONOpList,
+            );
+            const localOp = shifted.length === 1 ? shifted[0] : shifted;
+            const nextStates = asState(json1.type.apply(asDoc(Array.from(previousStates)), localOp));
+            // A zero-state source segment has no flat path that a later undo
+            // insert can map back to. Cross-segment structural edits can also
+            // move segment boundaries. Preserve the existing single-segment
+            // structural path, while limiting multi-segment batches to
+            // independent text edits.
+            if (
+                nextStates.length === 0
+                || (grouped.size > 1 && nextStates.length !== previousStates.length)
+            ) {
+                this._materializeAllSemanticStates();
+                return false;
+            }
+            replacements.push({ segmentIndex, range, previousStates, nextStates });
         }
 
-        const localOp = shiftTopLevelIndexes(op, range.start);
-        const nextStates = asState(json1.type.apply(asDoc(Array.from(previousStates)), localOp));
-        const previousCount = previousStates.length;
-        const sourceKind = this._sourceIndex!.kindAt(segmentIndex);
-        const touchesReferenceDefinitions = sourceKind === 'definition'
-            || containsStateName(previousStates, REFERENCE_DEFINITION_NAMES)
-            || containsStateName(nextStates, REFERENCE_DEFINITION_NAMES);
-        const touchesHeadings = sourceKind === 'heading'
-            || containsStateName(previousStates, HEADING_NAMES)
-            || containsStateName(nextStates, HEADING_NAMES);
-        // A zero-state source segment has no flat path that a later undo insert
-        // can map back to: its boundary is indistinguishable from the next
-        // segment. Keep ordinary edits and non-empty splits incremental, but
-        // use the complete-state compatibility path when a whole segment is
-        // removed.
-        if (nextStates.length === 0) {
-            this._materializeAllSemanticStates();
-            return false;
+        for (const { segmentIndex, range, previousStates, nextStates } of replacements) {
+            const sourceKind = this._sourceIndex!.kindAt(segmentIndex);
+            const touchesReferenceDefinitions = sourceKind === 'definition'
+                || containsStateName(previousStates, REFERENCE_DEFINITION_NAMES)
+                || containsStateName(nextStates, REFERENCE_DEFINITION_NAMES);
+            const touchesHeadings = sourceKind === 'heading'
+                || containsStateName(previousStates, HEADING_NAMES)
+                || containsStateName(nextStates, HEADING_NAMES);
+            if (!segments.replaceSegment(segmentIndex, nextStates))
+                return false;
+            if (previousStates.length !== nextStates.length) {
+                this._structuralChange = {
+                    start: range.start,
+                    removed: previousStates.length,
+                    inserted: nextStates.length,
+                };
+            }
+            this._sourceOverrides.set(segmentIndex, this._serializeSegmentOverride(segmentIndex, nextStates));
+            if (touchesReferenceDefinitions) {
+                this._referenceDefinitionsReady = false;
+                this._referenceRevision++;
+            }
+            if (touchesHeadings)
+                this._headingsReady = false;
+            this._state = this._state.splice(
+                range.start,
+                previousStates.length,
+                nextStates,
+            );
         }
-        if (!segments.replaceSegment(segmentIndex, nextStates))
-            return false;
-
-        if (previousCount !== nextStates.length) {
-            this._structuralChange = {
-                start: range.start,
-                removed: previousCount,
-                inserted: nextStates.length,
-            };
-        }
-
-        this._sourceOverrides.set(segmentIndex, this._serializeSegmentOverride(segmentIndex, nextStates));
-        if (touchesReferenceDefinitions) {
-            this._referenceDefinitionsReady = false;
-            this._referenceRevision++;
-        }
-        if (touchesHeadings)
-            this._headingsReady = false;
-        this._state = this._state.splice(range.start, previousCount, nextStates);
         return true;
     }
 

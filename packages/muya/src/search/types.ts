@@ -1,4 +1,4 @@
-import type Content from '../block/base/content';
+import type { TBlockPath } from '../block/types';
 
 export interface ISearchOption {
     isCaseSensitive?: boolean;
@@ -11,7 +11,7 @@ export interface ISearchOption {
 export interface IMatch {
     start: number;
     end: number;
-    block: Content;
+    path: TBlockPath;
     match: string;
     subMatches: string[];
 }

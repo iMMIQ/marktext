@@ -274,22 +274,30 @@ export class ScrollPage extends Parent {
     }
 
     ensureMountedForOperation(op: JSONOpList) {
-        let maxIndex = -1;
+        const indexes = new Set<number>();
         const scan = (component: unknown) => {
             if (!Array.isArray(component) || component.length === 0)
                 return;
             const first: unknown = component[0];
             if (typeof first === 'number')
-                maxIndex = Math.max(maxIndex, first);
+                indexes.add(first);
             else if (Array.isArray(first))
                 component.forEach(scan);
         };
         scan(op);
-        if (maxIndex >= 0 && maxIndex < this._state.length) {
-            this._addPinnedIndex(maxIndex);
-            if (maxIndex + 1 < this._state.length)
-                this._addPinnedIndex(maxIndex + 1);
+        // The incremental JSON walker needs every touched root in the live
+        // tree. Mounting hundreds of replace-all targets would defeat
+        // virtualization, so direct those batches to Editor's state-backed
+        // viewport rebuild instead.
+        if (indexes.size > 8)
+            return false;
+        for (const index of indexes) {
+            if (index >= 0 && index < this._state.length)
+                this._addPinnedIndex(index);
+            if (index + 1 < this._state.length)
+                this._addPinnedIndex(index + 1);
         }
+        return true;
     }
 
     suspendOnDemandMount() {
@@ -790,6 +798,7 @@ export class ScrollPage extends Parent {
         this.domNode!.replaceChildren(fragment);
         for (const [, block] of entries)
             this._blockResizeObserver?.observe(block.domNode!);
+        this.muya.editor.searchModule.refreshMountedHighlights();
         if (domAnchor)
             this._stabilizeDomAnchor(domAnchor);
         else if (anchor)
@@ -907,6 +916,19 @@ export class ScrollPage extends Parent {
 
         const p = path.shift() as number;
         const block = this.find(p) as Parent & { queryBlock: (p: TBlockPath) => Parent | Content | undefined };
+        return block && path.length ? block.queryBlock(path) : block;
+    }
+
+    queryMountedBlock(path: TBlockPath) {
+        if (path.length === 0)
+            return this;
+
+        const p = path.shift();
+        if (typeof p !== 'number')
+            return undefined;
+        const block = this._mountedBlocks.get(p) as (Parent & {
+            queryBlock: (p: TBlockPath) => Parent | Content | undefined;
+        }) | undefined;
         return block && path.length ? block.queryBlock(path) : block;
     }
 
