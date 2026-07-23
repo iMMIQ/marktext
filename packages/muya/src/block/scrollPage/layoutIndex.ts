@@ -171,7 +171,13 @@ function estimateStateHeight(state: TState, metrics: ILayoutMetrics): number {
 }
 
 export class LayoutIndex {
-    private readonly _records = new PagedMeasuredSequence(LAYOUT_MEASURES);
+    private readonly _records = new PagedMeasuredSequence(
+        LAYOUT_MEASURES,
+        256,
+        32,
+        ['float64', 'float64', 'uint8'],
+    );
+
     private _revision = 0;
 
     get revision() {
@@ -207,20 +213,27 @@ export class LayoutIndex {
         if (!segments.areAllStateCountsKnown)
             throw new Error(`Cannot build semantic layout with only ${segments.knownCountPrefix}/${segments.length} segment counts.`);
         const resolvedMetrics = { ...DEFAULT_METRICS, ...metrics };
-        const estimatedHeights = new Float64Array(segments.knownPrefixStates);
-        let stateIndex = 0;
-        for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex++) {
-            const stateCount = segments.stateCountAt(segmentIndex)!;
-            const fallbackHeight = segments.sourceIndex.estimatedHeightAt(segmentIndex) / Math.max(1, stateCount);
-            for (let localStateIndex = 0; localStateIndex < stateCount; localStateIndex++) {
-                const state = segments.stateAtLocation(segmentIndex, localStateIndex);
-                estimatedHeights[stateIndex++] = Math.max(
-                    1,
-                    state ? estimateStateHeight(state, resolvedMetrics) : fallbackHeight,
-                );
+        let segmentIndex = 0;
+        let localStateIndex = 0;
+        let stateCount = segments.length > 0 ? segments.stateCountAt(0)! : 0;
+        let fallbackHeight = stateCount > 0
+            ? segments.sourceIndex.estimatedHeightAt(0) / stateCount
+            : 0;
+        this._buildRecords(segments.knownPrefixStates, () => {
+            while (localStateIndex >= stateCount && segmentIndex + 1 < segments.length) {
+                segmentIndex++;
+                localStateIndex = 0;
+                stateCount = segments.stateCountAt(segmentIndex)!;
+                fallbackHeight = stateCount > 0
+                    ? segments.sourceIndex.estimatedHeightAt(segmentIndex) / stateCount
+                    : 0;
             }
-        }
-        this._buildRecords(estimatedHeights.length, index => estimatedHeights[index], revision);
+            const state = segments.stateAtLocation(segmentIndex, localStateIndex++);
+            return Math.max(
+                1,
+                state ? estimateStateHeight(state, resolvedMetrics) : fallbackHeight,
+            );
+        }, revision);
     }
 
     splice(

@@ -107,7 +107,7 @@ describe('layoutIndex', () => {
         const index = new LayoutIndex();
         index.rebuild(states, metrics, 9);
 
-        expect(index.storageBytes).toBeLessThan(states.length * 25 + 16);
+        expect(index.storageBytes).toBeLessThan(states.length * 18);
         expect(index.recordAt(1_024)).toMatchObject({
             id: 1_024,
             stateIndex: 1_024,
