@@ -653,6 +653,139 @@ function consumeContentLine(
     return builder;
 }
 
+export interface ISourceScanBatch {
+    processedLines: number;
+    scannedBytes: number;
+    sourceBytes: number;
+    records: number;
+    complete: boolean;
+}
+
+const completedScanRecords = new WeakMap<object, SourceRecordTable>();
+
+/** Pausable structural scan used by both synchronous and scheduled loaders. */
+export class MarkdownSourceScanSession {
+    private readonly _records = new SourceRecordTable();
+    private readonly _lines: Generator<ISourceLine>;
+    private readonly _textColumns: number;
+    private readonly _codeColumns: number;
+    private _builder: IRecordBuilder | null = null;
+    private _blankLines: ISourceLine[] = [];
+    private _scannedBytes = 0;
+    private _complete = false;
+
+    constructor(
+        readonly snapshot: DocumentSnapshot,
+        private readonly _metrics: ISourceLayoutMetrics,
+    ) {
+        this._lines = iterateLines(snapshot, _metrics.tabSize);
+        this._textColumns = Math.max(12, Math.floor(_metrics.contentWidth / (_metrics.fontSize * 0.56)));
+        this._codeColumns = Math.max(12, Math.floor(_metrics.contentWidth / (_metrics.codeFontSize * 0.61)));
+    }
+
+    get complete() {
+        return this._complete;
+    }
+
+    step(maxLines: number): ISourceScanBatch {
+        if (!Number.isInteger(maxLines) || maxLines <= 0)
+            throw new RangeError('Source scan line budget must be a positive integer.');
+
+        let processedLines = 0;
+        while (!this._complete && processedLines < maxLines) {
+            const next = this._lines.next();
+            if (next.done) {
+                this._finish();
+                break;
+            }
+
+            const line = next.value;
+            processedLines++;
+            this._scannedBytes = line.nextOffset;
+            if (this._builder?.fence) {
+                this._builder = consumeFencedLine(
+                    this._builder,
+                    line,
+                    this._records,
+                    this._metrics,
+                    this._codeColumns,
+                );
+                continue;
+            }
+
+            if (line.blank) {
+                this._blankLines.push(line);
+                continue;
+            }
+
+            if (this._blankLines.length > 0) {
+                if (continuesAfterBlank(this._builder, line)) {
+                    absorbBlankLines(this._builder!, this._blankLines, this._textColumns);
+                }
+                else {
+                    for (const blankLine of this._blankLines) {
+                        this._builder = consumeBlankLine(
+                            this._builder,
+                            blankLine,
+                            this._records,
+                            this._metrics,
+                        );
+                    }
+                }
+                this._blankLines = [];
+            }
+
+            this._builder = consumeContentLine(
+                this._builder,
+                line,
+                this._records,
+                this._metrics,
+                this._textColumns,
+                this._codeColumns,
+            );
+        }
+
+        return {
+            processedLines,
+            scannedBytes: this._scannedBytes,
+            sourceBytes: this.snapshot.length,
+            records: this._records.length,
+            complete: this._complete,
+        };
+    }
+
+    finish() {
+        while (!this._complete)
+            this.step(Number.MAX_SAFE_INTEGER);
+        return new MarkdownSourceIndex(this);
+    }
+
+    private _finish() {
+        flushBuilder(this._builder, this._records, this._metrics);
+        for (const line of this._blankLines)
+            consumeBlankLine(null, line, this._records, this._metrics);
+
+        if (this._records.length === 0) {
+            finalize({
+                from: 0,
+                to: this.snapshot.length,
+                startLine: 0,
+                endLine: this.snapshot.lineCount,
+                kind: 'blank',
+                hardLines: 1,
+                visualRows: 1,
+                samples: [''],
+                lastSample: '',
+            }, this._records, this._metrics);
+        }
+        this._builder = null;
+        this._blankLines = [];
+        this._scannedBytes = this.snapshot.length;
+        this._complete = true;
+        completedScanRecords.set(this, this._records);
+    }
+}
+
 function scan(snapshot: DocumentSnapshot, metrics: ISourceLayoutMetrics) {
     const records = new SourceRecordTable();
     const textColumns = Math.max(12, Math.floor(metrics.contentWidth / (metrics.fontSize * 0.56)));
@@ -689,7 +822,7 @@ function scan(snapshot: DocumentSnapshot, metrics: ISourceLayoutMetrics) {
         consumeBlankLine(null, line, records, metrics);
 
     if (records.length === 0) {
-        const placeholder: IRecordBuilder = {
+        finalize({
             from: 0,
             to: snapshot.length,
             startLine: 0,
@@ -699,8 +832,7 @@ function scan(snapshot: DocumentSnapshot, metrics: ISourceLayoutMetrics) {
             visualRows: 1,
             samples: [''],
             lastSample: '',
-        };
-        finalize(placeholder, records, metrics);
+        }, records, metrics);
     }
     return records;
 }
@@ -721,19 +853,30 @@ function lowerBound(values: Float64Array, target: number) {
 export class MarkdownSourceIndex {
     private readonly _records: SourceRecordTable;
 
+    readonly snapshot: DocumentSnapshot;
     readonly revision: number;
 
     constructor(
-        readonly snapshot: DocumentSnapshot,
+        source: DocumentSnapshot | MarkdownSourceScanSession,
         metrics: Partial<ISourceLayoutMetrics> = {},
     ) {
+        const session = source instanceof MarkdownSourceScanSession ? source : null;
+        const snapshot = session?.snapshot ?? source as DocumentSnapshot;
         const resolvedMetrics = { ...DEFAULT_METRICS, ...metrics };
+        this.snapshot = snapshot;
         this.revision = snapshot.revision;
-        this._records = scan(snapshot, resolvedMetrics);
+        const sessionRecords = session ? completedScanRecords.get(session) : null;
+        if (session && !sessionRecords)
+            throw new Error('Cannot build a source index from an incomplete scan.');
+        this._records = sessionRecords ?? scan(snapshot, resolvedMetrics);
     }
 
     static fromText(text: string, metrics: Partial<ISourceLayoutMetrics> = {}) {
         return new MarkdownSourceIndex(new DocumentStore(text).snapshot(), metrics);
+    }
+
+    static startScan(snapshot: DocumentSnapshot, metrics: Partial<ISourceLayoutMetrics> = {}) {
+        return new MarkdownSourceScanSession(snapshot, { ...DEFAULT_METRICS, ...metrics });
     }
 
     get length() {

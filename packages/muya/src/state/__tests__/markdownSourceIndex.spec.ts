@@ -137,4 +137,36 @@ describe('markdownSourceIndex', () => {
         expect(index.recordAt(0)!.visualRows).toBeGreaterThan(10);
         expect(flatten).not.toHaveBeenCalled();
     });
+
+    it('resumes a bounded source scan without changing the final index', () => {
+        const markdown = [
+            '# first',
+            '',
+            'paragraph',
+            '',
+            '```ts',
+            '',
+            'const value = 1;',
+            '```',
+            '',
+            '- one',
+            '- two',
+        ].join('\n');
+        const snapshot = new DocumentStore(markdown, { chunkSize: 1024 }).snapshot();
+        const scan = MarkdownSourceIndex.startScan(snapshot);
+        const batches = [];
+
+        while (!scan.complete)
+            batches.push(scan.step(2));
+
+        const incremental = scan.finish();
+        const synchronous = new MarkdownSourceIndex(snapshot);
+        expect(batches.length).toBeGreaterThan(1);
+        expect(batches.at(-1)).toMatchObject({
+            scannedBytes: markdown.length,
+            sourceBytes: markdown.length,
+            complete: true,
+        });
+        expect(incremental.records()).toEqual(synchronous.records());
+    });
 });

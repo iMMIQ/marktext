@@ -83,6 +83,12 @@ function shiftTopLevelIndexes(op: JSONOp, delta: number): JSONOp {
     return op.map(component => shiftTopLevelIndexes(component as JSONOp, delta)) as JSONOpList;
 }
 
+function createSparseState(length: number) {
+    const state: TState[] = [];
+    state.length = length;
+    return state;
+}
+
 class JSONState {
     static invert(op: JSONOpList) {
         return json1.type.invert(op);
@@ -243,7 +249,7 @@ class JSONState {
         this._semanticParseMs = stateCountCompletedAt - stateCountStartedAt;
         this._referenceDefinitionsReady = false;
         this._referenceRevision++;
-        this._state = Array.from({ length: this._segmentTree.totalStates }) as TState[];
+        this._state = createSparseState(this._segmentTree.totalStates);
         this._syncParsedSegments(0, this._segmentTree.length);
         this._loadMetrics = {
             inputType: 'markdown',
@@ -509,7 +515,7 @@ class JSONState {
         const segments = this._segmentTree;
         if (!segments)
             return;
-        this._state = Array.from({ length: segments.totalStates }) as TState[];
+        this._state = createSparseState(segments.totalStates);
         this._syncParsedSegments(0, segments.length);
     }
 
