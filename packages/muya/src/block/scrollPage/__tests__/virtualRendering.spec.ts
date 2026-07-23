@@ -146,4 +146,30 @@ describe('scrollPage virtual rendering', () => {
         expect(muya.editor.jsonState.getMarkdown()).toContain(`${state.text}!`);
         expect(muya.editor.jsonState.isSemanticComplete).toBe(false);
     });
+
+    it('preserves a mounted virtual-block selection across sparse DOM rebuilds', () => {
+        const states: TState[] = Array.from({ length: 100 }, (_, index) => ({
+            name: 'paragraph',
+            text: `paragraph ${index}`,
+        }));
+        const { muya, page } = boot(states);
+        const block = page.ensureProgressVisible(0.5)?.firstContentInDescendant();
+        if (!block)
+            throw new Error('Expected the middle virtual block to be mounted.');
+        const offset = block.text.length;
+        const selection = {
+            anchor: { block, offset, path: block.path },
+            focus: { block, offset, path: block.path },
+            isCollapsed: true,
+            isSelectionInSameBlock: true,
+        } as NonNullable<ReturnType<typeof muya.editor.selection.getSelection>>;
+        vi.spyOn(muya.editor.selection, 'getSelection').mockReturnValue(selection);
+        const restoreSelection = vi
+            .spyOn(muya.editor.selection, 'setSelection')
+            .mockImplementation(() => {});
+
+        (page as unknown as { _rebuildSparseDom: () => void })._rebuildSparseDom();
+
+        expect(restoreSelection).toHaveBeenCalledWith(selection.anchor, selection.focus);
+    });
 });

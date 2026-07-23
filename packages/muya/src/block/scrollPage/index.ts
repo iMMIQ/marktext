@@ -717,6 +717,7 @@ export class ScrollPage extends Parent {
 
     private _rebuildSparseDom() {
         const { scrollTop } = this._getViewportMetrics();
+        const preservedSelection = this.muya.editor.selection.getSelection();
         const fragment = document.createDocumentFragment();
         const nextChildren = new LinkedList<TreeNode>();
         const entries = [...this._mountedBlocks.entries()].sort((a, b) => a[0] - b[0]);
@@ -759,6 +760,15 @@ export class ScrollPage extends Parent {
             this._stabilizeDomAnchor(domAnchor);
         else if (anchor)
             this._stabilizeCompressedScroll(anchor[0], anchor[1], scrollTop);
+        if (
+            preservedSelection?.anchor.block.domNode?.isConnected
+            && preservedSelection.focus.block.domNode?.isConnected
+        ) {
+            this.muya.editor.selection.setSelection(
+                preservedSelection.anchor,
+                preservedSelection.focus,
+            );
+        }
     }
 
     private _visibleDomAnchor(entries: Array<[number, Parent]>) {

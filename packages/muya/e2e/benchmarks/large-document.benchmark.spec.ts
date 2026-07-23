@@ -10,6 +10,7 @@ const STANDARD_BYTES = 800 * KIB;
 const STRESS_BYTES = 128 * MIB;
 const DEFAULT_OUTPUT = 'test-results/large-document-benchmark.json';
 const INPUT_MARKER = 'X';
+const MIDDLE_EDIT_MARKER = 'MIDEDIT2026';
 
 // ASCII makes UTF-8 byte length equal to JavaScript string length without
 // allocating a second 128 MiB TextEncoder buffer in the stress profile.
@@ -100,6 +101,43 @@ interface IJumpResult {
     inViewport: boolean;
 }
 
+interface IMiddleEditSnapshot {
+    markerOffset: number;
+    markerPrefixOffset: number;
+    markdownLength: number;
+    logicalBlocks: number;
+    mountedBlocks: number;
+    domNodes: number;
+    parsedLogicalBlocks: number;
+    sourceBacked: boolean;
+    semanticComplete: boolean;
+    selectionConnected: boolean;
+}
+
+interface IMiddleEditResult {
+    index: number;
+    markerSourceOffset: number;
+    markerSourceProgress: number;
+    logicalBlocksBefore: number;
+    logicalBlocksAfterRedoEnter: number;
+    insertToPaintMs: number;
+    undoToPaintMs: number;
+    redoToPaintMs: number;
+    cursorLeftToPaintMs: number;
+    cursorRightToPaintMs: number;
+    backspaceToPaintMs: number;
+    undoBackspaceToPaintMs: number;
+    enterToPaintMs: number;
+    undoEnterToPaintMs: number;
+    redoEnterToPaintMs: number;
+    mountedBlocks: number;
+    domNodes: number;
+    parsedLogicalBlocks: number;
+    sourceBacked: boolean;
+    semanticComplete: boolean;
+    selectionConnected: boolean;
+}
+
 interface IJumpRun {
     run: number;
     exactBytes: number;
@@ -119,6 +157,7 @@ interface IJumpRun {
     setContentCallMs: number;
     firstPaintOpportunityMs: number;
     middle: IJumpResult;
+    middleEdit: IMiddleEditResult;
     bottom: IJumpResult;
     bottomSettled: IJumpResult;
     runtime: IRuntimeResult;
@@ -341,6 +380,7 @@ async function measureInput(page: Page): Promise<IInputResult> {
         if (!content)
             throw new Error('Unable to resolve the first editable block');
         content.setCursor(content.text.length, content.text.length, true);
+        content.domNode!.focus({ preventScroll: true });
 
         muya.domNode.addEventListener('beforeinput', () => {
             performance.clearMarks('muya-benchmark-input');
@@ -459,6 +499,217 @@ async function readMountedJump(page: Page, index: number): Promise<IJumpResult> 
     }, index);
 }
 
+async function measureInputAction(
+    page: Page,
+    action: { type: 'text'; value: string } | { type: 'key'; value: string },
+): Promise<number> {
+    await page.evaluate(() => {
+        const muya = window.muya!;
+        muya.domNode.addEventListener('beforeinput', () => {
+            performance.clearMarks('muya-benchmark-edit');
+            performance.mark('muya-benchmark-edit');
+        }, { capture: true, once: true });
+    });
+    if (action.type === 'text')
+        await page.keyboard.insertText(action.value);
+    else
+        await page.keyboard.press(action.value);
+    return page.evaluate(async () => {
+        await new Promise<void>((resolve) => {
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        });
+        window.muya!.flush();
+        const marks = performance.getEntriesByName('muya-benchmark-edit', 'mark');
+        const mark = marks[marks.length - 1];
+        if (!mark)
+            throw new Error('The benchmark editing action did not produce a beforeinput event');
+        return performance.now() - mark.startTime;
+    });
+}
+
+async function measureCursorAction(page: Page, key: 'ArrowLeft' | 'ArrowRight'): Promise<number> {
+    const startedAt = await page.evaluate(() => performance.now());
+    await page.keyboard.press(key);
+    return page.evaluate(async (start) => {
+        await new Promise<void>((resolve) => {
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        });
+        return performance.now() - start;
+    }, startedAt);
+}
+
+async function measureHistoryAction(page: Page, action: 'undo' | 'redo'): Promise<number> {
+    return page.evaluate(async (action) => {
+        const muya = window.muya!;
+        muya.flush();
+        const startedAt = performance.now();
+        muya[action]();
+        await new Promise<void>((resolve) => {
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        });
+        muya.flush();
+        return performance.now() - startedAt;
+    }, action);
+}
+
+async function readMiddleEditSnapshot(page: Page): Promise<IMiddleEditSnapshot> {
+    return page.evaluate((marker) => {
+        const muya = window.muya!;
+        muya.flush();
+        const markdown = muya.getMarkdown();
+        const selection = muya.editor.selection.getSelection();
+        const virtualization = muya.editor.scrollPage!.getVirtualizationStats();
+        return {
+            markerOffset: markdown.indexOf(marker),
+            markerPrefixOffset: markdown.indexOf(marker.slice(0, -1)),
+            markdownLength: markdown.length,
+            logicalBlocks: virtualization.logicalBlocks,
+            mountedBlocks: virtualization.mountedBlocks,
+            domNodes: muya.domNode.querySelectorAll('*').length,
+            parsedLogicalBlocks: muya.editor.jsonState.getDocumentLoadMetrics().parsedLogicalBlocks,
+            sourceBacked: muya.editor.jsonState.getSourceIndex() !== null,
+            semanticComplete: muya.editor.jsonState.isSemanticComplete,
+            selectionConnected: selection?.anchor.block?.domNode?.isConnected ?? false,
+        };
+    }, MIDDLE_EDIT_MARKER);
+}
+
+async function measureMiddleEdit(
+    page: Page,
+    index: number,
+    capture?: (phase: string) => Promise<void>,
+): Promise<IMiddleEditResult> {
+    const initial = await page.evaluate((index) => {
+        const muya = window.muya!;
+        const scrollPage = muya.editor.scrollPage!;
+        const block = scrollPage.find(index);
+        const content = block?.firstContentInDescendant();
+        if (!block?.domNode || !content)
+            throw new Error(`Unable to edit mounted middle block ${index}`);
+        block.domNode.scrollIntoView({ block: 'center' });
+        content.setCursor(content.text.length, content.text.length, true);
+        content.domNode!.focus({ preventScroll: true });
+        muya.editor.history.cutoff();
+        return scrollPage.getVirtualizationStats();
+    }, index);
+
+    const insertToPaintMs = await measureInputAction(page, { type: 'text', value: MIDDLE_EDIT_MARKER });
+    const inserted = await readMiddleEditSnapshot(page);
+    expect(inserted.markerOffset).toBeGreaterThan(0);
+    expect(inserted.markerOffset / inserted.markdownLength).toBeGreaterThan(0.4);
+    expect(inserted.markerOffset / inserted.markdownLength).toBeLessThan(0.6);
+    expect(inserted).toMatchObject({
+        logicalBlocks: initial.logicalBlocks,
+        sourceBacked: true,
+        semanticComplete: false,
+        selectionConnected: true,
+    });
+    await capture?.('middle-edit');
+
+    const undoToPaintMs = await measureHistoryAction(page, 'undo');
+    const undone = await readMiddleEditSnapshot(page);
+    expect(undone).toMatchObject({
+        markerOffset: -1,
+        logicalBlocks: initial.logicalBlocks,
+        sourceBacked: true,
+        semanticComplete: false,
+        selectionConnected: true,
+    });
+    await capture?.('middle-undo');
+
+    const redoToPaintMs = await measureHistoryAction(page, 'redo');
+    const redone = await readMiddleEditSnapshot(page);
+    expect(redone.markerOffset).toBe(inserted.markerOffset);
+    expect(redone).toMatchObject({
+        logicalBlocks: initial.logicalBlocks,
+        sourceBacked: true,
+        semanticComplete: false,
+        selectionConnected: true,
+    });
+    await capture?.('middle-redo');
+
+    const cursorLeftToPaintMs = await measureCursorAction(page, 'ArrowLeft');
+    const cursorRightToPaintMs = await measureCursorAction(page, 'ArrowRight');
+    const afterCursor = await readMiddleEditSnapshot(page);
+    expect(afterCursor).toMatchObject({
+        markerOffset: inserted.markerOffset,
+        selectionConnected: true,
+    });
+
+    const backspaceToPaintMs = await measureInputAction(page, { type: 'key', value: 'Backspace' });
+    const deleted = await readMiddleEditSnapshot(page);
+    expect(deleted.markerOffset).toBe(-1);
+    expect(deleted.markerPrefixOffset).toBe(inserted.markerOffset);
+    expect(deleted).toMatchObject({
+        logicalBlocks: initial.logicalBlocks,
+        sourceBacked: true,
+        semanticComplete: false,
+        selectionConnected: true,
+    });
+
+    const undoBackspaceToPaintMs = await measureHistoryAction(page, 'undo');
+    const deletionUndone = await readMiddleEditSnapshot(page);
+    expect(deletionUndone.markerOffset).toBe(inserted.markerOffset);
+
+    await page.evaluate(() => window.muya!.editor.history.cutoff());
+    const enterToPaintMs = await measureInputAction(page, { type: 'key', value: 'Enter' });
+    const entered = await readMiddleEditSnapshot(page);
+    expect(entered).toMatchObject({
+        sourceBacked: true,
+        semanticComplete: false,
+        selectionConnected: true,
+    });
+    expect(entered.markerOffset).toBe(inserted.markerOffset);
+    expect(entered.markdownLength).toBeGreaterThan(deletionUndone.markdownLength);
+
+    const undoEnterToPaintMs = await measureHistoryAction(page, 'undo');
+    const enterUndone = await readMiddleEditSnapshot(page);
+    expect(enterUndone).toMatchObject({
+        logicalBlocks: initial.logicalBlocks,
+        sourceBacked: true,
+        semanticComplete: false,
+        selectionConnected: true,
+    });
+    expect(enterUndone.markerOffset).toBe(inserted.markerOffset);
+    expect(enterUndone.markdownLength).toBe(deletionUndone.markdownLength);
+
+    const redoEnterToPaintMs = await measureHistoryAction(page, 'redo');
+    const final = await readMiddleEditSnapshot(page);
+    expect(final).toMatchObject({
+        logicalBlocks: entered.logicalBlocks,
+        sourceBacked: true,
+        semanticComplete: false,
+        selectionConnected: true,
+    });
+    expect(final.markerOffset).toBe(inserted.markerOffset);
+    expect(final.markdownLength).toBe(entered.markdownLength);
+    expect(final.mountedBlocks).toBeLessThan(final.logicalBlocks);
+
+    return {
+        index,
+        markerSourceOffset: inserted.markerOffset,
+        markerSourceProgress: inserted.markerOffset / inserted.markdownLength,
+        logicalBlocksBefore: initial.logicalBlocks,
+        logicalBlocksAfterRedoEnter: final.logicalBlocks,
+        insertToPaintMs,
+        undoToPaintMs,
+        redoToPaintMs,
+        cursorLeftToPaintMs,
+        cursorRightToPaintMs,
+        backspaceToPaintMs,
+        undoBackspaceToPaintMs,
+        enterToPaintMs,
+        undoEnterToPaintMs,
+        redoEnterToPaintMs,
+        mountedBlocks: final.mountedBlocks,
+        domNodes: final.domNodes,
+        parsedLogicalBlocks: final.parsedLogicalBlocks,
+        sourceBacked: final.sourceBacked,
+        semanticComplete: final.semanticComplete,
+        selectionConnected: final.selectionConnected,
+    };
+}
+
 const options = readOptions();
 
 test('large document benchmark @benchmark', async ({ page, browserName }, testInfo) => {
@@ -498,6 +749,16 @@ test('large document benchmark @benchmark', async ({ page, browserName }, testIn
         const jumpLoad = await startDocument(page, options.targetBytes);
         const middle = await measureJump(page, 0.5);
         expect(middle, JSON.stringify(middle)).toMatchObject({ connected: true, inViewport: true });
+        const middleEdit = await measureMiddleEdit(
+            page,
+            middle.index,
+            run === 1
+                ? async (phase) => testInfo.attach(`${phase}.png`, {
+                    body: await page.screenshot(),
+                    contentType: 'image/png',
+                })
+                : undefined,
+        );
         const bottom = await measureJump(page, 1);
         expect(bottom, JSON.stringify(bottom)).toMatchObject({ connected: true, inViewport: true });
 
@@ -544,6 +805,7 @@ test('large document benchmark @benchmark', async ({ page, browserName }, testIn
             setContentCallMs: jumpLoad.setContentCallMs,
             firstPaintOpportunityMs: jumpLoad.firstPaintOpportunityMs,
             middle,
+            middleEdit,
             bottom,
             bottomSettled,
             runtime,
@@ -562,7 +824,7 @@ test('large document benchmark @benchmark', async ({ page, browserName }, testIn
     });
 
     const report = {
-        schemaVersion: 2,
+        schemaVersion: 3,
         generatedAt: new Date().toISOString(),
         sourceRevision: process.env.GITHUB_SHA ?? readGit(['rev-parse', 'HEAD']),
         sourceDirty: (readGit(['status', '--porcelain']) ?? '').length > 0,
@@ -609,6 +871,19 @@ test('large document benchmark @benchmark', async ({ page, browserName }, testIn
             longTaskTotalMs: stats(loadRuns.map(run => run.settled.longTaskTotalMs)),
             longestLongTaskMs: stats(loadRuns.map(run => run.settled.longestLongTaskMs)),
             middleJumpToPaintMs: stats(jumpRuns.map(run => run.middle.jumpToPaintMs)),
+            middleEditInsertToPaintMs: stats(jumpRuns.map(run => run.middleEdit.insertToPaintMs)),
+            middleEditUndoToPaintMs: stats(jumpRuns.map(run => run.middleEdit.undoToPaintMs)),
+            middleEditRedoToPaintMs: stats(jumpRuns.map(run => run.middleEdit.redoToPaintMs)),
+            middleEditCursorLeftToPaintMs: stats(jumpRuns.map(run => run.middleEdit.cursorLeftToPaintMs)),
+            middleEditCursorRightToPaintMs: stats(jumpRuns.map(run => run.middleEdit.cursorRightToPaintMs)),
+            middleEditBackspaceToPaintMs: stats(jumpRuns.map(run => run.middleEdit.backspaceToPaintMs)),
+            middleEditUndoBackspaceToPaintMs: stats(jumpRuns.map(run => run.middleEdit.undoBackspaceToPaintMs)),
+            middleEditEnterToPaintMs: stats(jumpRuns.map(run => run.middleEdit.enterToPaintMs)),
+            middleEditUndoEnterToPaintMs: stats(jumpRuns.map(run => run.middleEdit.undoEnterToPaintMs)),
+            middleEditRedoEnterToPaintMs: stats(jumpRuns.map(run => run.middleEdit.redoEnterToPaintMs)),
+            middleEditMarkerSourceProgress: stats(jumpRuns.map(run => run.middleEdit.markerSourceProgress)),
+            middleEditDomNodes: stats(jumpRuns.map(run => run.middleEdit.domNodes)),
+            middleEditParsedLogicalBlocks: stats(jumpRuns.map(run => run.middleEdit.parsedLogicalBlocks)),
             bottomJumpToPaintMs: stats(jumpRuns.map(run => run.bottom.jumpToPaintMs)),
         },
         loadRuns,
