@@ -24,9 +24,7 @@ export default defineConfig({
             name: 'chromium',
             use: {
                 ...devices['Desktop Chrome'],
-                channel: process.env.CI || process.env.PLAYWRIGHT_USE_BUNDLED_CHROMIUM
-                    ? undefined
-                    : 'chrome',
+                channel: process.env.PLAYWRIGHT_USE_SYSTEM_CHROME ? 'chrome' : undefined,
                 launchOptions: {
                     args: ['--enable-precise-memory-info'],
                 },

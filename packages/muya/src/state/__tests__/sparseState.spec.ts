@@ -37,4 +37,70 @@ describe('sparseState', () => {
         expect(first.at(500)).toBe('removed');
         expect(first.at(900)).toBe('after');
     });
+
+    it.each([0x1, 0x51A7E, 0xC0FFEE, 0xDEADBEEF, 0xFFFFFFFF])(
+        'matches a persistent sparse array model for seed %s',
+        (initialSeed) => {
+            let seed = initialSeed;
+            const random = () => {
+                seed = (seed * 1664525 + 1013904223) >>> 0;
+                return seed / 0x1_0000_0000;
+            };
+            const model: Array<string | undefined> = [];
+            model.length = 53;
+            let state = SparseState.empty<string>(model.length, 7);
+
+            for (let operation = 0; operation < 300; operation++) {
+                const action = random();
+                if (model.length > 0 && action < 0.4) {
+                    const previous = state;
+                    const previousModel = model.slice();
+                    const updates = Array.from({ length: 1 + Math.floor(random() * 4) }, () => {
+                        const index = Math.floor(random() * model.length);
+                        const value = `${initialSeed}:${operation}:${index}`;
+                        model[index] = value;
+                        return [index, value] as const;
+                    });
+                    state = state.withUpdates(updates);
+                    expect(previous.toArray()).toEqual(previousModel);
+                }
+                else if (model.length > 0 && action < 0.65) {
+                    const updates = Array.from({ length: 1 + Math.floor(random() * 4) }, () => {
+                        const index = Math.floor(random() * model.length);
+                        const value = `hydrated:${initialSeed}:${operation}:${index}`;
+                        if (model[index] === undefined)
+                            model[index] = value;
+                        return [index, value] as const;
+                    });
+                    expect(state.hydrate(updates)).toBe(state);
+                }
+                else {
+                    const start = Math.floor(random() * (model.length + 1));
+                    const removed = Math.min(model.length - start, Math.floor(random() * 8));
+                    const inserted = Array.from(
+                        { length: Math.floor(random() * 8) },
+                        (_, index) => `inserted:${initialSeed}:${operation}:${index}`,
+                    );
+                    const previous = state;
+                    const previousModel = model.slice();
+                    model.splice(start, removed, ...inserted);
+                    state = state.splice(start, removed, inserted);
+                    expect(previous.toArray()).toEqual(previousModel);
+                }
+
+                expect(state.length).toBe(model.length);
+                expect(state.toArray()).toEqual(model);
+                const defined: Array<readonly [number, string]> = [];
+                state.forEachDefined((value, index) => defined.push([index, value]));
+                expect(defined).toEqual(model.flatMap((value, index) => (
+                    value === undefined ? [] : [[index, value] as const]
+                )));
+                for (let sample = 0; sample < 5 && model.length > 0; sample++) {
+                    const index = Math.floor(random() * model.length);
+                    expect(state.at(index)).toBe(model[index]);
+                    expect(index in state.asArray()).toBe(model[index] !== undefined);
+                }
+            }
+        },
+    );
 });

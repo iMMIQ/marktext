@@ -87,6 +87,18 @@ describe('layoutIndex', () => {
         expect(index.heightAt(2)).toBeGreaterThanOrEqual(240);
     });
 
+    it('keeps code layout finite when an optional metric is undefined', () => {
+        const index = new LayoutIndex();
+        index.rebuild([{
+            name: 'code-block',
+            meta: { type: 'fenced', lang: 'ts' },
+            text: 'const value = 1;',
+        }], { ...metrics, codeFontSize: undefined });
+
+        expect(Number.isFinite(index.totalHeight)).toBe(true);
+        expect(Number.isFinite(index.heightAt(0))).toBe(true);
+    });
+
     it('uses one path for tiny documents and naturally returns the whole range', () => {
         const index = new LayoutIndex();
         index.rebuild([{ name: 'paragraph', text: 'tiny' }], metrics);

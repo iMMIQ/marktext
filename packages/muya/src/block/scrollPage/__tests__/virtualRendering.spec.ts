@@ -120,6 +120,34 @@ describe('scrollPage virtual rendering', () => {
         expect(muya.editor.jsonState.semanticLength).toBe(1);
     });
 
+    it('invalidates delayed progress mounting when setContent replaces the document', () => {
+        const callbacks = new Map<number, FrameRequestCallback>();
+        let nextId = 1;
+        vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+            const id = nextId++;
+            callbacks.set(id, callback);
+            return id;
+        });
+        vi.stubGlobal('cancelAnimationFrame', (id: number) => callbacks.delete(id));
+        const markdown = Array.from({ length: 100 }, (_, index) => `old ${index}`).join('\n\n');
+        const { muya, page } = boot(markdown);
+
+        page.ensureProgressVisible(0.8);
+        muya.editor.setContent('replacement\n');
+        while (callbacks.size > 0) {
+            const pending = [...callbacks.values()];
+            callbacks.clear();
+            for (const callback of pending)
+                callback(performance.now());
+        }
+
+        expect(muya.editor.jsonState.getMarkdown()).toBe('replacement\n');
+        expect(page.getVirtualizationStats()).toMatchObject({
+            logicalBlocks: 1,
+            mountedIndexes: [0],
+        });
+    });
+
     it('preempts semantic parsing for a distant viewport and keeps it editable', () => {
         vi.stubGlobal('requestIdleCallback', () => 1);
         vi.stubGlobal('cancelIdleCallback', () => {});
@@ -171,5 +199,45 @@ describe('scrollPage virtual rendering', () => {
         (page as unknown as { _rebuildSparseDom: () => void })._rebuildSparseDom();
 
         expect(restoreSelection).toHaveBeenCalledWith(selection.anchor, selection.focus);
+    });
+
+    it('keeps the logical viewport anchored when a block above it is measured', () => {
+        const states: TState[] = Array.from({ length: 100 }, (_, index) => ({
+            name: 'paragraph',
+            text: `paragraph ${index}`,
+        }));
+        const { muya, page } = boot(states);
+        const internal = page as unknown as {
+            _layoutIndex: {
+                heightAt: (index: number) => number;
+                indexAtOffset: (offset: number) => number;
+                topAt: (index: number) => number;
+            };
+            _handleResizeEntries: (entries: ResizeObserverEntry[]) => void;
+        };
+
+        page.ensureProgressVisible(0.5);
+        const mounted = page.getVirtualizationStats().mountedIndexes;
+        expect(mounted.length).toBeGreaterThan(1);
+        const measuredIndex = mounted[0];
+        const viewportIndex = mounted[1];
+        const measuredBlock = page.find(measuredIndex)!;
+        const beforeHeight = internal._layoutIndex.heightAt(measuredIndex);
+        muya.domNode.scrollTop = internal._layoutIndex.topAt(viewportIndex);
+        const beforeScrollTop = muya.domNode.scrollTop;
+        const beforeViewportIndex = internal._layoutIndex.indexAtOffset(beforeScrollTop);
+
+        internal._handleResizeEntries([{
+            target: measuredBlock.domNode!,
+            borderBoxSize: [{ blockSize: beforeHeight + 137, inlineSize: 800 }],
+            contentBoxSize: [],
+            contentRect: new DOMRect(0, 0, 800, beforeHeight + 137),
+            devicePixelContentBoxSize: [],
+        } as unknown as ResizeObserverEntry]);
+
+        const heightDelta = internal._layoutIndex.heightAt(measuredIndex) - beforeHeight;
+        expect(heightDelta).toBeGreaterThan(100);
+        expect(muya.domNode.scrollTop - beforeScrollTop).toBeCloseTo(heightDelta, 5);
+        expect(internal._layoutIndex.indexAtOffset(muya.domNode.scrollTop)).toBe(beforeViewportIndex);
     });
 });

@@ -35,6 +35,17 @@ const DEFAULT_METRICS: ILayoutMetrics = {
     tabSize: 4,
 };
 
+function resolveMetrics(metrics: Partial<ILayoutMetrics>) {
+    return {
+        contentWidth: metrics.contentWidth ?? DEFAULT_METRICS.contentWidth,
+        fontSize: metrics.fontSize ?? DEFAULT_METRICS.fontSize,
+        lineHeight: metrics.lineHeight ?? DEFAULT_METRICS.lineHeight,
+        codeFontSize: metrics.codeFontSize ?? DEFAULT_METRICS.codeFontSize,
+        wrapCodeBlocks: metrics.wrapCodeBlocks ?? DEFAULT_METRICS.wrapCodeBlocks,
+        tabSize: metrics.tabSize ?? DEFAULT_METRICS.tabSize,
+    };
+}
+
 const HEADING_SCALE = [1, 1.875, 1.5, 1.375, 1.25, 1.125, 1];
 const ESTIMATED_HEIGHT = 0;
 const EFFECTIVE_HEIGHT = 1;
@@ -197,7 +208,7 @@ export class LayoutIndex {
     }
 
     rebuild(states: readonly TState[], metrics: Partial<ILayoutMetrics> = {}, revision = this._revision + 1) {
-        const resolvedMetrics = { ...DEFAULT_METRICS, ...metrics };
+        const resolvedMetrics = resolveMetrics(metrics);
         this._buildRecords(
             states.length,
             index => Math.max(1, estimateStateHeight(states[index], resolvedMetrics)),
@@ -212,7 +223,7 @@ export class LayoutIndex {
     ) {
         if (!segments.areAllStateCountsKnown)
             throw new Error(`Cannot build semantic layout with only ${segments.knownCountPrefix}/${segments.length} segment counts.`);
-        const resolvedMetrics = { ...DEFAULT_METRICS, ...metrics };
+        const resolvedMetrics = resolveMetrics(metrics);
         let segmentIndex = 0;
         let localStateIndex = 0;
         let stateCount = segments.length > 0 ? segments.stateCountAt(0)! : 0;
@@ -243,7 +254,7 @@ export class LayoutIndex {
         metrics: Partial<ILayoutMetrics> = {},
         revision = this._revision + 1,
     ) {
-        const resolvedMetrics = { ...DEFAULT_METRICS, ...metrics };
+        const resolvedMetrics = resolveMetrics(metrics);
         let cachedIndex = -1;
         let cachedHeight = 0;
         this._records.splice(index, removed, insertedStates.length, (insertedIndex, measure) => {
@@ -326,7 +337,7 @@ export class LayoutIndex {
             return 0;
         const nextHeight = Math.max(
             1,
-            estimateStateHeight(state, { ...DEFAULT_METRICS, ...metrics }),
+            estimateStateHeight(state, resolveMetrics(metrics)),
         );
         const previousHeight = this.heightAt(index);
         this._records.setMeasure(index, ESTIMATED_HEIGHT, nextHeight);

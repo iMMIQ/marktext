@@ -15,9 +15,9 @@ function prefix(records: readonly Record[], count: number) {
 }
 
 function select(records: readonly Record[], measure: number, offset: number) {
-    if (records.length === 0 || offset <= 0)
+    if (records.length === 0)
         return 0;
-    let remaining = offset;
+    let remaining = Math.max(0, offset);
     for (let index = 0; index < records.length; index++) {
         if (records[index][measure] > remaining)
             return index;
@@ -54,6 +54,15 @@ describe('pagedMeasuredSequence', () => {
         expect(sequence.selectByMeasure(0, 0)).toBe(2);
         expect(sequence.selectByMeasure(0, 1)).toBe(2);
         expect(sequence.selectByMeasure(0, 2)).toBe(3);
+    });
+
+    it('maps a computed floating-point prefix to the following record', () => {
+        const values = [0.1, 0.2, 1 / 3, Math.PI, 0.7, 1.1, 2.2, 3.3, 4.4];
+        const sequence = new PagedMeasuredSequence(1, 4, 4);
+        sequence.build(values.length, index => values[index]);
+
+        for (let index = 0; index < values.length; index++)
+            expect(sequence.selectByMeasure(0, sequence.prefixMeasure(index, 0))).toBe(index);
     });
 
     it('bulk builds compact pages and queries rank, prefixes, ranges, and measures', () => {
@@ -134,4 +143,59 @@ describe('pagedMeasuredSequence', () => {
             }
         }
     });
+
+    it.each([0x1, 0xBAD5EED, 0xC0FFEE, 0xDEADBEEF, 0xFFFFFFFF])(
+        'matches a compact array model with zero measures for seed %s',
+        (initialSeed) => {
+            let seed = initialSeed;
+            const random = () => {
+                seed = (seed * 1664525 + 1013904223) >>> 0;
+                return seed / 0x1_0000_0000;
+            };
+            const makeRecord = (): Record => [
+                Math.floor(random() * 10_000),
+                Math.floor(random() * 256),
+                Math.floor(random() * 2),
+            ];
+            const model: Record[] = Array.from({ length: 37 }, makeRecord);
+            const sequence = new PagedMeasuredSequence(
+                3,
+                8,
+                4,
+                ['uint32', 'uint8', 'uint8'],
+            );
+            sequence.build(model.length, reader(model));
+
+            for (let operation = 0; operation < 400; operation++) {
+                if (model.length > 0 && random() < 0.45) {
+                    const index = Math.floor(random() * model.length);
+                    const measure = Math.floor(random() * 3);
+                    const limits = [10_000, 256, 2];
+                    const value = Math.floor(random() * limits[measure]);
+                    model[index][measure] = value;
+                    sequence.setMeasure(index, measure, value);
+                }
+                else {
+                    const index = Math.floor(random() * (model.length + 1));
+                    const removed = Math.min(model.length - index, Math.floor(random() * 9));
+                    const inserted = Array.from({ length: Math.floor(random() * 9) }, makeRecord);
+                    model.splice(index, removed, ...inserted);
+                    sequence.splice(index, removed, inserted.length, reader(inserted));
+                }
+
+                expect(sequence.length).toBe(model.length);
+                const count = Math.floor(random() * (model.length + 1));
+                expect([...sequence.prefixMeasures(count)]).toEqual(prefix(model, count));
+                for (let measure = 0; measure < 3; measure++) {
+                    const total = prefix(model, model.length)[measure];
+                    expect(sequence.total(measure)).toBe(total);
+                    expect(sequence.prefixMeasure(count, measure)).toBe(prefix(model, count)[measure]);
+                    if (model.length > 0) {
+                        const offset = total === 0 ? 0 : random() * total;
+                        expect(sequence.selectByMeasure(measure, offset)).toBe(select(model, measure, offset));
+                    }
+                }
+            }
+        },
+    );
 });

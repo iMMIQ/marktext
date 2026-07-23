@@ -46,6 +46,7 @@ export class ScrollPage extends Parent {
     private _physicalScrollCorrection = 0;
     private _ignoreNextScrollEvent = false;
     private _scrollFrame: number | null = null;
+    private _resizeFrame: number | null = null;
     private _drainHandle: { type: 'frame' | 'idle' | 'timeout'; id: number } | null = null;
     private _semanticDrainHandle: { type: 'idle' | 'timeout'; id: number } | null = null;
     private _viewportResizeObserver: ResizeObserver | null = null;
@@ -575,6 +576,9 @@ export class ScrollPage extends Parent {
         if (this._scrollFrame !== null)
             cancelAnimationFrame(this._scrollFrame);
         this._scrollFrame = null;
+        if (this._resizeFrame !== null)
+            cancelAnimationFrame(this._resizeFrame);
+        this._resizeFrame = null;
         this._cancelDrainHandle();
         this._cancelSemanticDrainHandle();
         this._viewportResizeObserver?.disconnect();
@@ -883,7 +887,14 @@ export class ScrollPage extends Parent {
             return;
         if (anchorDelta !== 0)
             this._adjustPhysicalScrollTop(this._physicalScrollDelta(anchorDelta));
-        this._rebuildSparseDom();
+        if (this._resizeFrame === null) {
+            const revision = this._revision;
+            this._resizeFrame = requestAnimationFrame(() => {
+                this._resizeFrame = null;
+                if (revision === this._revision)
+                    this._rebuildSparseDom();
+            });
+        }
     };
 
     /**

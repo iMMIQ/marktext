@@ -10,10 +10,10 @@ export const test = base.extend<{ muyaReady: void }>({
         await page.waitForFunction(
             () => window.muya?.editor?.scrollPage != null,
             undefined,
-            { timeout: 15_000 },
+            { timeout: 30_000 },
         );
         await use();
-    }, { auto: true }],
+    }, { auto: true, timeout: 30_000 }],
 });
 
 export { expect };

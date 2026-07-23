@@ -23,6 +23,16 @@ interface ISequenceBranch {
 
 export type MeasureReader = (index: number, measure: number) => number;
 
+function exceedsWithRoundingTolerance(value: number, remaining: number, originalOffset: number) {
+    const tolerance = Number.EPSILON * 16 * Math.max(
+        1,
+        Math.abs(value),
+        Math.abs(remaining),
+        Math.abs(originalOffset),
+    );
+    return value - remaining > tolerance;
+}
+
 /**
  * A compact B+ sequence whose internal nodes aggregate every numeric column.
  *
@@ -205,7 +215,7 @@ export class PagedMeasuredSequence {
         while (node.kind === 'branch') {
             let selected = node.children[node.children.length - 1];
             for (const child of node.children) {
-                if (child.totals[measure] > remaining) {
+                if (exceedsWithRoundingTolerance(child.totals[measure], remaining, offset)) {
                     selected = child;
                     break;
                 }
@@ -216,7 +226,7 @@ export class PagedMeasuredSequence {
         }
         for (let index = 0; index < node.length; index++) {
             const value = node.values[measure][index];
-            if (value > remaining)
+            if (exceedsWithRoundingTolerance(value, remaining, offset))
                 return Math.min(this.length - 1, rank + index);
             remaining -= value;
         }

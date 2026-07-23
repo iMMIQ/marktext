@@ -2,6 +2,30 @@ import { describe, expect, it, vi } from 'vitest';
 import { DocumentStore } from '../documentStore';
 import { MarkdownSourceIndex } from '../markdownSourceIndex';
 
+function generatedMarkdown(initialSeed: number) {
+    let seed = initialSeed;
+    const random = () => {
+        seed = (seed * 1664525 + 1013904223) >>> 0;
+        return seed / 0x1_0000_0000;
+    };
+    const blocks = Array.from({ length: 120 }, (_, index) => {
+        switch (Math.floor(random() * 10)) {
+            case 0: return `# heading ${index}`;
+            case 1: return `paragraph ${index} ${'wide界'.repeat(Math.floor(random() * 8))}`;
+            case 2: return `- item ${index}\n- item ${index + 1}`;
+            case 3: return `> quote ${index}\n> continued`;
+            case 4: return `\`\`\`ts\nconst value${index} = ${index};\n\`\`\``;
+            case 5: return `| A | B |\n| - | -: |\n| ${index} | value |`;
+            case 6: return `$$\nx_${index} + y\n$$`;
+            case 7: return `[reference-${index}]: /target/${index}`;
+            case 8: return `<div>html ${index}</div>`;
+            default: return `---`;
+        }
+    });
+    const separator = initialSeed % 2 === 0 ? '\r\n\r\n' : '\n\n';
+    return blocks.join(separator) + (initialSeed % 3 === 0 ? separator : '');
+}
+
 describe('markdownSourceIndex', () => {
     it('scans mixed Markdown into source-backed block candidates', () => {
         const markdown = [
@@ -139,6 +163,16 @@ describe('markdownSourceIndex', () => {
         expect(flatten).not.toHaveBeenCalled();
     });
 
+    it('keeps code heights finite when an optional metric is undefined', () => {
+        const index = MarkdownSourceIndex.fromText('```ts\nconst value = 1;\n```\n\nafter', {
+            codeFontSize: undefined,
+        });
+
+        expect(Number.isFinite(index.totalHeight)).toBe(true);
+        expect(index.records().every(record => Number.isFinite(record.estimatedHeight))).toBe(true);
+        expect(index.indexAtProgress(0.5)).toBeLessThan(index.length);
+    });
+
     it('resumes a bounded source scan without changing the final index', () => {
         const markdown = [
             '# first',
@@ -170,4 +204,51 @@ describe('markdownSourceIndex', () => {
         });
         expect(incremental.records()).toEqual(synchronous.records());
     });
+
+    it.each([0x1, 0x51A7E, 0xC0FFEE, 0xDEADBEEF, 0xFFFFFFFF])(
+        'keeps paged source coordinates exact for generated seed %s',
+        (initialSeed) => {
+            const markdown = generatedMarkdown(initialSeed);
+            const snapshot = new DocumentStore(markdown, { chunkSize: 31 }).snapshot();
+            const synchronous = new MarkdownSourceIndex(snapshot);
+            const scan = MarkdownSourceIndex.startScan(snapshot);
+            let seed = initialSeed;
+            const random = () => {
+                seed = (seed * 1664525 + 1013904223) >>> 0;
+                return seed / 0x1_0000_0000;
+            };
+            while (!scan.complete)
+                scan.step(1 + Math.floor(random() * 7));
+            const incremental = scan.finish();
+
+            expect(incremental.records()).toEqual(synchronous.records());
+            expect(synchronous.sourceForRange(0, synchronous.length)).toBe(markdown);
+            expect(synchronous.topAt(synchronous.length)).toBe(synchronous.totalHeight);
+            let previousTo = 0;
+            let previousEndLine = 0;
+            for (let index = 0; index < synchronous.length; index++) {
+                const record = synchronous.recordAt(index)!;
+                expect(record.from).toBe(previousTo);
+                expect(record.startLine).toBe(previousEndLine);
+                expect(record.to).toBeGreaterThan(record.from);
+                expect(synchronous.sourceBoundsAt(index)).toEqual({
+                    from: record.from,
+                    to: record.to,
+                });
+                expect(synchronous.indexAtOffset(record.from)).toBe(index);
+                expect(synchronous.indexAtOffset(record.to - 1)).toBe(index);
+                expect(synchronous.indexAtHeight(synchronous.topAt(index))).toBe(index);
+                previousTo = record.to;
+                previousEndLine = record.endLine;
+            }
+            expect(previousTo).toBe(markdown.length);
+
+            let previousIndex = 0;
+            for (let step = 0; step <= 100; step++) {
+                const index = synchronous.indexAtProgress(step / 100);
+                expect(index).toBeGreaterThanOrEqual(previousIndex);
+                previousIndex = index;
+            }
+        },
+    );
 });

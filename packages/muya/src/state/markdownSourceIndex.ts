@@ -95,6 +95,20 @@ const DEFAULT_METRICS: ISourceLayoutMetrics = {
     math: true,
 };
 
+function resolveMetrics(metrics: Partial<ISourceLayoutMetrics>) {
+    return {
+        contentWidth: metrics.contentWidth ?? DEFAULT_METRICS.contentWidth,
+        fontSize: metrics.fontSize ?? DEFAULT_METRICS.fontSize,
+        lineHeight: metrics.lineHeight ?? DEFAULT_METRICS.lineHeight,
+        codeFontSize: metrics.codeFontSize ?? DEFAULT_METRICS.codeFontSize,
+        wrapCodeBlocks: metrics.wrapCodeBlocks ?? DEFAULT_METRICS.wrapCodeBlocks,
+        tabSize: metrics.tabSize ?? DEFAULT_METRICS.tabSize,
+        frontMatter: metrics.frontMatter ?? DEFAULT_METRICS.frontMatter,
+        footnote: metrics.footnote ?? DEFAULT_METRICS.footnote,
+        math: metrics.math ?? DEFAULT_METRICS.math,
+    };
+}
+
 const SOURCE_KINDS: readonly TSourceBlockKind[] = [
     'blank',
     'code',
@@ -938,7 +952,7 @@ export class MarkdownSourceIndex {
     ) {
         const session = source instanceof MarkdownSourceScanSession ? source : null;
         const snapshot = session?.snapshot ?? source as DocumentSnapshot;
-        const resolvedMetrics = { ...DEFAULT_METRICS, ...metrics };
+        const resolvedMetrics = resolveMetrics(metrics);
         this.snapshot = snapshot;
         this.revision = snapshot.revision;
         const sessionRecords = session ? completedScanRecords.get(session) : null;
@@ -953,7 +967,7 @@ export class MarkdownSourceIndex {
     }
 
     static startScan(snapshot: DocumentSnapshot, metrics: Partial<ISourceLayoutMetrics> = {}) {
-        return new MarkdownSourceScanSession(snapshot, { ...DEFAULT_METRICS, ...metrics });
+        return new MarkdownSourceScanSession(snapshot, resolveMetrics(metrics));
     }
 
     get length() {

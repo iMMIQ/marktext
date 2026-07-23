@@ -2,10 +2,19 @@ import type { TState } from '../types';
 import { describe, expect, it } from 'vitest';
 import { MarkdownSegmentTree } from '../markdownSegmentTree';
 import { MarkdownSourceIndex } from '../markdownSourceIndex';
+import { MarkdownSourceParser } from '../markdownSourceParser';
 
 function paragraph(text: string): TState {
     return { name: 'paragraph', text };
 }
+
+const PARSER_OPTIONS = {
+    footnote: false,
+    math: true,
+    isGitlabCompatibilityEnabled: true,
+    trimUnnecessaryCodeBlockEmptyLines: false,
+    frontMatter: false,
+};
 
 describe('markdownSegmentTree', () => {
     it('keeps preempted segments sparse until the sequential prefix reaches them', () => {
@@ -107,4 +116,75 @@ describe('markdownSegmentTree', () => {
         expect(() => tree.commitSegment(0, [paragraph('one'), paragraph('two')]))
             .toThrow(/expected 1 semantic states but parsed 2/);
     });
+
+    it.each([0x1, 0x51A7E, 0xC0FFEE, 0xDEADBEEF, 0xFFFFFFFF])(
+        'matches flat state ranges through preempted parsing for seed %s',
+        (initialSeed) => {
+            let seed = initialSeed;
+            const random = () => {
+                seed = (seed * 1664525 + 1013904223) >>> 0;
+                return seed / 0x1_0000_0000;
+            };
+            const markdown = Array.from({ length: 80 }, (_, index) => {
+                const variant = Math.floor(random() * 5);
+                if (variant === 0)
+                    return `[reference-${index}]: /target/${index}`;
+                if (variant === 1)
+                    return `> quote ${index}\n> continued`;
+                if (variant === 2)
+                    return `- item ${index}\n- item ${index + 1}`;
+                if (variant === 3)
+                    return `\`\`\`ts\nconst value = ${index};\n\`\`\``;
+                return `paragraph ${index}`;
+            }).join('\n\n');
+            const source = MarkdownSourceIndex.fromText(markdown, { frontMatter: false });
+            const parser = new MarkdownSourceParser(PARSER_OPTIONS);
+            const expected = Array.from(
+                { length: source.length },
+                (_, index) => Array.from(parser.parseSegmentStates(source, index)),
+            );
+            const tree = new MarkdownSegmentTree(source);
+            const order = Array.from({ length: source.length }, (_, index) => index);
+            for (let index = order.length - 1; index > 0; index--) {
+                const target = Math.floor(random() * (index + 1));
+                [order[index], order[target]] = [order[target], order[index]];
+            }
+            for (const segmentIndex of order)
+                expect(tree.commitSegment(segmentIndex, expected[segmentIndex])).toBe(true);
+
+            const assertFlatModel = () => {
+                let stateIndex = 0;
+                for (let segmentIndex = 0; segmentIndex < expected.length; segmentIndex++) {
+                    const states = expected[segmentIndex];
+                    expect(tree.stateRangeForSegment(segmentIndex)).toEqual({
+                        start: stateIndex,
+                        end: stateIndex + states.length,
+                    });
+                    expect(tree.statesForSegment(segmentIndex)).toEqual(states);
+                    for (let localStateIndex = 0; localStateIndex < states.length; localStateIndex++) {
+                        expect(tree.stateIndexForLocation(segmentIndex, localStateIndex)).toBe(stateIndex);
+                        expect(tree.locationAtStateIndex(stateIndex)).toEqual({
+                            segmentIndex,
+                            localStateIndex,
+                        });
+                        stateIndex++;
+                    }
+                }
+                expect(tree.totalStates).toBe(stateIndex);
+                expect(tree.requireCompleteStateSnapshot()).toEqual(expected.flat());
+            };
+            assertFlatModel();
+
+            for (let operation = 0; operation < 20; operation++) {
+                const segmentIndex = Math.floor(random() * expected.length);
+                const states = Array.from(
+                    { length: Math.floor(random() * 4) },
+                    (_, index) => paragraph(`replacement ${operation}:${index}`),
+                );
+                expected[segmentIndex] = states;
+                expect(tree.replaceSegment(segmentIndex, states)).toBe(true);
+                assertFlatModel();
+            }
+        },
+    );
 });

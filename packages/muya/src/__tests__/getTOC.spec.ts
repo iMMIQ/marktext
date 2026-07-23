@@ -181,4 +181,25 @@ describe('muya.getTOC()', () => {
         expect(toc[0].content).toBe('Only Heading');
         expect(toc[0].lvl).toBe(2);
     });
+
+    it('parses only heading segments when a large source-backed document requests its TOC', () => {
+        const markdown = Array.from(
+            { length: 1_000 },
+            (_, index) => index % 100 === 0 ? `## Lazy heading ${index}` : `paragraph ${index}`,
+        ).join('\n\n');
+        const muya = bootMuya(markdown);
+
+        expect(muya.editor.jsonState.isSemanticComplete).toBe(false);
+        const toc = muya.getTOC();
+        const metrics = muya.editor.jsonState.getDocumentLoadMetrics();
+
+        expect(toc.map(item => item.content)).toEqual(Array.from(
+            { length: 10 },
+            (_, index) => `Lazy heading ${index * 100}`,
+        ));
+        expect(muya.editor.jsonState.isSourceBacked).toBe(true);
+        expect(muya.editor.jsonState.isSemanticComplete).toBe(false);
+        expect(metrics.parsedLogicalBlocks).toBeGreaterThanOrEqual(10);
+        expect(metrics.parsedLogicalBlocks).toBeLessThan(100);
+    });
 });

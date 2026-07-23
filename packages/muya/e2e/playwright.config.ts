@@ -23,14 +23,9 @@ export default defineConfig({
             name: 'chromium',
             use: {
                 ...devices['Desktop Chrome'],
-                // CI downloads bundled Chromium via `playwright install chromium`.
-                // Local dev falls back to the system Chrome install to avoid
-                // the ~170 MB Chromium-for-Testing download which is flaky on
-                // some networks. Set PLAYWRIGHT_USE_BUNDLED_CHROMIUM=1 locally
-                // if you actually want the bundled binary.
-                channel: process.env.CI || process.env.PLAYWRIGHT_USE_BUNDLED_CHROMIUM
-                    ? undefined
-                    : 'chrome',
+                // Keep local tests isolated from the user's desktop Chrome
+                // process. Opt into the system channel only for diagnosis.
+                channel: process.env.PLAYWRIGHT_USE_SYSTEM_CHROME ? 'chrome' : undefined,
             },
         },
         // Phase 2: cross-browser matrix. Firefox + WebKit use the bundled
