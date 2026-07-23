@@ -47,6 +47,33 @@ describe('layoutIndex', () => {
         expect(index.topAt(2)).toBeCloseTo(previousTop + 50);
     });
 
+    it('splices local structure without losing unaffected measurements', () => {
+        const states: TState[] = Array.from({ length: 600 }, (_, index) => ({
+            name: 'paragraph',
+            text: `paragraph ${index}`,
+        }));
+        const index = new LayoutIndex();
+        index.rebuild(states, metrics, 4);
+        index.updateMeasuredHeight(500, 123);
+        const oldTailTop = index.topAt(500);
+        const removedHeight = index.heightAt(300);
+        const inserted: TState[] = [
+            { name: 'paragraph', text: 'first' },
+            { name: 'paragraph', text: 'second' },
+        ];
+
+        index.splice(300, 1, inserted, metrics, 5);
+
+        expect(index.length).toBe(601);
+        expect(index.recordAt(501)).toMatchObject({
+            measuredHeight: 123,
+            revision: 5,
+        });
+        expect(index.topAt(501)).toBeCloseTo(
+            oldTailTop - removedHeight + index.heightAt(300) + index.heightAt(301),
+        );
+    });
+
     it('accounts for wrapping and block-specific layout', () => {
         const states: TState[] = [
             { name: 'paragraph', text: 'short' },

@@ -68,6 +68,20 @@ describe('markdownSegmentTree', () => {
         expect(tree.statesForSegment(0)).toEqual([paragraph('one')]);
     });
 
+    it('copies only parsed semantic states into a sparse snapshot', () => {
+        const tree = new MarkdownSegmentTree(MarkdownSourceIndex.fromText('zero\n\none\n\ntwo\n'));
+        tree.commitSegment(2, [paragraph('two')]);
+        const snapshot: TState[] = [];
+        snapshot.length = tree.totalStates;
+
+        tree.copyParsedStatesTo(snapshot);
+
+        expect(snapshot.length).toBe(3);
+        expect(0 in snapshot).toBe(false);
+        expect(1 in snapshot).toBe(false);
+        expect(snapshot[2]).toEqual(paragraph('two'));
+    });
+
     it('keeps structural storage bounded independently of semantic state size', () => {
         const markdown = Array.from({ length: 2_500 }, (_, index) => `paragraph ${index}`).join('\n\n');
         const tree = new MarkdownSegmentTree(MarkdownSourceIndex.fromText(markdown));

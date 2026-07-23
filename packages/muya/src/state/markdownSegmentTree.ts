@@ -299,6 +299,23 @@ export class MarkdownSegmentTree {
         }
     }
 
+    copyParsedStatesTo(target: TState[]) {
+        this.forEachParsedStateAt((state, stateIndex) => {
+            target[stateIndex] = state;
+        });
+    }
+
+    forEachParsedStateAt(visitor: (state: TState, stateIndex: number) => void) {
+        for (let stateIndex = 0; stateIndex < this._prefixStates.length; stateIndex++)
+            visitor(this._prefixStates[stateIndex], stateIndex);
+        this._ensureCountTree();
+        for (const [segmentIndex, states] of this._sparseStates) {
+            const start = this._countTree.sum(segmentIndex);
+            for (let localStateIndex = 0; localStateIndex < states.length; localStateIndex++)
+                visitor(states[localStateIndex], start + localStateIndex);
+        }
+    }
+
     requireCompleteStateSnapshot(): TState[] {
         const state = this.completeStateSnapshot();
         if (!state)

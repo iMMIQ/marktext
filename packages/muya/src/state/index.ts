@@ -12,6 +12,7 @@ import { getTOC } from './getTOC';
 
 import { MarkdownSourceIndex } from './markdownSourceIndex';
 import { MarkdownSourceParser } from './markdownSourceParser';
+import { SparseState } from './sparseState';
 import StateToMarkdown from './stateToMarkdown';
 
 const debug = logger('jsonState:');
@@ -30,8 +31,15 @@ export interface IJSONChangePayload {
     source: string;
     prevStateSnapshot: readonly TState[];
     stateSnapshot: readonly TState[];
+    structuralChange: IStructuralChange | null;
     readonly prevDoc: TState[];
     readonly doc: TState[];
+}
+
+export interface IStructuralChange {
+    start: number;
+    removed: number;
+    inserted: number;
 }
 
 export function asState(doc: unknown): TState[] {
@@ -83,11 +91,18 @@ function shiftTopLevelIndexes(op: JSONOp, delta: number): JSONOp {
     return op.map(component => shiftTopLevelIndexes(component as JSONOp, delta)) as JSONOpList;
 }
 
-function createSparseState(length: number) {
-    const state: TState[] = [];
-    state.length = length;
-    return state;
+function containsStateName(states: readonly TState[], names: ReadonlySet<string>): boolean {
+    for (const state of states) {
+        if (names.has(state.name))
+            return true;
+        if ('children' in state && containsStateName(state.children, names))
+            return true;
+    }
+    return false;
 }
+
+const REFERENCE_DEFINITION_NAMES = new Set(['link-reference-definition']);
+const HEADING_NAMES = new Set(['atx-heading', 'setext-heading']);
 
 class JSONState {
     static invert(op: JSONOpList) {
@@ -114,7 +129,7 @@ class JSONState {
     // document (#2938).
     private _rafId: number | null = null;
 
-    private _state: TState[] = [];
+    private _state = SparseState.empty<TState>(0);
 
     private _sourceIndex: MarkdownSourceIndex | null = null;
 
@@ -129,6 +144,8 @@ class JSONState {
     private _referenceDefinitionsReady = false;
 
     private _referenceRevision = 0;
+
+    private _structuralChange: IStructuralChange | null = null;
 
     private _headingsReady = false;
 
@@ -153,6 +170,7 @@ class JSONState {
     }
 
     private _apply(op: JSONOp) {
+        this._structuralChange = null;
         // ot-json1's noop is the literal `null`. `json1.type.apply` accepts it
         // and returns the doc unchanged — short-circuit instead so the rest of
         // the call site can treat `op` as definitely applied.
@@ -164,7 +182,8 @@ class JSONState {
         this._segmentTree = null;
         this._parseSession = null;
         this._sourceOverrides.clear();
-        this._state = asState(json1.type.apply(asDoc(this._state), op));
+        const state = asState(json1.type.apply(asDoc(this._state.toArray()), op));
+        this._state = SparseState.fromArray(state);
         this._referenceDefinitionsReady = false;
         this._headingsReady = false;
         this._referenceRevision++;
@@ -196,7 +215,7 @@ class JSONState {
         this._referenceDefinitionsReady = false;
         this._headingsReady = false;
         this._referenceRevision++;
-        this._state = state;
+        this._state = SparseState.fromArray(state);
         this._loadMetrics = {
             inputType: 'state',
             sourceBytes: 0,
@@ -249,8 +268,11 @@ class JSONState {
         this._semanticParseMs = stateCountCompletedAt - stateCountStartedAt;
         this._referenceDefinitionsReady = false;
         this._referenceRevision++;
-        this._state = createSparseState(this._segmentTree.totalStates);
-        this._syncParsedSegments(0, this._segmentTree.length);
+        const updates: Array<readonly [number, TState]> = [];
+        this._segmentTree.forEachParsedStateAt((state, stateIndex) => {
+            updates.push([stateIndex, state]);
+        });
+        this._state = SparseState.empty<TState>(this._segmentTree.totalStates).withUpdates(updates);
         this._loadMetrics = {
             inputType: 'markdown',
             sourceBytes: snapshot.length,
@@ -303,7 +325,7 @@ class JSONState {
     }
 
     stateAt(index: number): TState | null {
-        return this._state[index] ?? null;
+        return this._state.at(index) ?? null;
     }
 
     forEachParsedState(visitor: (state: TState) => void) {
@@ -396,7 +418,7 @@ class JSONState {
 
     private _isStateRangeParsed(start: number, end: number) {
         for (let stateIndex = start; stateIndex < end; stateIndex++) {
-            if (!this._state[stateIndex])
+            if (!this._state.has(stateIndex))
                 return false;
         }
         return true;
@@ -409,15 +431,18 @@ class JSONState {
         const ranges: Array<{ start: number; end: number }> = [];
         const normalizedStart = Math.max(0, start);
         const normalizedEnd = Math.min(end, segments.length);
+        const updates: Array<readonly [number, TState]> = [];
         for (let segmentIndex = normalizedStart; segmentIndex < normalizedEnd; segmentIndex++) {
             const states = segments.statesForSegment(segmentIndex);
             const range = segments.stateRangeForSegment(segmentIndex);
             if (!states || !range)
                 continue;
             for (let localIndex = 0; localIndex < states.length; localIndex++)
-                this._state[range.start + localIndex] = states[localIndex];
+                updates.push([range.start + localIndex, states[localIndex]]);
             ranges.push(range);
         }
+        if (updates.length > 0)
+            this._state.hydrate(updates);
         return ranges;
     }
 
@@ -445,11 +470,26 @@ class JSONState {
         return segments.locationAtStateIndex(index)?.segmentIndex ?? null;
     }
 
+    private _ensureOperationStates(op: JSONOp) {
+        const segments = this._segmentTree;
+        if (!segments || op === null)
+            return;
+        const segmentIndexes = new Set<number>();
+        for (const index of topLevelIndexes(op)) {
+            const segmentIndex = this._segmentForOperationIndex(index);
+            if (segmentIndex !== null)
+                segmentIndexes.add(segmentIndex);
+        }
+        for (const segmentIndex of segmentIndexes) {
+            const range = segments.stateRangeForSegment(segmentIndex);
+            if (range)
+                this.ensureSemanticRange(range.start, Math.max(range.start + 1, range.end));
+        }
+    }
+
     private _applySourceBackedOperation(op: JSONOp) {
         const segments = this._segmentTree;
         if (!segments || !this._parseSession)
-            return false;
-        if (segments.isComplete)
             return false;
         const indexes = [...new Set(topLevelIndexes(op))];
         if (indexes.length === 0)
@@ -472,6 +512,13 @@ class JSONState {
         const localOp = shiftTopLevelIndexes(op, range.start);
         const nextStates = asState(json1.type.apply(asDoc(Array.from(previousStates)), localOp));
         const previousCount = previousStates.length;
+        const sourceKind = this._sourceIndex!.kindAt(segmentIndex);
+        const touchesReferenceDefinitions = sourceKind === 'definition'
+            || containsStateName(previousStates, REFERENCE_DEFINITION_NAMES)
+            || containsStateName(nextStates, REFERENCE_DEFINITION_NAMES);
+        const touchesHeadings = sourceKind === 'heading'
+            || containsStateName(previousStates, HEADING_NAMES)
+            || containsStateName(nextStates, HEADING_NAMES);
         // A zero-state source segment has no flat path that a later undo insert
         // can map back to: its boundary is indistinguishable from the next
         // segment. Keep ordinary edits and non-empty splits incremental, but
@@ -484,19 +531,22 @@ class JSONState {
         if (!segments.replaceSegment(segmentIndex, nextStates))
             return false;
 
+        if (previousCount !== nextStates.length) {
+            this._structuralChange = {
+                start: range.start,
+                removed: previousCount,
+                inserted: nextStates.length,
+            };
+        }
+
         this._sourceOverrides.set(segmentIndex, this._serializeSegmentOverride(segmentIndex, nextStates));
-        this._referenceDefinitionsReady = false;
-        this._headingsReady = false;
-        this._referenceRevision++;
-        if (previousCount === nextStates.length) {
-            const nextState = this._state.slice();
-            for (let localIndex = 0; localIndex < nextStates.length; localIndex++)
-                nextState[range.start + localIndex] = nextStates[localIndex];
-            this._state = nextState;
+        if (touchesReferenceDefinitions) {
+            this._referenceDefinitionsReady = false;
+            this._referenceRevision++;
         }
-        else {
-            this._rebuildSparseState();
-        }
+        if (touchesHeadings)
+            this._headingsReady = false;
+        this._state = this._state.splice(range.start, previousCount, nextStates);
         return true;
     }
 
@@ -509,14 +559,6 @@ class JSONState {
         const originalSuffix = /((?:\r?\n[\t ]*)+)$/.exec(original)?.[1] ?? '';
         const generated = this.getMarkdownFromState(states).replace(/(?:\r?\n)+$/, '');
         return generated + originalSuffix;
-    }
-
-    private _rebuildSparseState() {
-        const segments = this._segmentTree;
-        if (!segments)
-            return;
-        this._state = createSparseState(segments.totalStates);
-        this._syncParsedSegments(0, segments.length);
     }
 
     // Parse markdown into a block-state array with the editor's current
@@ -649,7 +691,8 @@ class JSONState {
     }
 
     dispatch(op: JSONOp, source = 'user' /* user, api */) {
-        const prevStateSnapshot = this._state;
+        this._ensureOperationStates(op);
+        const prevStateSnapshot = this._state.asArray();
         this._apply(op);
         debug.log(JSON.stringify(op));
         this._emitJSONChange(op, source, prevStateSnapshot);
@@ -657,21 +700,21 @@ class JSONState {
 
     getState(): TState[] {
         this._materializeAllSemanticStates();
-        return deepClone(this._state);
+        return deepClone(this._state.toArray());
     }
 
     getStateIfComplete(): TState[] | null {
-        return this.isSemanticComplete ? deepClone(this._state) : null;
+        return this.isSemanticComplete ? deepClone(this._state.toArray()) : null;
     }
 
     getStateSnapshot(): readonly TState[] {
-        return this._state;
+        return this._state.asArray();
     }
 
     getMarkdown() {
         if (this._sourceIndex) {
             if (this.isSemanticComplete)
-                return this.getMarkdownFromState(this._state);
+                return this.getMarkdownFromState(this._state.asArray());
             if (this._sourceOverrides.size === 0)
                 return this._sourceIndex.snapshot.toString();
             const chunks: string[] = [];
@@ -685,7 +728,7 @@ class JSONState {
             chunks.push(this._sourceIndex.snapshot.slice(cursor));
             return chunks.join('');
         }
-        return this.getMarkdownFromState(this._state);
+        return this.getMarkdownFromState(this._state.asArray());
     }
 
     getTOC() {
@@ -714,17 +757,18 @@ class JSONState {
     }
 
     private _emitJSONChange(op: JSONOp, source: string, prevStateSnapshot: readonly TState[]) {
-        const stateSnapshot = this._state;
+        const stateSnapshot = this._state.asArray();
         const payload: IJSONChangePayload = {
             op,
             source,
             prevStateSnapshot,
             stateSnapshot,
+            structuralChange: this._structuralChange,
             get prevDoc() {
                 return deepClone(Array.from(prevStateSnapshot));
             },
             get doc() {
-                return deepClone(stateSnapshot);
+                return deepClone(Array.from(stateSnapshot));
             },
         };
         this._muya.eventCenter.emit('json-change', payload);
@@ -756,7 +800,8 @@ class JSONState {
         const op = this._operationCache.reduce(
             (acc, curr) => json1.type.compose(acc, curr) as JSONOpList,
         );
-        const prevStateSnapshot = this._state;
+        this._ensureOperationStates(op);
+        const prevStateSnapshot = this._state.asArray();
         this._apply(op);
         // Clear before emitting: a listener that edits synchronously then starts
         // a fresh batch instead of mutating the one being flushed.

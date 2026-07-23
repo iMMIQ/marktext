@@ -120,19 +120,32 @@ export class ScrollPage extends Parent {
         eventCenter.attachDOMEvent(domNode!, 'click', this._clickHandler.bind(this));
     }
 
-    private _handleJSONChange = ({ stateSnapshot }: IJSONChangePayload) => {
+    private _handleJSONChange = ({ stateSnapshot, structuralChange }: IJSONChangePayload) => {
         const structureChanged = stateSnapshot.length !== this._state.length;
         this._state = stateSnapshot;
         this._revision++;
         this._renderScheduler.reset(this._revision);
         if (structureChanged) {
-            const segments = this._jsonState?.getSegmentTree();
-            if (segments)
-                this._layoutIndex.rebuildFromSegments(segments, this._getLayoutMetrics(), this._revision);
-            else
-                this._layoutIndex.rebuild(stateSnapshot, this._getLayoutMetrics(), this._revision);
+            if (structuralChange) {
+                const { start, removed, inserted } = structuralChange;
+                this._layoutIndex.splice(
+                    start,
+                    removed,
+                    stateSnapshot.slice(start, start + inserted),
+                    this._getLayoutMetrics(),
+                    this._revision,
+                );
+            }
+            else {
+                const segments = this._jsonState?.getSegmentTree();
+                if (segments)
+                    this._layoutIndex.rebuildFromSegments(segments, this._getLayoutMetrics(), this._revision);
+                else
+                    this._layoutIndex.rebuild(stateSnapshot, this._getLayoutMetrics(), this._revision);
+            }
         }
         this._scheduleOverscan();
+        this._deferSemanticDrain();
     };
 
     updateDocument(jsonState: JSONState) {
@@ -460,6 +473,7 @@ export class ScrollPage extends Parent {
             this._renderScheduler.preemptViewport(visible.start, visible.end, direction);
             this._cancelDrainHandle();
             this._drainRenderTask(this._scheduleOverscan);
+            this._deferSemanticDrain();
         });
     };
 
@@ -648,6 +662,7 @@ export class ScrollPage extends Parent {
         if (!this._jsonState || start >= end)
             return;
         const result = this._jsonState.ensureSemanticRange(start, end, direction);
+        this._state = this._jsonState.getStateSnapshot();
         let anchorDelta = 0;
         const { scrollTop } = this._getViewportMetrics();
         const viewportIndex = this._layoutIndex.indexAtOffset(scrollTop);
@@ -703,6 +718,21 @@ export class ScrollPage extends Parent {
                 id: window.setTimeout(drain, 16),
             };
         }
+    }
+
+    private _deferSemanticDrain(delay = 250) {
+        this._cancelSemanticDrainHandle();
+        if (!this._jsonState || this._jsonState.isSemanticComplete)
+            return;
+        const revision = this._revision;
+        this._semanticDrainHandle = {
+            type: 'timeout',
+            id: window.setTimeout(() => {
+                this._semanticDrainHandle = null;
+                if (revision === this._revision)
+                    this._scheduleSemanticDrain();
+            }, delay),
+        };
     }
 
     private _cancelSemanticDrainHandle() {

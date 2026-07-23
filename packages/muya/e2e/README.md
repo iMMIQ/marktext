@@ -73,12 +73,14 @@ CI, and writes machine-readable results to
 
 The standard profile generates an exact 800 KiB mixed-Markdown document in the
 browser and runs it three times. It records synchronous `setContent`, the first
-double-`requestAnimationFrame` paint opportunity, real `beforeinput`-to-paint,
-direct middle/bottom jumps, middle-viewport text editing, cursor movement,
-Backspace, Enter, undo/redo, long tasks, mounted block and DOM bounds, and
-Chromium JavaScript heap growth over the empty-host baseline. The editing path
-also asserts that the source-backed sparse model remains active throughout the
-history round trip.
+double-`requestAnimationFrame` paint opportunity, direct middle/bottom jumps,
+middle-viewport text editing, cursor movement, Backspace, Enter, undo/redo,
+full-document serialization, long tasks, mounted block and DOM bounds, and
+Chromium JavaScript heap growth over the empty-host baseline. Middle editing
+samples run GC before starting their key-to-paint timer so earlier screenshots
+and assertions cannot move a browser collection pause into the next action.
+The editing path also asserts that the source-backed sparse model remains
+active throughout the history round trip.
 
 ```sh
 pnpm -C packages/muya/e2e benchmark

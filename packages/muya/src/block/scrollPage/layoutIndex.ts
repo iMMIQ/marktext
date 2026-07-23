@@ -1,5 +1,6 @@
 import type { MarkdownSegmentTree } from '../../state/markdownSegmentTree';
 import type { TState } from '../../state/types';
+import { PagedMeasuredSequence } from '../../utils/pagedMeasuredSequence';
 
 export interface ILayoutMetrics {
     contentWidth: number;
@@ -35,6 +36,10 @@ const DEFAULT_METRICS: ILayoutMetrics = {
 };
 
 const HEADING_SCALE = [1, 1.875, 1.5, 1.375, 1.25, 1.125, 1];
+const ESTIMATED_HEIGHT = 0;
+const EFFECTIVE_HEIGHT = 1;
+const MEASURED = 2;
+const LAYOUT_MEASURES = 3;
 
 function visualWidth(codePoint: number) {
     if (
@@ -165,65 +170,9 @@ function estimateStateHeight(state: TState, metrics: ILayoutMetrics): number {
     }
 }
 
-class HeightTree {
-    private _tree = new Float64Array(1);
-
-    get size() {
-        return this._tree.length - 1;
-    }
-
-    get storageBytes() {
-        return this._tree.byteLength;
-    }
-
-    build(values: Float64Array, measured?: Float64Array) {
-        this._tree = new Float64Array(values.length + 1);
-        for (let index = 1; index <= values.length; index++) {
-            const measuredHeight = measured?.[index - 1];
-            this._tree[index] += measuredHeight !== undefined && !Number.isNaN(measuredHeight)
-                ? measuredHeight
-                : values[index - 1];
-            const parent = index + (index & -index);
-            if (parent <= values.length)
-                this._tree[parent] += this._tree[index];
-        }
-    }
-
-    add(index: number, delta: number) {
-        for (let cursor = index + 1; cursor < this._tree.length; cursor += cursor & -cursor)
-            this._tree[cursor] += delta;
-    }
-
-    sum(count: number) {
-        let total = 0;
-        for (let cursor = Math.min(Math.max(0, count), this.size); cursor > 0; cursor -= cursor & -cursor)
-            total += this._tree[cursor];
-        return total;
-    }
-
-    lowerBound(offset: number) {
-        if (this.size === 0 || offset <= 0)
-            return 0;
-        let index = 0;
-        let bit = 1;
-        while ((bit << 1) <= this.size)
-            bit <<= 1;
-        let remaining = offset;
-        for (let step = bit; step > 0; step >>= 1) {
-            const next = index + step;
-            if (next <= this.size && this._tree[next] <= remaining) {
-                index = next;
-                remaining -= this._tree[next];
-            }
-        }
-        return Math.min(index, this.size - 1);
-    }
-}
-
 export class LayoutIndex {
-    private readonly _heightTree = new HeightTree();
-    private _estimatedHeights = new Float64Array(0);
-    private _measuredHeights = new Float64Array(0);
+    private readonly _records = new PagedMeasuredSequence(LAYOUT_MEASURES);
+    private readonly _prefixBuffer = new Float64Array(LAYOUT_MEASURES);
     private _revision = 0;
 
     get revision() {
@@ -231,29 +180,24 @@ export class LayoutIndex {
     }
 
     get length() {
-        return this._estimatedHeights.length;
+        return this._records.length;
     }
 
     get totalHeight() {
-        return this._heightTree.sum(this.length);
+        return this._records.total(EFFECTIVE_HEIGHT);
     }
 
     get storageBytes() {
-        return this._estimatedHeights.byteLength
-            + this._measuredHeights.byteLength
-            + this._heightTree.storageBytes;
+        return this._records.storageBytes;
     }
 
     rebuild(states: readonly TState[], metrics: Partial<ILayoutMetrics> = {}, revision = this._revision + 1) {
         const resolvedMetrics = { ...DEFAULT_METRICS, ...metrics };
-        this._prepareRebuild(states.length, revision);
-        for (let stateIndex = 0; stateIndex < states.length; stateIndex++) {
-            this._estimatedHeights[stateIndex] = Math.max(
-                1,
-                estimateStateHeight(states[stateIndex], resolvedMetrics),
-            );
-        }
-        this._heightTree.build(this._estimatedHeights, this._measuredHeights);
+        this._buildRecords(
+            states.length,
+            index => Math.max(1, estimateStateHeight(states[index], resolvedMetrics)),
+            revision,
+        );
     }
 
     rebuildFromSegments(
@@ -264,31 +208,53 @@ export class LayoutIndex {
         if (!segments.areAllStateCountsKnown)
             throw new Error(`Cannot build semantic layout with only ${segments.knownCountPrefix}/${segments.length} segment counts.`);
         const resolvedMetrics = { ...DEFAULT_METRICS, ...metrics };
-        this._prepareRebuild(segments.knownPrefixStates, revision);
+        const estimatedHeights = new Float64Array(segments.knownPrefixStates);
         let stateIndex = 0;
         for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex++) {
             const stateCount = segments.stateCountAt(segmentIndex)!;
             const fallbackHeight = segments.sourceIndex.estimatedHeightAt(segmentIndex) / Math.max(1, stateCount);
             for (let localStateIndex = 0; localStateIndex < stateCount; localStateIndex++) {
                 const state = segments.stateAtLocation(segmentIndex, localStateIndex);
-                this._estimatedHeights[stateIndex++] = Math.max(
+                estimatedHeights[stateIndex++] = Math.max(
                     1,
                     state ? estimateStateHeight(state, resolvedMetrics) : fallbackHeight,
                 );
             }
         }
-        this._heightTree.build(this._estimatedHeights, this._measuredHeights);
+        this._buildRecords(estimatedHeights.length, index => estimatedHeights[index], revision);
+    }
+
+    splice(
+        index: number,
+        removed: number,
+        insertedStates: readonly TState[],
+        metrics: Partial<ILayoutMetrics> = {},
+        revision = this._revision + 1,
+    ) {
+        const resolvedMetrics = { ...DEFAULT_METRICS, ...metrics };
+        let cachedIndex = -1;
+        let cachedHeight = 0;
+        this._records.splice(index, removed, insertedStates.length, (insertedIndex, measure) => {
+            if (cachedIndex !== insertedIndex) {
+                cachedIndex = insertedIndex;
+                cachedHeight = Math.max(1, estimateStateHeight(insertedStates[insertedIndex], resolvedMetrics));
+            }
+            return measure === MEASURED ? 0 : cachedHeight;
+        });
+        this._revision = revision;
     }
 
     recordAt(index: number) {
         if (index < 0 || index >= this.length)
             return null;
-        const measuredHeight = this._measuredHeights[index];
+        const estimatedHeight = this._records.measureAt(index, ESTIMATED_HEIGHT);
+        const effectiveHeight = this._records.measureAt(index, EFFECTIVE_HEIGHT);
+        const measured = this._records.measureAt(index, MEASURED) === 1;
         return {
             id: index,
             stateIndex: index,
-            estimatedHeight: this._estimatedHeights[index],
-            measuredHeight: Number.isNaN(measuredHeight) ? null : measuredHeight,
+            estimatedHeight,
+            measuredHeight: measured ? effectiveHeight : null,
             revision: this._revision,
         } satisfies ILayoutRecord;
     }
@@ -296,16 +262,15 @@ export class LayoutIndex {
     heightAt(index: number) {
         if (index < 0 || index >= this.length)
             return 0;
-        const measuredHeight = this._measuredHeights[index];
-        return Number.isNaN(measuredHeight) ? this._estimatedHeights[index] : measuredHeight;
+        return this._records.measureAt(index, EFFECTIVE_HEIGHT);
     }
 
     topAt(index: number) {
-        return this._heightTree.sum(index);
+        return this._records.prefixMeasures(index, this._prefixBuffer)[EFFECTIVE_HEIGHT];
     }
 
     indexAtOffset(offset: number) {
-        return this._heightTree.lowerBound(Math.max(0, offset));
+        return this._records.selectByMeasure(EFFECTIVE_HEIGHT, Math.max(0, offset));
     }
 
     indexAtProgress(progress: number) {
@@ -334,10 +299,9 @@ export class LayoutIndex {
         if (index < 0 || index >= this.length || !Number.isFinite(measuredHeight) || measuredHeight <= 0)
             return 0;
         const previousHeight = this.heightAt(index);
-        this._measuredHeights[index] = measuredHeight;
         const delta = measuredHeight - previousHeight;
-        if (delta !== 0)
-            this._heightTree.add(index, delta);
+        this._records.setMeasure(index, EFFECTIVE_HEIGHT, measuredHeight);
+        this._records.setMeasure(index, MEASURED, 1);
         return delta;
     }
 
@@ -353,31 +317,43 @@ export class LayoutIndex {
             estimateStateHeight(state, { ...DEFAULT_METRICS, ...metrics }),
         );
         const previousHeight = this.heightAt(index);
-        this._estimatedHeights[index] = nextHeight;
-        if (!Number.isNaN(this._measuredHeights[index]))
+        this._records.setMeasure(index, ESTIMATED_HEIGHT, nextHeight);
+        if (this._records.measureAt(index, MEASURED) === 1)
             return 0;
         const delta = nextHeight - previousHeight;
-        if (delta !== 0)
-            this._heightTree.add(index, delta);
+        this._records.setMeasure(index, EFFECTIVE_HEIGHT, nextHeight);
         return delta;
     }
 
     clearMeasurements() {
-        this._measuredHeights.fill(Number.NaN);
-        this._heightTree.build(this._estimatedHeights);
+        const length = this.length;
+        this._records.build(length, (index, measure) => {
+            const estimatedHeight = this._records.measureAt(index, ESTIMATED_HEIGHT);
+            return measure === MEASURED ? 0 : estimatedHeight;
+        });
     }
 
-    private _prepareRebuild(length: number, revision: number) {
+    private _buildRecords(length: number, estimatedAt: (index: number) => number, revision: number) {
         const preserveMeasurements = revision === this._revision;
-        const previousMeasurements = this._measuredHeights;
+        const previousLength = this.length;
+        let cachedIndex = -1;
+        let cachedEstimatedHeight = 0;
         this._revision = revision;
-        this._estimatedHeights = new Float64Array(length);
-        this._measuredHeights = new Float64Array(length);
-        this._measuredHeights.fill(Number.NaN);
-        if (preserveMeasurements) {
-            this._measuredHeights.set(
-                previousMeasurements.subarray(0, Math.min(length, previousMeasurements.length)),
-            );
-        }
+        this._records.build(length, (index, measure) => {
+            if (cachedIndex !== index) {
+                cachedIndex = index;
+                cachedEstimatedHeight = estimatedAt(index);
+            }
+            const measured = preserveMeasurements
+                && index < previousLength
+                && this._records.measureAt(index, MEASURED) === 1;
+            if (measure === ESTIMATED_HEIGHT)
+                return cachedEstimatedHeight;
+            if (measure === EFFECTIVE_HEIGHT && measured)
+                return this._records.measureAt(index, EFFECTIVE_HEIGHT);
+            if (measure === MEASURED)
+                return measured ? 1 : 0;
+            return cachedEstimatedHeight;
+        });
     }
 }

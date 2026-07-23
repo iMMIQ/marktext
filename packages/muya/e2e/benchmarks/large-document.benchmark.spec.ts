@@ -130,6 +130,7 @@ interface IMiddleEditResult {
     enterToPaintMs: number;
     undoEnterToPaintMs: number;
     redoEnterToPaintMs: number;
+    finalSerializationMs: number;
     mountedBlocks: number;
     domNodes: number;
     parsedLogicalBlocks: number;
@@ -503,31 +504,26 @@ async function measureInputAction(
     page: Page,
     action: { type: 'text'; value: string } | { type: 'key'; value: string },
 ): Promise<number> {
-    await page.evaluate(() => {
-        const muya = window.muya!;
-        muya.domNode.addEventListener('beforeinput', () => {
-            performance.clearMarks('muya-benchmark-edit');
-            performance.mark('muya-benchmark-edit');
-        }, { capture: true, once: true });
-    });
+    // Keep action samples comparable: screenshot attachments and prior
+    // assertions may leave large temporary browser allocations. Runtime heap
+    // and long-task metrics are collected separately without this boundary.
+    await page.requestGC();
+    const startedAt = await page.evaluate(() => performance.now());
     if (action.type === 'text')
         await page.keyboard.insertText(action.value);
     else
         await page.keyboard.press(action.value);
-    return page.evaluate(async () => {
+    return page.evaluate(async (start) => {
         await new Promise<void>((resolve) => {
             requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
         });
         window.muya!.flush();
-        const marks = performance.getEntriesByName('muya-benchmark-edit', 'mark');
-        const mark = marks[marks.length - 1];
-        if (!mark)
-            throw new Error('The benchmark editing action did not produce a beforeinput event');
-        return performance.now() - mark.startTime;
-    });
+        return performance.now() - start;
+    }, startedAt);
 }
 
 async function measureCursorAction(page: Page, key: 'ArrowLeft' | 'ArrowRight'): Promise<number> {
+    await page.requestGC();
     const startedAt = await page.evaluate(() => performance.now());
     await page.keyboard.press(key);
     return page.evaluate(async (start) => {
@@ -539,6 +535,7 @@ async function measureCursorAction(page: Page, key: 'ArrowLeft' | 'ArrowRight'):
 }
 
 async function measureHistoryAction(page: Page, action: 'undo' | 'redo'): Promise<number> {
+    await page.requestGC();
     return page.evaluate(async (action) => {
         const muya = window.muya!;
         muya.flush();
@@ -552,17 +549,57 @@ async function measureHistoryAction(page: Page, action: 'undo' | 'redo'): Promis
     }, action);
 }
 
-async function readMiddleEditSnapshot(page: Page): Promise<IMiddleEditSnapshot> {
-    return page.evaluate((marker) => {
+async function readMiddleEditSnapshot(page: Page, editedIndex: number): Promise<IMiddleEditSnapshot> {
+    return page.evaluate(({ editedIndex, marker }) => {
         const muya = window.muya!;
         muya.flush();
-        const markdown = muya.getMarkdown();
+        const jsonState = muya.editor.jsonState;
+        const sourceIndex = jsonState.getSourceIndex();
+        const segments = jsonState.getSegmentTree();
+        const stateText = (state: unknown): string => {
+            if (!state || typeof state !== 'object')
+                return '';
+            if ('text' in state && typeof state.text === 'string')
+                return state.text;
+            if ('children' in state && Array.isArray(state.children))
+                return state.children.map(stateText).join('\n');
+            return '';
+        };
+        let markerStateIndex = -1;
+        let markerLocalOffset = -1;
+        let markerPrefixStateIndex = -1;
+        let markerPrefixLocalOffset = -1;
+        for (
+            let stateIndex = Math.max(0, editedIndex - 2);
+            stateIndex < Math.min(jsonState.semanticLength, editedIndex + 3);
+            stateIndex++
+        ) {
+            const text = stateText(jsonState.stateAt(stateIndex));
+            const localOffset = text.indexOf(marker);
+            if (localOffset !== -1) {
+                markerStateIndex = stateIndex;
+                markerLocalOffset = localOffset;
+            }
+            const prefixOffset = text.indexOf(marker.slice(0, -1));
+            if (prefixOffset !== -1) {
+                markerPrefixStateIndex = stateIndex;
+                markerPrefixLocalOffset = prefixOffset;
+            }
+        }
+        const sourceOffset = (stateIndex: number, localOffset: number) => {
+            if (!sourceIndex || !segments || stateIndex === -1)
+                return -1;
+            const location = segments.locationAtStateIndex(stateIndex);
+            return location
+                ? sourceIndex.sourceFromAt(location.segmentIndex) + localOffset
+                : -1;
+        };
         const selection = muya.editor.selection.getSelection();
         const virtualization = muya.editor.scrollPage!.getVirtualizationStats();
         return {
-            markerOffset: markdown.indexOf(marker),
-            markerPrefixOffset: markdown.indexOf(marker.slice(0, -1)),
-            markdownLength: markdown.length,
+            markerOffset: sourceOffset(markerStateIndex, markerLocalOffset),
+            markerPrefixOffset: sourceOffset(markerPrefixStateIndex, markerPrefixLocalOffset),
+            markdownLength: sourceIndex?.snapshot.length ?? 0,
             logicalBlocks: virtualization.logicalBlocks,
             mountedBlocks: virtualization.mountedBlocks,
             domNodes: muya.domNode.querySelectorAll('*').length,
@@ -571,7 +608,7 @@ async function readMiddleEditSnapshot(page: Page): Promise<IMiddleEditSnapshot> 
             semanticComplete: muya.editor.jsonState.isSemanticComplete,
             selectionConnected: selection?.anchor.block?.domNode?.isConnected ?? false,
         };
-    }, MIDDLE_EDIT_MARKER);
+    }, { editedIndex, marker: MIDDLE_EDIT_MARKER });
 }
 
 async function measureMiddleEdit(
@@ -594,7 +631,7 @@ async function measureMiddleEdit(
     }, index);
 
     const insertToPaintMs = await measureInputAction(page, { type: 'text', value: MIDDLE_EDIT_MARKER });
-    const inserted = await readMiddleEditSnapshot(page);
+    const inserted = await readMiddleEditSnapshot(page, index);
     expect(inserted.markerOffset).toBeGreaterThan(0);
     expect(inserted.markerOffset / inserted.markdownLength).toBeGreaterThan(0.4);
     expect(inserted.markerOffset / inserted.markdownLength).toBeLessThan(0.6);
@@ -607,7 +644,7 @@ async function measureMiddleEdit(
     await capture?.('middle-edit');
 
     const undoToPaintMs = await measureHistoryAction(page, 'undo');
-    const undone = await readMiddleEditSnapshot(page);
+    const undone = await readMiddleEditSnapshot(page, index);
     expect(undone).toMatchObject({
         markerOffset: -1,
         logicalBlocks: initial.logicalBlocks,
@@ -618,7 +655,7 @@ async function measureMiddleEdit(
     await capture?.('middle-undo');
 
     const redoToPaintMs = await measureHistoryAction(page, 'redo');
-    const redone = await readMiddleEditSnapshot(page);
+    const redone = await readMiddleEditSnapshot(page, index);
     expect(redone.markerOffset).toBe(inserted.markerOffset);
     expect(redone).toMatchObject({
         logicalBlocks: initial.logicalBlocks,
@@ -630,14 +667,14 @@ async function measureMiddleEdit(
 
     const cursorLeftToPaintMs = await measureCursorAction(page, 'ArrowLeft');
     const cursorRightToPaintMs = await measureCursorAction(page, 'ArrowRight');
-    const afterCursor = await readMiddleEditSnapshot(page);
+    const afterCursor = await readMiddleEditSnapshot(page, index);
     expect(afterCursor).toMatchObject({
         markerOffset: inserted.markerOffset,
         selectionConnected: true,
     });
 
     const backspaceToPaintMs = await measureInputAction(page, { type: 'key', value: 'Backspace' });
-    const deleted = await readMiddleEditSnapshot(page);
+    const deleted = await readMiddleEditSnapshot(page, index);
     expect(deleted.markerOffset).toBe(-1);
     expect(deleted.markerPrefixOffset).toBe(inserted.markerOffset);
     expect(deleted).toMatchObject({
@@ -648,22 +685,25 @@ async function measureMiddleEdit(
     });
 
     const undoBackspaceToPaintMs = await measureHistoryAction(page, 'undo');
-    const deletionUndone = await readMiddleEditSnapshot(page);
+    const deletionUndone = await readMiddleEditSnapshot(page, index);
     expect(deletionUndone.markerOffset).toBe(inserted.markerOffset);
 
     await page.evaluate(() => window.muya!.editor.history.cutoff());
     const enterToPaintMs = await measureInputAction(page, { type: 'key', value: 'Enter' });
-    const entered = await readMiddleEditSnapshot(page);
+    const entered = await readMiddleEditSnapshot(page, index);
     expect(entered).toMatchObject({
         sourceBacked: true,
         semanticComplete: false,
         selectionConnected: true,
     });
     expect(entered.markerOffset).toBe(inserted.markerOffset);
-    expect(entered.markdownLength).toBeGreaterThan(deletionUndone.markdownLength);
+    // Enter may split a top-level paragraph (one extra layout record) or a
+    // nested list item (the top-level list record remains one block).
+    expect(entered.logicalBlocks).toBeGreaterThanOrEqual(initial.logicalBlocks);
+    expect(entered.logicalBlocks).toBeLessThanOrEqual(initial.logicalBlocks + 1);
 
     const undoEnterToPaintMs = await measureHistoryAction(page, 'undo');
-    const enterUndone = await readMiddleEditSnapshot(page);
+    const enterUndone = await readMiddleEditSnapshot(page, index);
     expect(enterUndone).toMatchObject({
         logicalBlocks: initial.logicalBlocks,
         sourceBacked: true,
@@ -671,10 +711,9 @@ async function measureMiddleEdit(
         selectionConnected: true,
     });
     expect(enterUndone.markerOffset).toBe(inserted.markerOffset);
-    expect(enterUndone.markdownLength).toBe(deletionUndone.markdownLength);
 
     const redoEnterToPaintMs = await measureHistoryAction(page, 'redo');
-    const final = await readMiddleEditSnapshot(page);
+    const final = await readMiddleEditSnapshot(page, index);
     expect(final).toMatchObject({
         logicalBlocks: entered.logicalBlocks,
         sourceBacked: true,
@@ -682,8 +721,19 @@ async function measureMiddleEdit(
         selectionConnected: true,
     });
     expect(final.markerOffset).toBe(inserted.markerOffset);
-    expect(final.markdownLength).toBe(entered.markdownLength);
     expect(final.mountedBlocks).toBeLessThan(final.logicalBlocks);
+    const serialization = await page.evaluate((marker) => {
+        const startedAt = performance.now();
+        const markdown = window.muya!.getMarkdown();
+        return {
+            elapsed: performance.now() - startedAt,
+            containsMarker: markdown.includes(marker),
+            length: markdown.length,
+        };
+    }, MIDDLE_EDIT_MARKER);
+    expect(serialization.containsMarker).toBe(true);
+    expect(serialization.length).toBeGreaterThan(final.markdownLength);
+    await page.requestGC();
 
     return {
         index,
@@ -701,6 +751,7 @@ async function measureMiddleEdit(
         enterToPaintMs,
         undoEnterToPaintMs,
         redoEnterToPaintMs,
+        finalSerializationMs: serialization.elapsed,
         mountedBlocks: final.mountedBlocks,
         domNodes: final.domNodes,
         parsedLogicalBlocks: final.parsedLogicalBlocks,
@@ -718,6 +769,7 @@ test('large document benchmark @benchmark', async ({ page, browserName }, testIn
 
     const loadRuns: ILoadRun[] = [];
     const jumpRuns: IJumpRun[] = [];
+    const screenshotAttachments: Array<{ name: string; body: Buffer }> = [];
 
     for (let run = 1; run <= options.runs; run++) {
         console.log(`[benchmark] load/input run ${run}/${options.runs}`);
@@ -735,9 +787,9 @@ test('large document benchmark @benchmark', async ({ page, browserName }, testIn
         loadRuns.push({ run, ...load, ...input, settled });
 
         if (run === 1) {
-            await testInfo.attach('first-load.png', {
+            screenshotAttachments.push({
+                name: 'first-load.png',
                 body: await page.screenshot(),
-                contentType: 'image/png',
             });
         }
 
@@ -753,19 +805,21 @@ test('large document benchmark @benchmark', async ({ page, browserName }, testIn
             page,
             middle.index,
             run === 1
-                ? async (phase) => testInfo.attach(`${phase}.png`, {
-                    body: await page.screenshot(),
-                    contentType: 'image/png',
-                })
+                ? async (phase) => {
+                    screenshotAttachments.push({
+                        name: `${phase}.png`,
+                        body: await page.screenshot(),
+                    });
+                }
                 : undefined,
         );
         const bottom = await measureJump(page, 1);
         expect(bottom, JSON.stringify(bottom)).toMatchObject({ connected: true, inViewport: true });
 
         if (run === 1) {
-            await testInfo.attach('bottom-jump-immediate.png', {
+            screenshotAttachments.push({
+                name: 'bottom-jump-immediate.png',
                 body: await page.screenshot(),
-                contentType: 'image/png',
             });
             await page.waitForTimeout(500);
         }
@@ -778,9 +832,9 @@ test('large document benchmark @benchmark', async ({ page, browserName }, testIn
         await expect(page.locator(`[data-virtual-index="${bottom.index}"]`)).toBeInViewport();
 
         if (run === 1) {
-            await testInfo.attach('bottom-jump-settled.png', {
+            screenshotAttachments.push({
+                name: 'bottom-jump-settled.png',
                 body: await page.screenshot(),
-                contentType: 'image/png',
             });
         }
 
@@ -824,7 +878,7 @@ test('large document benchmark @benchmark', async ({ page, browserName }, testIn
     });
 
     const report = {
-        schemaVersion: 3,
+        schemaVersion: 4,
         generatedAt: new Date().toISOString(),
         sourceRevision: process.env.GITHUB_SHA ?? readGit(['rev-parse', 'HEAD']),
         sourceDirty: (readGit(['status', '--porcelain']) ?? '').length > 0,
@@ -837,6 +891,7 @@ test('large document benchmark @benchmark', async ({ page, browserName }, testIn
         settings: {
             runs: options.runs,
             directJumps: options.directJumps,
+            gcBeforeTimedMiddleAction: true,
         },
         environment: {
             browserName,
@@ -881,6 +936,7 @@ test('large document benchmark @benchmark', async ({ page, browserName }, testIn
             middleEditEnterToPaintMs: stats(jumpRuns.map(run => run.middleEdit.enterToPaintMs)),
             middleEditUndoEnterToPaintMs: stats(jumpRuns.map(run => run.middleEdit.undoEnterToPaintMs)),
             middleEditRedoEnterToPaintMs: stats(jumpRuns.map(run => run.middleEdit.redoEnterToPaintMs)),
+            middleEditFinalSerializationMs: stats(jumpRuns.map(run => run.middleEdit.finalSerializationMs)),
             middleEditMarkerSourceProgress: stats(jumpRuns.map(run => run.middleEdit.markerSourceProgress)),
             middleEditDomNodes: stats(jumpRuns.map(run => run.middleEdit.domNodes)),
             middleEditParsedLogicalBlocks: stats(jumpRuns.map(run => run.middleEdit.parsedLogicalBlocks)),
@@ -893,6 +949,12 @@ test('large document benchmark @benchmark', async ({ page, browserName }, testIn
     const reportJson = `${JSON.stringify(report, null, 2)}\n`;
     await mkdir(dirname(options.outputPath), { recursive: true });
     await writeFile(options.outputPath, reportJson, 'utf8');
+    for (const attachment of screenshotAttachments) {
+        await testInfo.attach(attachment.name, {
+            body: attachment.body,
+            contentType: 'image/png',
+        });
+    }
     await testInfo.attach('large-document-benchmark.json', {
         body: Buffer.from(reportJson),
         contentType: 'application/json',
