@@ -57,6 +57,8 @@ interface ILoadStartResult {
     stateCountResolveMs: number;
     stateCountPreparsedSegments: number;
     semanticSlots: number;
+    parsedLogicalBlocks: number;
+    semanticComplete: boolean;
     fullParseMs: number;
     setContentCallMs: number;
     firstPaintOpportunityMs: number;
@@ -111,6 +113,8 @@ interface IJumpRun {
     stateCountResolveMs: number;
     stateCountPreparsedSegments: number;
     semanticSlots: number;
+    parsedLogicalBlocks: number;
+    semanticComplete: boolean;
     fullParseMs: number;
     setContentCallMs: number;
     firstPaintOpportunityMs: number;
@@ -174,7 +178,7 @@ function readOptions(): IBenchmarkOptions {
         profile,
         targetBytes: readPositiveInteger('MUYA_BENCHMARK_BYTES', stress ? STRESS_BYTES : STANDARD_BYTES),
         runs: readPositiveInteger('MUYA_BENCHMARK_RUNS', stress ? 1 : 3),
-        directJumps: readBoolean('MUYA_BENCHMARK_DIRECT_JUMPS', !stress),
+        directJumps: readBoolean('MUYA_BENCHMARK_DIRECT_JUMPS', true),
         outputPath: process.env.MUYA_BENCHMARK_OUTPUT ?? DEFAULT_OUTPUT,
     };
 }
@@ -319,6 +323,8 @@ async function startDocument(page: Page, targetBytes: number): Promise<ILoadStar
             stateCountResolveMs: loadMetrics.stateCountResolveMs,
             stateCountPreparsedSegments: loadMetrics.stateCountPreparsedSegments,
             semanticSlots: loadMetrics.semanticSlots,
+            parsedLogicalBlocks: loadMetrics.parsedLogicalBlocks,
+            semanticComplete: loadMetrics.semanticComplete,
             fullParseMs: loadMetrics.fullParseMs,
             setContentCallMs: setContentCompletedAt - setContentStartedAt,
             firstPaintOpportunityMs: performance.now() - startedAt,
@@ -491,9 +497,9 @@ test('large document benchmark @benchmark', async ({ page, browserName }, testIn
         await openBenchmarkHost(page);
         const jumpLoad = await startDocument(page, options.targetBytes);
         const middle = await measureJump(page, 0.5);
-        expect(middle).toMatchObject({ connected: true, inViewport: true });
+        expect(middle, JSON.stringify(middle)).toMatchObject({ connected: true, inViewport: true });
         const bottom = await measureJump(page, 1);
-        expect(bottom).toMatchObject({ connected: true, inViewport: true });
+        expect(bottom, JSON.stringify(bottom)).toMatchObject({ connected: true, inViewport: true });
 
         if (run === 1) {
             await testInfo.attach('bottom-jump-immediate.png', {
@@ -532,6 +538,8 @@ test('large document benchmark @benchmark', async ({ page, browserName }, testIn
             stateCountResolveMs: jumpLoad.stateCountResolveMs,
             stateCountPreparsedSegments: jumpLoad.stateCountPreparsedSegments,
             semanticSlots: jumpLoad.semanticSlots,
+            parsedLogicalBlocks: jumpLoad.parsedLogicalBlocks,
+            semanticComplete: jumpLoad.semanticComplete,
             fullParseMs: jumpLoad.fullParseMs,
             setContentCallMs: jumpLoad.setContentCallMs,
             firstPaintOpportunityMs: jumpLoad.firstPaintOpportunityMs,
@@ -588,7 +596,7 @@ test('large document benchmark @benchmark', async ({ page, browserName }, testIn
             fullParseMs: stats(loadRuns.map(run => run.fullParseMs)),
             setContentCallMs: stats(loadRuns.map(run => run.setContentCallMs)),
             sourceCandidates: stats(loadRuns.map(run => run.sourceCandidates)),
-            parsedLogicalBlocks: stats(loadRuns.map(run => run.logicalBlocks)),
+            parsedLogicalBlocks: stats(loadRuns.map(run => run.parsedLogicalBlocks)),
             firstPaintOpportunityMs: stats(loadRuns.map(run => run.firstPaintOpportunityMs)),
             inputToPaintMs: stats(loadRuns.map(run => run.inputToPaintMs)),
             initialMountedBlocks: stats(loadRuns.map(run => run.initialMountedBlocks)),

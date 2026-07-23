@@ -349,7 +349,7 @@ export class Muya {
 
     private _forceRender() {
         const selection = this.editor.selection.getSelection();
-        this.editor.scrollPage?.updateState(this.editor.jsonState.getStateSnapshot());
+        this.editor.scrollPage?.updateDocument(this.editor.jsonState);
 
         if (selection && selection.isSelectionInSameBlock) {
             const begin = Math.min(selection.anchor.offset, selection.focus.offset);
@@ -362,7 +362,10 @@ export class Muya {
 
     /** Update list indentation and re-render so it takes effect. */
     setListIndentation(listIndentation: IMuyaOptions['listIndentation']) {
-        this.setOptions({ listIndentation }, true);
+        const state = this.editor.jsonState.getState();
+        this.setOptions({ listIndentation });
+        this.editor.jsonState.setContent(state);
+        this._forceRender();
     }
 
     focus() {

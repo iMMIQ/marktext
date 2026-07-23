@@ -14,6 +14,7 @@ const debug = logger('inlineRenderer:');
 class InlineRenderer {
     public labels: Labels = new Map();
     public renderer: Renderer;
+    private _labelsRevision = -1;
 
     constructor(public muya: Muya) {
         this.renderer = new Renderer(muya, this);
@@ -75,12 +76,17 @@ class InlineRenderer {
     }
 
     private _collectReferenceDefinitions() {
-        const state = this.muya.editor.jsonState.getStateSnapshot();
+        const { jsonState } = this.muya.editor;
+        if (this._labelsRevision === jsonState.referenceRevision)
+            return;
+        jsonState.ensureReferenceDefinitions();
         const labels = new Map();
 
         const travel = (sts: readonly TState[]) => {
             if (Array.isArray(sts) && sts.length) {
                 for (const st of sts) {
+                    if (!st)
+                        continue;
                     if (st.name === 'paragraph') {
                         const { label, info } = this.getLabelInfo(st);
                         if (label && info)
@@ -93,9 +99,12 @@ class InlineRenderer {
             }
         };
 
-        travel(state);
+        jsonState.forEachParsedState((state) => {
+            travel([state]);
+        });
 
         this.labels = labels;
+        this._labelsRevision = jsonState.referenceRevision;
     }
 
     getLabelInfo(blockOrState: ParagraphContent | IParagraphState) {

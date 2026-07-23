@@ -277,9 +277,7 @@ export class Editor {
         registerBlocks();
 
         const muya = this._muya;
-        const state = this.jsonState.getStateSnapshot();
-
-        this.scrollPage = ScrollPage.create(muya, state);
+        this.scrollPage = ScrollPage.create(muya, this.jsonState);
 
         this._dispatchEvents();
         // Hovering a rendered link wrapper dispatches `muya-link-tools` so the
@@ -500,9 +498,7 @@ export class Editor {
 
     setContent(content: TState[] | string, autoFocus = false) {
         this.jsonState.setContent(content);
-        const state = this.jsonState.getStateSnapshot();
-
-        this.scrollPage!.updateState(state);
+        this.scrollPage!.updateDocument(this.jsonState);
         this.history.clear();
         this.searchModule.reset();
 

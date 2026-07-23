@@ -78,6 +78,10 @@ function domHtml(muya: Muya): string {
 // raw source string.
 function groundTruth(markdown: string): { md: string; dom: string } {
     const muya = bootMuya(markdown);
+    // `getMarkdown()` intentionally returns the source snapshot while semantic
+    // parsing is incomplete. Whole-document replacement is state/OT based, so
+    // compare it with the fully materialized canonical state representation.
+    muya.setContent(muya.getState());
     return { md: muya.getMarkdown(), dom: domHtml(muya) };
 }
 

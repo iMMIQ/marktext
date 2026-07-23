@@ -133,6 +133,13 @@ export class MarkdownSegmentTree {
         return this._completePrefix === this.length;
     }
 
+    get totalStates() {
+        if (!this.areAllStateCountsKnown)
+            throw new Error(`Semantic state counts are incomplete: ${this._knownCountPrefix}/${this.length}.`);
+        this._ensureCountTree();
+        return this._countTree.sum(this.length);
+    }
+
     get storageBytes() {
         return this._stateCounts.byteLength
             + this._stateCountKnown.byteLength
@@ -199,6 +206,29 @@ export class MarkdownSegmentTree {
         return true;
     }
 
+    replaceSegment(segmentIndex: number, states: readonly TState[], revision = this.revision) {
+        this._assertSegmentIndex(segmentIndex);
+        if (revision !== this.revision || this._parsed[segmentIndex] === 0)
+            return false;
+
+        this._ensureCountTree();
+        const previousCount = this._stateCounts[segmentIndex];
+        const nextStates = Array.from(states);
+        if (segmentIndex < this._completePrefix) {
+            const start = this._countTree.sum(segmentIndex);
+            this._prefixStates.splice(start, previousCount, ...nextStates);
+        }
+        else {
+            this._sparseStates.set(segmentIndex, nextStates);
+        }
+
+        this._stateCounts[segmentIndex] = nextStates.length;
+        this._stateCountKnown[segmentIndex] = 1;
+        this._parsedStates += nextStates.length - previousCount;
+        this._countTreeDirty = true;
+        return true;
+    }
+
     statesForSegment(segmentIndex: number): readonly TState[] | null {
         this._assertSegmentIndex(segmentIndex);
         if (this._parsed[segmentIndex] === 0)
@@ -258,6 +288,15 @@ export class MarkdownSegmentTree {
 
     completeStateSnapshot(): TState[] | null {
         return this.isComplete ? this._prefixStates : null;
+    }
+
+    forEachParsedState(visitor: (state: TState) => void) {
+        for (const state of this._prefixStates)
+            visitor(state);
+        for (const states of this._sparseStates.values()) {
+            for (const state of states)
+                visitor(state);
+        }
     }
 
     requireCompleteStateSnapshot(): TState[] {

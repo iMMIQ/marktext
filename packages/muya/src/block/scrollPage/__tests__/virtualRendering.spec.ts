@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
 import type { TState } from '../../../state/types';
+import * as json1 from 'ot-json1';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Muya } from '../../../muya';
 
@@ -9,12 +10,15 @@ const hosts: HTMLElement[] = [];
 afterEach(() => {
     while (hosts.length)
         hosts.pop()!.remove();
+    vi.unstubAllGlobals();
 });
 
-function boot(states: TState[]) {
+function boot(content: TState[] | string) {
     const host = document.createElement('div');
     document.body.appendChild(host);
-    const muya = new Muya(host, { json: states });
+    const muya = new Muya(host, typeof content === 'string'
+        ? { markdown: content }
+        : { json: content });
     Object.defineProperty(muya.domNode, 'clientHeight', { configurable: true, value: 240 });
     Object.defineProperty(muya.domNode, 'clientWidth', { configurable: true, value: 800 });
     muya.domNode.style.overflowY = 'auto';
@@ -84,5 +88,62 @@ describe('scrollPage virtual rendering', () => {
 
         expect(page.firstContentInDescendant()).not.toBeNull();
         expect(page.getVirtualizationStats().firstMountedIndex).toBe(0);
+    });
+
+    it('invalidates idle semantic work when setContent replaces the document', () => {
+        const callbacks = new Map<number, IdleRequestCallback>();
+        const cancelled: number[] = [];
+        let nextId = 1;
+        vi.stubGlobal('requestIdleCallback', (callback: IdleRequestCallback) => {
+            const id = nextId++;
+            callbacks.set(id, callback);
+            return id;
+        });
+        vi.stubGlobal('cancelIdleCallback', (id: number) => {
+            cancelled.push(id);
+            callbacks.delete(id);
+        });
+        const markdown = Array.from({ length: 100 }, (_, index) => `old ${index}`).join('\n\n');
+        const { muya } = boot(markdown);
+        const staleCallbacks = [...callbacks.values()];
+
+        muya.editor.setContent('replacement\n');
+        for (const callback of staleCallbacks) {
+            callback({
+                didTimeout: false,
+                timeRemaining: () => 50,
+            });
+        }
+
+        expect(cancelled.length).toBeGreaterThan(0);
+        expect(muya.editor.jsonState.getMarkdown()).toBe('replacement\n');
+        expect(muya.editor.jsonState.semanticLength).toBe(1);
+    });
+
+    it('preempts semantic parsing for a distant viewport and keeps it editable', () => {
+        vi.stubGlobal('requestIdleCallback', () => 1);
+        vi.stubGlobal('cancelIdleCallback', () => {});
+        const markdown = Array.from({ length: 1_000 }, (_, index) => `paragraph ${index}`).join('\n\n');
+        const { muya, page } = boot(markdown);
+
+        const distant = page.queryProgressRange(0.8, 0.81);
+        const state = distant.states[0];
+        expect(state).toMatchObject({ name: 'paragraph' });
+        if (!state || !('text' in state))
+            throw new Error('Expected a parsed paragraph in the distant viewport.');
+
+        muya.editor.jsonState.dispatch(
+            // Appending does not depend on UTF-16/code-point differences.
+            json1.editOp(
+                [distant.start, 'text'],
+                'text-unicode',
+                [state.text.length, '!'],
+            ),
+            'test',
+        );
+
+        expect(muya.editor.jsonState.stateAt(distant.start)).toMatchObject({ text: `${state.text}!` });
+        expect(muya.editor.jsonState.getMarkdown()).toContain(`${state.text}!`);
+        expect(muya.editor.jsonState.isSemanticComplete).toBe(false);
     });
 });

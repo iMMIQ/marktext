@@ -198,6 +198,10 @@ class SourceRecordTable {
         return (this._kind[index] & UNCERTAIN_STATE_COUNT) === 0 ? 1 : null;
     }
 
+    kindAt(index: number) {
+        return SOURCE_KINDS[this._kind[index] & SOURCE_KIND_MASK];
+    }
+
     recordAt(index: number): ISourceBlockRecord | null {
         if (index < 0 || index >= this._length)
             return null;
@@ -774,6 +778,12 @@ export class MarkdownSourceIndex {
         if (index < 0 || index >= this.length)
             throw new RangeError(`Invalid source candidate ${index} for ${this.length} candidates.`);
         return this._records.stateCountHintAt(index);
+    }
+
+    kindAt(index: number) {
+        if (index < 0 || index >= this.length)
+            throw new RangeError(`Invalid source candidate ${index} for ${this.length} candidates.`);
+        return this._records.kindAt(index);
     }
 
     topAt(index: number) {

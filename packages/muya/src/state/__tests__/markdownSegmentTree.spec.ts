@@ -39,6 +39,25 @@ describe('markdownSegmentTree', () => {
         ]);
     });
 
+    it('replaces a parsed segment and updates following flat paths', () => {
+        const index = MarkdownSourceIndex.fromText('a\n\nb\n\nc\n');
+        const tree = new MarkdownSegmentTree(index);
+        tree.commitSegment(0, [{ name: 'paragraph', text: 'a' }]);
+        tree.commitSegment(1, [{ name: 'paragraph', text: 'b' }]);
+        tree.commitSegment(2, [{ name: 'paragraph', text: 'c' }]);
+
+        expect(tree.replaceSegment(1, [
+            { name: 'paragraph', text: 'b1' },
+            { name: 'paragraph', text: 'b2' },
+        ])).toBe(true);
+
+        expect(tree.totalStates).toBe(4);
+        expect(tree.stateRangeForSegment(2)).toEqual({ start: 3, end: 4 });
+        expect(tree.stateAtLocation(1, 1)).toMatchObject({ text: 'b2' });
+        expect(tree.requireCompleteStateSnapshot().map(state => 'text' in state ? state.text : null))
+            .toEqual(['a', 'b1', 'b2', 'c']);
+    });
+
     it('rejects stale parse work and duplicate commits', () => {
         const sourceIndex = MarkdownSourceIndex.fromText('one\n\ntwo\n');
         const tree = new MarkdownSegmentTree(sourceIndex);

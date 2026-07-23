@@ -1882,7 +1882,7 @@ onMounted(() => {
       // keeps working (the engine history shape is incompatible).
       history: makeSyntheticHistory(id, markdown),
       toc: editor.value.getTOC(),
-      blocks: editor.value.getState()
+      blocks: editor.value.editor.jsonState.getStateIfComplete() ?? undefined
     })
   })
 

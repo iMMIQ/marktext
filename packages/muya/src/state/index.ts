@@ -1,6 +1,7 @@
 import type { Doc, JSONOp, JSONOpList, Path } from 'ot-json1';
 import type { Muya } from '../muya';
 import type { TDiff } from '../utils';
+import type { MarkdownParseSession } from './markdownParseSession';
 import type { MarkdownSegmentTree } from './markdownSegmentTree';
 import type { TState } from './types';
 import * as json1 from 'ot-json1';
@@ -50,6 +51,36 @@ export interface IDocumentLoadMetrics {
     fullParseMs: number;
     sourceCandidates: number;
     parsedLogicalBlocks: number;
+    semanticComplete: boolean;
+}
+
+export interface ISemanticParseResult {
+    stateRanges: Array<{ start: number; end: number }>;
+    parsedSegments: number;
+    complete: boolean;
+}
+
+function topLevelIndexes(op: JSONOp): number[] {
+    const indexes: number[] = [];
+    const visit = (component: unknown) => {
+        if (!Array.isArray(component) || component.length === 0)
+            return;
+        if (typeof component[0] === 'number') {
+            indexes.push(component[0]);
+            return;
+        }
+        component.forEach(visit);
+    };
+    visit(op);
+    return indexes;
+}
+
+function shiftTopLevelIndexes(op: JSONOp, delta: number): JSONOp {
+    if (!Array.isArray(op))
+        return op;
+    if (typeof op[0] === 'number')
+        return [op[0] - delta, ...op.slice(1)] as JSONOpList;
+    return op.map(component => shiftTopLevelIndexes(component as JSONOp, delta)) as JSONOpList;
 }
 
 class JSONState {
@@ -83,6 +114,18 @@ class JSONState {
 
     private _segmentTree: MarkdownSegmentTree | null = null;
 
+    private _parseSession: MarkdownParseSession | null = null;
+
+    private _sourceOverrides = new Map<number, string>();
+
+    private _semanticParseMs = 0;
+
+    private _referenceDefinitionsReady = false;
+
+    private _referenceRevision = 0;
+
+    private _headingsReady = false;
+
     private _loadMetrics: IDocumentLoadMetrics = {
         inputType: 'state',
         sourceBytes: 0,
@@ -96,6 +139,7 @@ class JSONState {
         fullParseMs: 0,
         sourceCandidates: 0,
         parsedLogicalBlocks: 0,
+        semanticComplete: true,
     };
 
     constructor(private _muya: Muya, stateOrMarkdown: TState[] | string) {
@@ -108,9 +152,16 @@ class JSONState {
         // the call site can treat `op` as definitely applied.
         if (op === null)
             return;
+        if (this._applySourceBackedOperation(op))
+            return;
         this._sourceIndex = null;
         this._segmentTree = null;
+        this._parseSession = null;
+        this._sourceOverrides.clear();
         this._state = asState(json1.type.apply(asDoc(this._state), op));
+        this._referenceDefinitionsReady = false;
+        this._headingsReady = false;
+        this._referenceRevision++;
     }
 
     setContent(content: TState[] | string) {
@@ -133,6 +184,12 @@ class JSONState {
     private _setState(state: TState[]) {
         this._sourceIndex = null;
         this._segmentTree = null;
+        this._parseSession = null;
+        this._sourceOverrides.clear();
+        this._semanticParseMs = 0;
+        this._referenceDefinitionsReady = false;
+        this._headingsReady = false;
+        this._referenceRevision++;
         this._state = state;
         this._loadMetrics = {
             inputType: 'state',
@@ -147,6 +204,7 @@ class JSONState {
             fullParseMs: 0,
             sourceCandidates: 0,
             parsedLogicalBlocks: state.length,
+            semanticComplete: true,
         };
     }
 
@@ -180,8 +238,13 @@ class JSONState {
         const stateCountPreparsedSegments = parseSession.resolveStateCounts();
         const stateCountCompletedAt = performance.now();
         this._segmentTree = parseSession.segments;
-        this._state = parseSession.parseAll();
-        const fullParseCompletedAt = performance.now();
+        this._parseSession = parseSession;
+        this._sourceOverrides.clear();
+        this._semanticParseMs = stateCountCompletedAt - stateCountStartedAt;
+        this._referenceDefinitionsReady = false;
+        this._referenceRevision++;
+        this._state = Array.from({ length: this._segmentTree.totalStates }) as TState[];
+        this._syncParsedSegments(0, this._segmentTree.length);
         this._loadMetrics = {
             inputType: 'markdown',
             sourceBytes: snapshot.length,
@@ -191,15 +254,22 @@ class JSONState {
             segmentIndexBytes: this._segmentTree.storageBytes,
             stateCountResolveMs: stateCountCompletedAt - stateCountStartedAt,
             stateCountPreparsedSegments,
-            semanticSlots: this._segmentTree.knownPrefixStates,
-            fullParseMs: fullParseCompletedAt - sourceIndexCompletedAt,
+            semanticSlots: this._segmentTree.totalStates,
+            fullParseMs: this._semanticParseMs,
             sourceCandidates: this._sourceIndex.length,
-            parsedLogicalBlocks: this._state.length,
+            parsedLogicalBlocks: this._segmentTree.parsedStates,
+            semanticComplete: this._segmentTree.isComplete,
         };
     }
 
     getDocumentLoadMetrics(): IDocumentLoadMetrics {
-        return { ...this._loadMetrics };
+        return {
+            ...this._loadMetrics,
+            fullParseMs: this._semanticParseMs,
+            semanticSlots: this._segmentTree?.totalStates ?? this._state.length,
+            parsedLogicalBlocks: this._segmentTree?.parsedStates ?? this._state.length,
+            semanticComplete: this._segmentTree?.isComplete ?? true,
+        };
     }
 
     getSourceIndex() {
@@ -208,6 +278,239 @@ class JSONState {
 
     getSegmentTree() {
         return this._segmentTree;
+    }
+
+    get semanticLength() {
+        return this._segmentTree?.totalStates ?? this._state.length;
+    }
+
+    get isSemanticComplete() {
+        return this._segmentTree?.isComplete ?? true;
+    }
+
+    get referenceRevision() {
+        return this._referenceRevision;
+    }
+
+    get isSourceBacked() {
+        return this._sourceIndex !== null;
+    }
+
+    stateAt(index: number): TState | null {
+        return this._state[index] ?? null;
+    }
+
+    forEachParsedState(visitor: (state: TState) => void) {
+        if (this._segmentTree)
+            this._segmentTree.forEachParsedState(visitor);
+        else
+            this._state.forEach(visitor);
+    }
+
+    forEachParsedStateInSourceOrder(visitor: (state: TState) => void) {
+        if (!this._segmentTree) {
+            this._state.forEach(visitor);
+            return;
+        }
+        for (let segmentIndex = 0; segmentIndex < this._segmentTree.length; segmentIndex++) {
+            const states = this._segmentTree.statesForSegment(segmentIndex);
+            if (states)
+                states.forEach(visitor);
+        }
+    }
+
+    ensureReferenceDefinitions() {
+        if (this._referenceDefinitionsReady || !this._sourceIndex || !this._segmentTree)
+            return;
+        for (let segmentIndex = 0; segmentIndex < this._sourceIndex.length; segmentIndex++) {
+            if (this._sourceIndex.kindAt(segmentIndex) !== 'definition')
+                continue;
+            const range = this._segmentTree.stateRangeForSegment(segmentIndex);
+            if (range)
+                this.ensureSemanticRange(range.start, range.end);
+        }
+        this._referenceDefinitionsReady = true;
+    }
+
+    ensureHeadings() {
+        if (this._headingsReady || !this._sourceIndex || !this._segmentTree)
+            return;
+        for (let segmentIndex = 0; segmentIndex < this._sourceIndex.length; segmentIndex++) {
+            if (this._sourceIndex.kindAt(segmentIndex) !== 'heading')
+                continue;
+            const range = this._segmentTree.stateRangeForSegment(segmentIndex);
+            if (range)
+                this.ensureSemanticRange(range.start, range.end);
+        }
+        this._headingsReady = true;
+    }
+
+    ensureSemanticRange(start: number, end: number, direction: 1 | -1 = 1): ISemanticParseResult {
+        const session = this._parseSession;
+        const segments = this._segmentTree;
+        if (!session || !segments || start >= end)
+            return { stateRanges: [], parsedSegments: 0, complete: this.isSemanticComplete };
+
+        const normalizedStart = Math.max(0, Math.min(start, segments.totalStates - 1));
+        const normalizedEnd = Math.max(normalizedStart + 1, Math.min(end, segments.totalStates));
+        const first = segments.locationAtStateIndex(normalizedStart);
+        const last = segments.locationAtStateIndex(normalizedEnd - 1);
+        if (!first || !last)
+            return { stateRanges: [], parsedSegments: 0, complete: segments.isComplete };
+
+        session.prioritizeViewport(first.segmentIndex, last.segmentIndex + 1, direction);
+        const startedAt = performance.now();
+        let parsedSegments = 0;
+        const stateRanges: Array<{ start: number; end: number }> = [];
+        while (!this._isStateRangeParsed(normalizedStart, normalizedEnd)) {
+            const batch = session.parseNext(Math.max(1, last.segmentIndex - first.segmentIndex + 1));
+            parsedSegments += batch.parsedSegments;
+            if (batch.task)
+                stateRanges.push(...this._syncParsedSegments(batch.task.start, batch.task.end));
+            if (!batch.task || (batch.parsedSegments === 0 && !this._isStateRangeParsed(normalizedStart, normalizedEnd)))
+                throw new Error(`Semantic parser made no progress for state range [${normalizedStart}, ${normalizedEnd}).`);
+        }
+        this._semanticParseMs += performance.now() - startedAt;
+        stateRanges.push(...this._syncParsedSegments(first.segmentIndex, last.segmentIndex + 1));
+        return { stateRanges, parsedSegments, complete: segments.isComplete };
+    }
+
+    parseNextSemanticBatch(maxSegments = 256): ISemanticParseResult {
+        const session = this._parseSession;
+        if (!session)
+            return { stateRanges: [], parsedSegments: 0, complete: true };
+        const startedAt = performance.now();
+        const batch = session.parseNext(maxSegments);
+        this._semanticParseMs += performance.now() - startedAt;
+        const stateRanges = batch.task
+            ? this._syncParsedSegments(batch.task.start, batch.task.end)
+            : [];
+        return { stateRanges, parsedSegments: batch.parsedSegments, complete: batch.complete };
+    }
+
+    private _isStateRangeParsed(start: number, end: number) {
+        for (let stateIndex = start; stateIndex < end; stateIndex++) {
+            if (!this._state[stateIndex])
+                return false;
+        }
+        return true;
+    }
+
+    private _syncParsedSegments(start: number, end: number) {
+        const segments = this._segmentTree;
+        if (!segments)
+            return [];
+        const ranges: Array<{ start: number; end: number }> = [];
+        const normalizedStart = Math.max(0, start);
+        const normalizedEnd = Math.min(end, segments.length);
+        for (let segmentIndex = normalizedStart; segmentIndex < normalizedEnd; segmentIndex++) {
+            const states = segments.statesForSegment(segmentIndex);
+            const range = segments.stateRangeForSegment(segmentIndex);
+            if (!states || !range)
+                continue;
+            for (let localIndex = 0; localIndex < states.length; localIndex++)
+                this._state[range.start + localIndex] = states[localIndex];
+            ranges.push(range);
+        }
+        return ranges;
+    }
+
+    private _materializeAllSemanticStates() {
+        const session = this._parseSession;
+        if (!session)
+            return;
+        while (!session.segments.isComplete) {
+            const startedAt = performance.now();
+            const batch = session.parseNext(256);
+            this._semanticParseMs += performance.now() - startedAt;
+            if (batch.task)
+                this._syncParsedSegments(batch.task.start, batch.task.end);
+            if (!batch.task)
+                throw new Error('Semantic parser stopped before completing the document.');
+        }
+    }
+
+    private _segmentForOperationIndex(index: number) {
+        const segments = this._segmentTree;
+        if (!segments || segments.totalStates === 0)
+            return null;
+        if (index === segments.totalStates)
+            return segments.length - 1;
+        return segments.locationAtStateIndex(index)?.segmentIndex ?? null;
+    }
+
+    private _applySourceBackedOperation(op: JSONOp) {
+        const segments = this._segmentTree;
+        if (!segments || !this._parseSession)
+            return false;
+        if (segments.isComplete)
+            return false;
+        const indexes = [...new Set(topLevelIndexes(op))];
+        if (indexes.length === 0)
+            return false;
+        const segmentIndexes = indexes.map(index => this._segmentForOperationIndex(index));
+        const segmentIndex = segmentIndexes[0];
+        if (segmentIndex === null || segmentIndexes.some(index => index !== segmentIndex)) {
+            this._materializeAllSemanticStates();
+            return false;
+        }
+
+        const range = segments.stateRangeForSegment(segmentIndex)!;
+        this.ensureSemanticRange(range.start, Math.max(range.start + 1, range.end));
+        const previousStates = segments.statesForSegment(segmentIndex);
+        if (!previousStates) {
+            this._materializeAllSemanticStates();
+            return false;
+        }
+
+        const localOp = shiftTopLevelIndexes(op, range.start);
+        const nextStates = asState(json1.type.apply(asDoc(Array.from(previousStates)), localOp));
+        const previousCount = previousStates.length;
+        // A zero-state source segment has no flat path that a later undo insert
+        // can map back to: its boundary is indistinguishable from the next
+        // segment. Keep ordinary edits and non-empty splits incremental, but
+        // use the complete-state compatibility path when a whole segment is
+        // removed.
+        if (nextStates.length === 0) {
+            this._materializeAllSemanticStates();
+            return false;
+        }
+        if (!segments.replaceSegment(segmentIndex, nextStates))
+            return false;
+
+        this._sourceOverrides.set(segmentIndex, this._serializeSegmentOverride(segmentIndex, nextStates));
+        this._referenceDefinitionsReady = false;
+        this._headingsReady = false;
+        this._referenceRevision++;
+        if (previousCount === nextStates.length) {
+            const nextState = this._state.slice();
+            for (let localIndex = 0; localIndex < nextStates.length; localIndex++)
+                nextState[range.start + localIndex] = nextStates[localIndex];
+            this._state = nextState;
+        }
+        else {
+            this._rebuildSparseState();
+        }
+        return true;
+    }
+
+    private _serializeSegmentOverride(segmentIndex: number, states: readonly TState[]) {
+        const sourceIndex = this._sourceIndex!;
+        const original = sourceIndex.snapshot.slice(
+            sourceIndex.sourceFromAt(segmentIndex),
+            sourceIndex.sourceToAt(segmentIndex),
+        );
+        const originalSuffix = /((?:\r?\n[\t ]*)+)$/.exec(original)?.[1] ?? '';
+        const generated = this.getMarkdownFromState(states).replace(/(?:\r?\n)+$/, '');
+        return generated + originalSuffix;
+    }
+
+    private _rebuildSparseState() {
+        const segments = this._segmentTree;
+        if (!segments)
+            return;
+        this._state = Array.from({ length: segments.totalStates }) as TState[];
+        this._syncParsedSegments(0, segments.length);
     }
 
     // Parse markdown into a block-state array with the editor's current
@@ -347,7 +650,12 @@ class JSONState {
     }
 
     getState(): TState[] {
+        this._materializeAllSemanticStates();
         return deepClone(this._state);
+    }
+
+    getStateIfComplete(): TState[] | null {
+        return this.isSemanticComplete ? deepClone(this._state) : null;
     }
 
     getStateSnapshot(): readonly TState[] {
@@ -355,6 +663,22 @@ class JSONState {
     }
 
     getMarkdown() {
+        if (this._sourceIndex) {
+            if (this.isSemanticComplete)
+                return this.getMarkdownFromState(this._state);
+            if (this._sourceOverrides.size === 0)
+                return this._sourceIndex.snapshot.toString();
+            const chunks: string[] = [];
+            let cursor = 0;
+            for (const [segmentIndex, source] of [...this._sourceOverrides].sort(([a], [b]) => a - b)) {
+                const from = this._sourceIndex.sourceFromAt(segmentIndex);
+                const to = this._sourceIndex.sourceToAt(segmentIndex);
+                chunks.push(this._sourceIndex.snapshot.slice(cursor, from), source);
+                cursor = to;
+            }
+            chunks.push(this._sourceIndex.snapshot.slice(cursor));
+            return chunks.join('');
+        }
         return this.getMarkdownFromState(this._state);
     }
 

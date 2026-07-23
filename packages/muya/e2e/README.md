@@ -82,7 +82,8 @@ pnpm -C packages/muya/e2e benchmark
 ```
 
 The 128 MiB stress profile is deliberately opt-in. It runs once and keeps the
-same bounded viewport-rendering contract as the standard profile:
+same bounded viewport-rendering and direct middle/bottom jump contract as the
+standard profile:
 
 ```sh
 MUYA_BENCHMARK_PROFILE=stress pnpm -C packages/muya/e2e benchmark

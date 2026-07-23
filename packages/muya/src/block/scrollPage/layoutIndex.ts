@@ -341,6 +341,27 @@ export class LayoutIndex {
         return delta;
     }
 
+    updateEstimatedState(
+        index: number,
+        state: TState,
+        metrics: Partial<ILayoutMetrics> = {},
+    ) {
+        if (index < 0 || index >= this.length)
+            return 0;
+        const nextHeight = Math.max(
+            1,
+            estimateStateHeight(state, { ...DEFAULT_METRICS, ...metrics }),
+        );
+        const previousHeight = this.heightAt(index);
+        this._estimatedHeights[index] = nextHeight;
+        if (!Number.isNaN(this._measuredHeights[index]))
+            return 0;
+        const delta = nextHeight - previousHeight;
+        if (delta !== 0)
+            this._heightTree.add(index, delta);
+        return delta;
+    }
+
     clearMeasurements() {
         this._measuredHeights.fill(Number.NaN);
         this._heightTree.build(this._estimatedHeights);
