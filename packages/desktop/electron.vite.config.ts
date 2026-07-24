@@ -95,6 +95,12 @@ export default defineConfig({
         }
       }
     },
+    // Chromium may re-resolve `localhost` between IPv6 and IPv4 while Vite is
+    // serving the initial module graph, cancelling requests with
+    // ERR_NETWORK_CHANGED. Keep the development origin on the IPv4 loopback.
+    server: {
+      host: '127.0.0.1'
+    },
     plugins: [vue(), svgLoader()] as PluginOption[],
     css: {
       postcss: {

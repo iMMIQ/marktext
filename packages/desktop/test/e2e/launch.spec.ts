@@ -16,8 +16,19 @@ test.describe('Check Launch MarkText', () => {
     await app.close()
   })
 
-  test('Empty MarkText', async() => {
+  test('initializes an empty editor without losing bootstrap messages', async() => {
+    await page.waitForFunction(
+      () =>
+        !document.querySelector('.editor-placeholder') &&
+        !!document.querySelector('.editor-component, .recent-files-projects')
+    )
     const title = await page.title()
     expect(/^MarkText|Untitled-1 - MarkText$/.test(title)).toBeTruthy()
+    expect(await page.locator('.editor-placeholder').count()).toBe(0)
+    expect(
+      await page.evaluate(() =>
+        performance.getEntriesByType('navigation').map((entry) => entry.toJSON().type)
+      )
+    ).toEqual(['navigate'])
   })
 })

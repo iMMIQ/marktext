@@ -1,6 +1,6 @@
 import path from 'path'
 import { BrowserWindow, dialog, ipcMain } from 'electron'
-import type { BrowserWindowConstructorOptions } from 'electron'
+import type { BrowserWindowConstructorOptions, IpcMainEvent } from 'electron'
 import log from 'electron-log'
 import windowStateKeeper from 'electron-window-state'
 import { isChildOfDirectory, isSamePathSync } from 'common/filesystem/paths'
@@ -161,7 +161,10 @@ class EditorWindow extends BaseWindow {
       showEditorContextMenu(win!, event, params, preferences.getItem('spellcheckerEnabled'))
     })
 
-    win.webContents.once('did-finish-load', () => {
+    // `did-finish-load` can fire before Vue's mounted hook has registered its
+    // IPC listeners. Wait for the renderer's explicit ready signal so none of
+    // the one-shot bootstrap/file restoration messages are lost.
+    this._whenRendererReady(() => {
       this.lifecycle = WindowLifecycle.READY
       this.emit('window-ready')
 
@@ -186,15 +189,15 @@ class EditorWindow extends BaseWindow {
         this._doOpenFilesToOpen()
         this._markdownToOpen!.length = 0
       }
+    })
 
-      // Listen on default system mouse zoom event (e.g. Ctrl+MouseWheel on Linux/Windows).
-      win!.webContents.on('zoom-changed', (_event, zoomDirection) => {
-        if (zoomDirection === 'in') {
-          zoomIn(win!)
-        } else if (zoomDirection === 'out') {
-          zoomOut(win!)
-        }
-      })
+    // Listen on default system mouse zoom event (e.g. Ctrl+MouseWheel on Linux/Windows).
+    win.webContents.on('zoom-changed', (_event, zoomDirection) => {
+      if (zoomDirection === 'in') {
+        zoomIn(win!)
+      } else if (zoomDirection === 'out') {
+        zoomOut(win!)
+      }
     })
 
     win.webContents.once('did-fail-load', (_event, errorCode, errorDescription, url) => {
@@ -481,7 +484,7 @@ class EditorWindow extends BaseWindow {
     this._openedRootDirectory = ''
     this._openedFiles = []
 
-    browserWindow!.webContents.once('did-finish-load', () => {
+    this._whenRendererReady(() => {
       this.lifecycle = WindowLifecycle.READY
       const { preferences } = this._accessor
       const { sideBarVisibility, restoreLayoutState, tabBarVisibility, sourceCodeModeEnabled } =
@@ -519,6 +522,24 @@ class EditorWindow extends BaseWindow {
   }
 
   // --- private ---------------------------------
+
+  private _whenRendererReady(callback: () => void): void {
+    const webContents = this.browserWindow?.webContents
+    if (!webContents) return
+
+    const cleanup = (): void => {
+      ipcMain.off('mt::window-initialized', onRendererReady)
+      webContents.off('destroyed', cleanup)
+    }
+    const onRendererReady = (event: IpcMainEvent): void => {
+      if (event.sender !== webContents) return
+      cleanup()
+      callback()
+    }
+
+    ipcMain.on('mt::window-initialized', onRendererReady)
+    webContents.once('destroyed', cleanup)
+  }
 
   /**
    * Open a new new tab from the markdown document.

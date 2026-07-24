@@ -38,21 +38,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, nextTick, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, watch, nextTick, onMounted, ref } from 'vue'
 import { useMainStore } from '@/store'
 import { storeToRefs } from 'pinia'
 import { addStyles, addThemeStyle, addCustomStyle, type AddStylesOptions } from '@/util/theme'
 import Recent from '@/components/recent/index.vue'
-import EditorWithTabs from '@/components/editorWithTabs/index.vue'
 import TitleBar from '@/components/titleBar/index.vue'
-import SideBar from '@/components/sideBar/index.vue'
-import AboutDialog from '@/components/about/index.vue'
-import CommandPalette from '@/components/commandPalette/index.vue'
-import ExportSettingDialog from '@/components/exportSettings/index.vue'
-import Rename from '@/components/rename/index.vue'
-import ImportModal from '@/components/import/index.vue'
 import bus from '@/bus'
-import { DEFAULT_STYLE } from '@/config'
+import { DEFAULT_STYLE, THEME_STYLE_ID } from '@/config'
 import { useLayoutStore } from '@/store/layout'
 import { useListenForMainStore } from '@/store/listenForMain'
 import { usePreferencesStore } from '@/store/preferences'
@@ -61,6 +54,23 @@ import { useCommandCenterStore } from '@/store/commandCenter'
 import { useProjectStore } from '@/store/project'
 import { useAutoUpdatesStore } from '@/store/autoUpdates'
 import { useNotificationStore } from '@/store/notification'
+
+const EditorWithTabs = defineAsyncComponent(async () => {
+  const component = await import('@/components/editorWithTabs/index.vue')
+  const themeStyle = document.querySelector(`#${THEME_STYLE_ID}`)
+  if (themeStyle) document.head.appendChild(themeStyle)
+  return component
+})
+const SideBar = defineAsyncComponent(() => import('@/components/sideBar/index.vue'))
+const AboutDialog = defineAsyncComponent(() => import('@/components/about/index.vue'))
+const CommandPalette = defineAsyncComponent(
+  () => import('@/components/commandPalette/index.vue')
+)
+const ExportSettingDialog = defineAsyncComponent(
+  () => import('@/components/exportSettings/index.vue')
+)
+const Rename = defineAsyncComponent(() => import('@/components/rename/index.vue'))
+const ImportModal = defineAsyncComponent(() => import('@/components/import/index.vue'))
 
 const mainStore = useMainStore()
 const editorStore = useEditorStore()
@@ -201,6 +211,10 @@ onMounted(async () => {
   notificationStore.listenForNotification()
 
   setupDragDropHandler()
+
+  // The main process defers bootstrap and file restoration until every
+  // renderer listener above is installed.
+  window.electron.ipcRenderer.send('mt::window-initialized')
 
   nextTick(() => {
     // `initialState` from bootstrap carries nullable URL params (string|null);

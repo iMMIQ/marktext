@@ -1,5 +1,4 @@
-import { expect } from '@playwright/test'
-import { _electron, type ElectronApplication, type Page } from 'playwright'
+import { expect, _electron, type ElectronApplication, type Page } from '@playwright/test'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'

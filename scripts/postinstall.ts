@@ -80,7 +80,7 @@ if (!fs.existsSync(electronInstall)) {
   const isComplete = () => {
     if (!fs.existsSync(pathTxt)) return false
     const rel = fs.readFileSync(pathTxt, 'utf8').trim()
-    if (!fs.existsSync(path.join(desktopRoot, 'node_modules', 'electron', rel))) return false
+    if (!fs.existsSync(path.join(distDir, rel))) return false
     if (plat === 'darwin' || plat === 'mas') {
       return fs.existsSync(path.join(distDir, 'Electron.app', 'Contents', 'Frameworks'))
     }
@@ -101,19 +101,22 @@ if (!fs.existsSync(electronInstall)) {
       run(`node "${electronInstall}"`, { env: { ELECTRON_MIRROR: mirror } })
     }
 
-    // yauzl v2.10.0 + Node v26+: openReadStream callback never fires for
-    // compressed entries → extract-zip exits silently with incomplete dist/.
-    // Re-extract using system unzip which handles the zip correctly.
+    // extract-zip can resolve without producing a complete dist/ on some
+    // Node/filesystem combinations. Re-extract the cached archive with the
+    // system unzip on Unix instead of leaving a deferred ENOENT for `dev`.
     if (
-      (plat === 'darwin' || plat === 'mas') &&
-      !fs.existsSync(path.join(distDir, 'Electron.app', 'Contents', 'Frameworks'))
+      !isComplete() &&
+      (plat === 'linux' || plat === 'darwin' || plat === 'mas')
     ) {
       const { version } = require(path.join(desktopRoot, 'node_modules', 'electron', 'package.json'))
       const arch = process.env.npm_config_arch || os.arch()
-      const zipName = `electron-v${version}-darwin-${arch === 'arm64' ? 'arm64' : 'x64'}.zip`
+      const zipPlatform = plat === 'mas' ? 'mas' : plat
+      const zipName = `electron-v${version}-${zipPlatform}-${arch}.zip`
       const cacheRoot =
         process.env.electron_config_cache ||
-        path.join(os.homedir(), 'Library', 'Caches', 'electron')
+        (plat === 'linux'
+          ? path.join(os.homedir(), '.cache', 'electron')
+          : path.join(os.homedir(), 'Library', 'Caches', 'electron'))
 
       let zipPath = ''
       try {
@@ -127,12 +130,12 @@ if (!fs.existsSync(electronInstall)) {
       if (!zipPath) {
         throw new Error(
           'Electron zip not in cache after download. ' +
-            'Try: ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ npm install'
+            'Try: ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ pnpm install'
         )
       }
 
       console.log(
-        `Re-extracting with system unzip (yauzl incompatible with Node ${process.version})...`
+        `Re-extracting Electron with system unzip after incomplete extraction on Node ${process.version}...`
       )
       if (fs.existsSync(distDir)) fs.rmSync(distDir, { recursive: true, force: true })
       run(`unzip -q "${zipPath}" -d "${distDir}"`)
@@ -143,6 +146,9 @@ if (!fs.existsSync(electronInstall)) {
     // Ensure path.txt exists (install.js may skip it on a cache hit)
     if (!fs.existsSync(pathTxt)) {
       fs.writeFileSync(pathTxt, platformBinary)
+    }
+    if (!isComplete()) {
+      throw new Error(`Electron installation is incomplete: ${path.join(distDir, platformBinary)}`)
     }
   }
 }
