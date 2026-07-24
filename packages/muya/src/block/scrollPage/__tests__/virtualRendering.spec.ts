@@ -193,7 +193,7 @@ describe('scrollPage virtual rendering', () => {
         } as NonNullable<ReturnType<typeof muya.editor.selection.getSelection>>;
         vi.spyOn(muya.editor.selection, 'getSelection').mockReturnValue(selection);
         const restoreSelection = vi
-            .spyOn(muya.editor.selection, 'setSelection')
+            .spyOn(muya.editor.selection, 'restoreSelection')
             .mockImplementation(() => {});
 
         (page as unknown as { _rebuildSparseDom: () => void })._rebuildSparseDom();

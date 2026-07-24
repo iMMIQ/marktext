@@ -54,6 +54,24 @@ describe('selection facade', () => {
         expect(muya.editor.selection.type).toBe('text');
     });
 
+    it('restores a DOM selection without emitting a user-facing change', () => {
+        const muya = bootMuya('hello world\n');
+        const first = muya.editor.scrollPage!.firstContentInDescendant()!;
+        let changes = 0;
+        muya.on('selection-change', () => changes++);
+
+        muya.editor.selection.restoreSelection(
+            { offset: 1, block: first, path: first.path },
+            { offset: 4, block: first, path: first.path },
+        );
+
+        expect(changes).toBe(0);
+        expect(muya.editor.selection.getSelection()).toMatchObject({
+            anchor: { offset: 1 },
+            focus: { offset: 4 },
+        });
+    });
+
     it('activating image sets type to "image" and emits kind "image"', () => {
         const muya = bootMuya('hello world\n');
         const first = muya.editor.scrollPage!.firstContentInDescendant()!;

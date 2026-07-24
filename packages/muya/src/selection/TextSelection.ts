@@ -210,7 +210,7 @@ class TextSelection {
         };
     }
 
-    setSelection(anchor: IAnchorFocusInfo, focus: IAnchorFocusInfo) {
+    setSelection(anchor: IAnchorFocusInfo, focus: IAnchorFocusInfo, emitChange = true) {
         this.anchor = { offset: anchor.offset };
         this.anchorBlock = anchor.block;
         this.anchorPath = anchor.path;
@@ -218,7 +218,8 @@ class TextSelection {
         this.focusBlock = focus.block;
         this.focusPath = focus.path;
         this._updateSelection();
-        this._emitSelectionChange();
+        if (emitChange)
+            this._emitSelectionChange();
     }
 
     private _emitSelectionChange() {

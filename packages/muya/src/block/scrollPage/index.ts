@@ -759,6 +759,7 @@ export class ScrollPage extends Parent {
 
     private _rebuildSparseDom() {
         const { scrollTop } = this._getViewportMetrics();
+        const physicalScrollTop = this._scrollContainer?.scrollTop ?? 0;
         const preservedSelection = this.muya.editor.selection.getSelection();
         const fragment = document.createDocumentFragment();
         const nextChildren = new LinkedList<TreeNode>();
@@ -796,6 +797,7 @@ export class ScrollPage extends Parent {
         this._appendSpacer(fragment, trailingLayoutHeight + compressedEndBuffer);
         this.children = nextChildren;
         this.domNode!.replaceChildren(fragment);
+        this._restorePhysicalScrollTop(physicalScrollTop);
         for (const [, block] of entries)
             this._blockResizeObserver?.observe(block.domNode!);
         this.muya.editor.searchModule.refreshMountedHighlights();
@@ -807,9 +809,27 @@ export class ScrollPage extends Parent {
             preservedSelection?.anchor.block.domNode?.isConnected
             && preservedSelection.focus.block.domNode?.isConnected
         ) {
-            this.muya.editor.selection.setSelection(
+            this.muya.editor.selection.restoreSelection(
                 preservedSelection.anchor,
                 preservedSelection.focus,
+            );
+        }
+    }
+
+    private _restorePhysicalScrollTop(physicalScrollTop: number) {
+        // Replacing the complete sparse subtree temporarily leaves an
+        // element scroll container with no scrollable content. Chromium then
+        // clamps scrollTop to zero, so every wheel/scrollbar input would be
+        // undone by the viewport reconciliation it triggered.
+        const container = this._scrollContainer;
+        if (!container)
+            return;
+        // Flush the new scroll geometry before checking the position;
+        // Chromium otherwise applies the clamp after this method returns.
+        void container.scrollHeight;
+        if (container.scrollTop !== physicalScrollTop) {
+            this._adjustPhysicalScrollTop(
+                physicalScrollTop - container.scrollTop,
             );
         }
     }
